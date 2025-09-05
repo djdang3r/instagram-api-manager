@@ -19,7 +19,14 @@
     },
     "autoload": {
         "psr-4": {
-            "Script\\InstagramApiManager\\": "src/"
+            "ScriptDevelop\\InstagramApiManager\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ScriptDevelop\\InstagramApiManager\\Providers\\InstagramServiceProvider"
+            ]
         }
     },
     "authors": [
