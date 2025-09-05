@@ -1,0 +1,32 @@
+{
+    "$schema": "https://json-schema.org/draft-04/schema#",
+    "title": "Composer Package",
+    "name": "scriptdevelop/instagram-api-manager",
+    "version": "1.0.0",
+    "description": "Paquete Laravel para administrar y manejar múltiples cuentas de Instagram a través de su API oficial.",
+    "keywords": ["instagram", "laravel", "api", "messaging", "chat", "notifications"],
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^12.0",
+        "guzzlehttp/guzzle": "^7.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^12.1",
+        "orchestra/testbench": "^10.2",
+        "mockery/mockery": "^1.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "Script\\InstagramApiManager\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Wilfredo Perilla",
+            "email": "wilfredoperilla@gmail.com"
+        }
+    ],
+    "minimum-stability": "stable"
+}
