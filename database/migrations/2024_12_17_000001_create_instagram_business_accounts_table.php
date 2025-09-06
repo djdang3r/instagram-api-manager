@@ -13,7 +13,7 @@ class CreateInstagramBusinessAccountsTable extends Migration
             $table->string('facebook_page_id')->unique();
             $table->string('name')->unique();
             $table->string('access_token');
-            $table->integer('token_expires_in')->nullable()->after('access_token');
+            $table->integer('token_expires_in')->nullable();
             $table->json('tasks')->nullable();
 
             $table->timestamps();
