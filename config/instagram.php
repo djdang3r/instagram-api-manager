@@ -20,4 +20,6 @@ return [
 
     'retry_attempts' => env('INSTAGRAM_API_RETRY_ATTEMPTS', 3),
 
+    'webhook_verify_token' => env('INSTAGRAM_WEBHOOK_VERIFY_TOKEN', 'default_token'),
+
 ];
