@@ -2,31 +2,31 @@
 
 namespace ScriptDevelop\InstagramApiManager\Services;
 
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
+use ScriptDevelop\InstagramApiManager\FacebookApi\Endpoints\FacebookEndpoints;
+use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
 use ScriptDevelop\InstagramApiManager\Models\FacebookPage;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Exception;
 
 class FacebookAccountService
 {
-    protected string $authBaseUrl = 'https://www.facebook.com/v23.0/dialog/oauth';
-    protected string $tokenExchangeUrl = 'https://graph.facebook.com/v23.0/oauth/access_token';
+    protected ApiClient $apiClient;
 
-    /**
-     * Genera URL de autorización OAuth para Facebook.
-     *
-     * @param array $scopes Lista de permisos requeridos
-     * @param string|null $state Valor opcional para proteger CSRF o seguimiento
-     * @return string URL para la autorización de Facebook
-     */
-    public function getAuthorizationUrl(array $scopes = ['pages_show_list','pages_messaging'], ?string $state = null): string
+    public function __construct()
+    {
+        $this->apiClient = new ApiClient(
+            config('facebook.api_base_url'),
+            config('facebook.api_version'),
+            (int) config('facebook.timeout', 30)
+        );
+    }
+
+    public function getAuthorizationUrl(array $scopes = ['pages_show_list', 'pages_messaging'], ?string $state = null): string
     {
         $clientId = config('facebook.client_id');
-        $redirectUri = route('facebook.auth.callback');
-
-        if (!$state) {
-            $state = Str::random(40);
-        }
+        $redirectUri = config('facebook.redirect_uri') ?: route('facebook.auth.callback');
+        $state = $state ?? bin2hex(random_bytes(20));
 
         $params = http_build_query([
             'client_id' => $clientId,
@@ -36,44 +36,70 @@ class FacebookAccountService
             'state' => $state,
         ]);
 
-        return $this->authBaseUrl . '?' . $params;
+        return "https://www.facebook.com/v23.0/dialog/oauth?" . $params;
     }
 
-    /**
-     * Procesa el callback OAuth de Facebook: intercambia código por token y guarda la cuenta.
-     *
-     * @param string $code Código recibido en el callback
-     * @return FacebookPage|null
-     */
-    public function handleCallback(string $code): ?FacebookPage
+    public function handleCallback(string $code): bool
     {
+        DB::beginTransaction();
+
         try {
-            $response = Http::get($this->tokenExchangeUrl, [
-                'client_id' => config('facebook.client_id'),
-                'client_secret' => config('facebook.client_secret'),
-                'redirect_uri' => route('facebook.auth.callback'),
-                'code' => $code,
-            ]);
+            $response = $this->apiClient->request(
+                'GET',
+                FacebookEndpoints::GET_USER_MANAGED_PAGES,
+                [],
+                null,
+                [
+                    'client_id' => config('facebook.client_id'),
+                    'client_secret' => config('facebook.client_secret'),
+                    'redirect_uri' => config('facebook.redirect_uri') ?: route('facebook.auth.callback'),
+                    'code' => $code,
+                ]
+            );
 
-            if (!$response->successful()) {
-                Log::error('Error intercambio token Facebook', ['response' => $response->body()]);
-                return null;
+            if (!isset($response['access_token'])) {
+                Log::error('Datos incompletos token Facebook', ['response' => $response]);
+                DB::rollBack();
+                return false;
             }
 
-            $data = $response->json();
+            $accessToken = $response['access_token'];
 
-            if (!isset($data['access_token'])) {
-                Log::error('Datos incompletos token Facebook', ['response' => $data]);
-                return null;
+            $pagesResponse = $this->apiClient->request(
+                'GET',
+                FacebookEndpoints::GET_USER_MANAGED_PAGES,
+                [],
+                null,
+                [
+                    'access_token' => $accessToken,
+                ]
+            );
+
+            if (empty($pagesResponse['data'])) {
+                Log::warning('No se obtuvieron páginas de Facebook con token.');
+                DB::rollBack();
+                return false;
             }
 
-            // Aquí puedes llamar a la API para obtener info de páginas,
-            // y guardar o actualizar en base de datos. Como ejemplo, devuelvo null.
-            return null;
+            foreach ($pagesResponse['data'] as $page) {
+                FacebookPage::updateOrCreate(
+                    ['page_id' => $page['id']],
+                    [
+                        'name' => $page['name'] ?? '',
+                        'access_token' => $page['access_token'] ?? '',
+                        'tasks' => $page['tasks'] ?? [],
+                    ]
+                );
+            }
 
-        } catch (\Throwable $e) {
-            Log::error('Excepción en OAuth Facebook', ['error' => $e->getMessage()]);
-            return null;
+            DB::commit();
+
+            return true;
+
+        } catch (Exception $e) {
+            Log::error('Excepción en OAuth Facebook AccountService', ['error' => $e->getMessage()]);
+            DB::rollBack();
+            return false;
         }
     }
 }

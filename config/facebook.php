@@ -12,11 +12,11 @@ return [
     |
     */
 
-    'client_id' => env('FACEBOOK_CLIENT_ID', null),
+    'client_id' => env('FACEBOOK_CLIENT_ID'),
 
-    'client_secret' => env('FACEBOOK_CLIENT_SECRET', null),
+    'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
 
-    'redirect_uri' => env('FACEBOOK_REDIRECT_URI', null),
+    'redirect_uri' => env('FACEBOOK_REDIRECT_URI'),
 
     'api_base_url' => env('FACEBOOK_API_BASE_URL', 'https://graph.facebook.com'),
 
@@ -27,5 +27,6 @@ return [
     'retry_attempts' => env('FACEBOOK_API_RETRY_ATTEMPTS', 3),
 
     'webhook_verify_token' => env('FACEBOOK_WEBHOOK_VERIFY_TOKEN', 'default_token'),
+
 
 ];

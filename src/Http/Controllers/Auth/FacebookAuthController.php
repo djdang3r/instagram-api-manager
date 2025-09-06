@@ -4,10 +4,14 @@ namespace ScriptDevelop\InstagramApiManager\Http\Controllers\Auth;
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Http;
+use ScriptDevelop\InstagramApiManager\Services\FacebookAccountService;
 
 class FacebookAuthController extends Controller
 {
+    /**
+     * Maneja el callback de autenticación OAuth de Facebook,
+     * intercambia código por token y guarda las páginas vinculadas.
+     */
     public function callback(Request $request)
     {
         $code = $request->get('code');
@@ -21,22 +25,13 @@ class FacebookAuthController extends Controller
             return redirect('/')->with('error', 'No se recibió código de autorización de Facebook.');
         }
 
-        $response = Http::asForm()->post('https://graph.facebook.com/v19.0/oauth/access_token', [
-            'client_id' => config('facebook.client_id'),
-            'client_secret' => config('facebook.client_secret'),
-            'redirect_uri' => route('facebook.auth.callback'),
-            'code' => $code,
-        ]);
+        $facebookAccountService = app(FacebookAccountService::class);
+        $result = $facebookAccountService->handleCallback($code);
 
-        if ($response->failed()) {
-            return redirect('/')->with('error', 'No se pudo obtener el token de acceso de Facebook.');
+        if (!$result) {
+            return redirect('/')->with('error', 'No se pudo guardar la cuenta Facebook.');
         }
 
-        $data = $response->json();
-
-        // Manejar token de acceso, guardar en sesión, base de datos, etc.
-        session(['facebook_access_token' => $data['access_token']]);
-
-        return redirect('/')->with('success', 'Autenticación con Facebook completada.');
+        return redirect('/')->with('success', 'Autenticación con Facebook completada y páginas almacenadas.');
     }
 }

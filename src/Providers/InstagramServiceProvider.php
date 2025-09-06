@@ -114,6 +114,11 @@ class InstagramServiceProvider extends ServiceProvider
             __DIR__ . '/../../config/logging-additions.php' => config_path('logging-additions.php'),
         ], 'instagram-api-manager');
 
+        // Registrar el comando Artisan para refrescar tokens largos
+        $this->commands([
+            \ScriptDevelop\InstagramApiManager\Console\Commands\RefreshInstagramTokens::class,
+        ]);
+
         // Puedes cargar vistas o comandos si el paquete los tuviera aquí
         // $this->loadViewsFrom(__DIR__.'/../../resources/views', 'instagram');
         // $this->commands([

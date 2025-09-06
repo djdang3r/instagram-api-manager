@@ -12,9 +12,15 @@ return [
     |
     */
 
+    'client_id' => env('INSTAGRAM_CLIENT_ID'),
+
+    'client_secret' => env('INSTAGRAM_CLIENT_SECRET'),
+
+    'redirect_uri' => env('INSTAGRAM_REDIRECT_URI'),
+
     'api_base_url' => env('INSTAGRAM_API_BASE_URL', 'https://graph.instagram.com'),
 
-    'default_account' => env('INSTAGRAM_DEFAULT_ACCOUNT', null),
+    'api_version' => env('INSTAGRAM_API_VERSION', 'v23.0'),
 
     'timeout' => env('INSTAGRAM_API_TIMEOUT', 30),
 

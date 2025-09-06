@@ -72,10 +72,17 @@ Uso básico
 Configuración de conexión API
 Configura en tu .env:
 
-INSTAGRAM_API_BASE_URL=https://graph.facebook.com
+# Instagram OAuth / API
+INSTAGRAM_CLIENT_ID=tu_instagram_client_id
+INSTAGRAM_CLIENT_SECRET=tu_instagram_client_secret
+INSTAGRAM_REDIRECT_URI=https://tu-dominio.com/instagram/callback
+INSTAGRAM_API_BASE_URL=https://graph.instagram.com
 INSTAGRAM_API_VERSION=v23.0
-INSTAGRAM_WEBHOOK_VERIFY_TOKEN=tu_token_seguro
+INSTAGRAM_API_TIMEOUT=30
+INSTAGRAM_API_RETRY_ATTEMPTS=3
+INSTAGRAM_WEBHOOK_VERIFY_TOKEN=tu_token_seguro_para_webhook_instagram
 
+# Facebook OAuth / API (Messenger, Pages, etc)
 FACEBOOK_CLIENT_ID=tu_facebook_client_id
 FACEBOOK_CLIENT_SECRET=tu_facebook_client_secret
 FACEBOOK_REDIRECT_URI=https://tu-dominio.com/facebook/callback
@@ -83,7 +90,7 @@ FACEBOOK_API_BASE_URL=https://graph.facebook.com
 FACEBOOK_API_VERSION=v23.0
 FACEBOOK_API_TIMEOUT=30
 FACEBOOK_API_RETRY_ATTEMPTS=3
-FACEBOOK_WEBHOOK_VERIFY_TOKEN=tu_token_webhook_seguro
+FACEBOOK_WEBHOOK_VERIFY_TOKEN=tu_token_seguro_para_webhook_facebook
 
 El paquete utilizará esta configuración automáticamente.
 
@@ -116,14 +123,25 @@ El paquete utiliza un canal de log Laravel llamado instagram configurado para gu
 'channels' => [
 // Otros canales existentes...
 
-'instagram' => [  
-    'driver' => 'daily',  
-    'path' => storage_path('logs/instagram.log'),  
-    'level' => env('LOG_LEVEL', 'debug'),  
-    'days' => 14,  
-    'tap' => [\ScriptDevelop\InstagramApiManager\Logging\CustomizeFormatter::class],  
-],  
+'channels' => [
+    // Canales existentes...
 
+    'instagram' => [
+        'driver' => 'daily',
+        'path' => storage_path('logs/instagram.log'),
+        'level' => env('LOG_LEVEL', 'debug'),
+        'days' => 14,
+        'tap' => [\ScriptDevelop\InstagramApiManager\Logging\CustomizeFormatter::class],
+    ],
+
+    'facebook' => [
+        'driver' => 'daily',
+        'path' => storage_path('logs/facebook.log'),
+        'level' => env('LOG_LEVEL', 'debug'),
+        'days' => 14,
+        'tap' => [\ScriptDevelop\InstagramApiManager\Logging\CustomizeFormatter::class],
+    ],
+],
 
 Publicar y configurar webhook (paso a paso)
 El webhook recibe la verificación de Meta para suscribirse automáticamente enviando el token configurado en INSTAGRAM_WEBHOOK_VERIFY_TOKEN.

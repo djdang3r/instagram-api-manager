@@ -26,11 +26,13 @@ class InstagramBusinessAccount extends Model
         'facebook_page_id',
         'name',
         'access_token',
+        'token_expires_in',
         'tasks',
     ];
 
     protected $casts = [
         'tasks' => 'array',
+        'token_expires_in' => 'integer',
     ];
 
     protected $dates = ['created_at', 'updated_at', 'deleted_at'];
