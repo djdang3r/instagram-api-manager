@@ -3,6 +3,10 @@
 namespace ScriptDevelop\InstagramApiManager\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use ScriptDevelop\InstagramApiManager\Services\InstagramAccountService;
+use ScriptDevelop\InstagramApiManager\Services\InstagramMessageService;
+use ScriptDevelop\InstagramApiManager\Services\FacebookAccountService;
+use ScriptDevelop\InstagramApiManager\Services\FacebookMessageService;
 
 class InstagramServiceProvider extends ServiceProvider
 {
@@ -13,6 +17,50 @@ class InstagramServiceProvider extends ServiceProvider
     {
         // Registrar configuración del paquete para que se pueda acceder con config('instagram')
         $this->mergeConfigFrom(__DIR__ . '/../../config/instagram.php', 'instagram');
+        $this->mergeConfigFrom(__DIR__ . '/../../config/facebook.php', 'facebook');
+
+        $this->app->singleton('instagram.account', function ($app) {
+            return new InstagramAccountService();
+        });
+
+        $this->app->singleton('instagram.message', function ($app) {
+            return new InstagramMessageService();
+        });
+
+        $this->app->singleton('facebook.account', function () {
+            return new FacebookAccountService();
+        });
+
+        $this->app->singleton('facebook.message', function () {
+            return new FacebookMessageService();
+        });
+
+        // Registrar binding para Facade 'instagram' en caso de uso directo
+        $this->app->singleton('instagram', function ($app) {
+            return new class {
+                public function account()
+                {
+                    return app('instagram.account');
+                }
+                public function message()
+                {
+                    return app('instagram.message');
+                }
+            };
+        });
+
+        $this->app->singleton('facebook', function () {
+            return new class {
+                public function account()
+                {
+                    return app('facebook.account');
+                }
+                public function message()
+                {
+                    return app('facebook.message');
+                }
+            };
+        });
 
         // También puedes registrar otras configuraciones o bindings si es necesario
     }
@@ -32,10 +80,11 @@ class InstagramServiceProvider extends ServiceProvider
             __DIR__ . '/../../database/migrations/' => database_path('migrations'),
         ], 'instagram-migrations');
 
-        // Publicar archivo de configuración (tag: instagram-config)
+         // Publicar configuraciones del paquete (tag: instagram-config)
         $this->publishes([
             __DIR__ . '/../../config/instagram.php' => config_path('instagram.php'),
-        ], 'instagram-config');
+            __DIR__ . '/../../config/facebook.php' => config_path('facebook.php'),
+        ], 'instagram-facebook-config');
 
         // Cargar y publicar rutas del webhook Instagram
         $this->loadRoutesFrom(__DIR__ . '/../../routes/instagram_webhook.php');
@@ -56,10 +105,11 @@ class InstagramServiceProvider extends ServiceProvider
             __DIR__ . '/../../config/logging-additions.php' => config_path('logging-additions.php'),
         ], 'instagram-logging');
 
-        // PUBLICACIÓN COMPLETA (TODO JUNTO) para simplicidad (tag: instagram-api-manager)
+        // Publicación completa (todo junto) para simplicidad (tag: instagram-api-manager)
         $this->publishes([
             __DIR__ . '/../../database/migrations/' => database_path('migrations'),
             __DIR__ . '/../../config/instagram.php' => config_path('instagram.php'),
+            __DIR__ . '/../../config/facebook.php' => config_path('facebook.php'),
             __DIR__ . '/../../routes/instagram_webhook.php' => base_path('routes/instagram_webhook.php'),
             __DIR__ . '/../../config/logging-additions.php' => config_path('logging-additions.php'),
         ], 'instagram-api-manager');
