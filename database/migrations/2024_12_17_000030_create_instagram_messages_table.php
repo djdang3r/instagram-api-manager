@@ -6,13 +6,13 @@ use Illuminate\Support\Facades\Schema;
 
 class CreateInstagramMessagesTable extends Migration
 {
-    public function up()
+    public function up(): void
     {
         Schema::create('instagram_messages', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->ulid('conversation_id');
             $table->string('message_id')->unique();
-            $table->enum('sender_type', ['account', 'user']);
+            $table->enum('direction', ['incoming', 'outgoing']);
             $table->enum('message_type', ['text', 'audio', 'photo', 'gif', 'video', 'sticker', 'reaction', 'reply']);
             $table->text('content')->nullable();
             $table->string('media_url')->nullable();
@@ -23,7 +23,7 @@ class CreateInstagramMessagesTable extends Migration
         });
     }
 
-    public function down()
+    public function down(): void
     {
         Schema::dropIfExists('instagram_messages');
     }
