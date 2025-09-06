@@ -37,6 +37,16 @@ class FacebookPage extends Model
 
     protected $dates = ['created_at', 'updated_at', 'deleted_at'];
 
+    public function setAccessTokenAttribute($value)
+    {
+        $this->attributes['access_token'] = encrypt($value);
+    }
+
+    public function getAccessTokenAttribute($value)
+    {
+        return $value ? decrypt($value) : null;
+    }
+
     public function metaApp(): BelongsTo
     {
         return $this->belongsTo(MetaApp::class, 'meta_app_id', 'id');

@@ -35,6 +35,16 @@ class InstagramBusinessAccount extends Model
 
     protected $dates = ['created_at', 'updated_at', 'deleted_at'];
 
+    public function setAccessTokenAttribute($value)
+    {
+        $this->attributes['access_token'] = encrypt($value);
+    }
+
+    public function getAccessTokenAttribute($value)
+    {
+        return $value ? decrypt($value) : null;
+    }
+
     public function facebookPage(): BelongsTo
     {
         return $this->belongsTo(FacebookPage::class, 'facebook_page_id', 'page_id');

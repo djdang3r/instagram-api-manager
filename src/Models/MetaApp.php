@@ -33,6 +33,18 @@ class MetaApp extends Model
 
     protected $dates = ['created_at', 'updated_at', 'deleted_at'];
 
+    // Cifrar app_access_token automáticamente al guardar
+    public function setAppAccessTokenAttribute($value)
+    {
+        $this->attributes['app_access_token'] = encrypt($value);
+    }
+
+    // Descifrar app_access_token automáticamente al obtener
+    public function getAppAccessTokenAttribute($value)
+    {
+        return $value ? decrypt($value) : null;
+    }
+
     public function facebookPages(): HasMany
     {
         return $this->hasMany(FacebookPage::class, 'meta_app_id', 'id');
