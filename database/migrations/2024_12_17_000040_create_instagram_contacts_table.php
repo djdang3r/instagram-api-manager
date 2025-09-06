@@ -14,7 +14,9 @@ class CreateInstagramContactsTable extends Migration
             $table->string('instagram_user_id')->unique();
             $table->string('username')->nullable();
             $table->string('profile_picture')->nullable();
+            
             $table->timestamps();
+            $table->softDeletes();
 
             $table->foreign('instagram_business_account_id')->references('instagram_business_account_id')->on('instagram_business_accounts')->onDelete('cascade');
         });

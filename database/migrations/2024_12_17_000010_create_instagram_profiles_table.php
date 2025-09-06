@@ -14,7 +14,9 @@ class CreateInstagramProfilesTable extends Migration
             $table->string('profile_name');
             $table->string('profile_picture')->nullable();
             $table->string('bio')->nullable();
+            
             $table->timestamps();
+            $table->softDeletes();
 
             $table->foreign('instagram_business_account_id')->references('instagram_business_account_id')->on('instagram_business_accounts')->onDelete('cascade');
         });

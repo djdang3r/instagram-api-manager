@@ -90,7 +90,7 @@ Configura en tu `.env`:
 
     ```bash
         INSTAGRAM_API_BASE_URL=https://graph.facebook.com
-        INSTAGRAM_API_VERSION=v19.0
+        INSTAGRAM_API_VERSION=v23.0
         INSTAGRAM_WEBHOOK_VERIFY_TOKEN=tu_token_seguro
     ```
 

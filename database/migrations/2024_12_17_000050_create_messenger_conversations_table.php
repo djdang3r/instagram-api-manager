@@ -4,26 +4,26 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateInstagramConversationsTable extends Migration
+class CreateMessengerConversationsTable extends Migration
 {
     public function up(): void
     {
-        Schema::create('instagram_conversations', function (Blueprint $table) {
+        Schema::create('messenger_conversations', function (Blueprint $table) {
             $table->ulid('id')->primary();
-            $table->string('instagram_business_account_id');
+            $table->string('page_id');
             $table->string('conversation_id')->unique();
-            $table->string('instagram_user_id');
+            $table->string('messenger_user_id');
             $table->timestamp('last_message_at')->nullable();
             
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreign('instagram_business_account_id')->references('instagram_business_account_id')->on('instagram_business_accounts')->onDelete('cascade');
+            $table->foreign('page_id')->references('page_id')->on('facebook_pages')->onDelete('cascade');
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('instagram_conversations');
+        Schema::dropIfExists('messenger_conversations');
     }
 }

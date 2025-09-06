@@ -4,11 +4,11 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateInstagramMessagesTable extends Migration
+class CreateMessengerMessagesTable extends Migration
 {
     public function up(): void
     {
-        Schema::create('instagram_messages', function (Blueprint $table) {
+        Schema::create('messenger_messages', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->ulid('conversation_id');
             $table->string('message_id')->unique();
@@ -17,11 +17,6 @@ class CreateInstagramMessagesTable extends Migration
             $table->string('message_from', 45);
             $table->string('message_to', 45);
             $table->text('message_content')->nullable();
-            $table->text('message_context')->nullable();
-            $table->string('message_context_id', 45)->nullable();
-            $table->string('message_context_from', 45)->nullable();
-            $table->string('caption', 45)->nullable();
-            $table->string('media_url')->nullable();
             $table->json('json_content')->nullable();
             $table->enum('status', ['pending', 'sent', 'delivered', 'read', 'failed', 'received'])->default('pending');
             $table->timestamp('sent_at')->nullable();
@@ -33,16 +28,16 @@ class CreateInstagramMessagesTable extends Migration
             $table->text('message_error')->nullable();
             $table->text('details_error')->nullable();
             $table->json('json')->nullable();
-            
+
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreign('conversation_id')->references('id')->on('instagram_conversations')->onDelete('cascade');
+            $table->foreign('conversation_id')->references('id')->on('messenger_conversations')->onDelete('cascade');
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('instagram_messages');
+        Schema::dropIfExists('messenger_messages');
     }
 }

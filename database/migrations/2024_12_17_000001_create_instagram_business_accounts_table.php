@@ -14,7 +14,11 @@ class CreateInstagramBusinessAccountsTable extends Migration
             $table->string('name')->unique();
             $table->string('access_token');
             $table->json('tasks')->nullable();
+
             $table->timestamps();
+            $table->softDeletes();
+
+            $table->foreign('facebook_page_id')->references('page_id')->on('facebook_pages')->onDelete('cascade');
         });
     }
 
