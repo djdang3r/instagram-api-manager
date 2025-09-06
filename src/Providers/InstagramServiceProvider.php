@@ -11,9 +11,10 @@ class InstagramServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Registrar configuración u otros bindings
-        // $this->mergeConfigFrom(__DIR__.'/../../config/instagram.php', 'instagram');
-        $this->mergeConfigFrom(__DIR__.'/../../config/instagram.php', 'instagram');
+        // Registrar configuración del paquete para que se pueda acceder con config('instagram')
+        $this->mergeConfigFrom(__DIR__ . '/../../config/instagram.php', 'instagram');
+
+        // También puedes registrar otras configuraciones o bindings si es necesario
     }
 
     /**
@@ -21,22 +22,41 @@ class InstagramServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Publicar migraciones del paquete
+        // PUBLICACIÓN DE RECURSOS CON TAGS PARA FACILITAR LA PUBLICACIÓN
+
+        // Publicar migraciones del paquete (tag: instagram-migrations)
         $this->publishes([
-            __DIR__.'/../../database/migrations/' => database_path('migrations'),
+            __DIR__ . '/../../database/migrations/' => database_path('migrations'),
         ], 'instagram-migrations');
 
+        // Publicar archivo de configuración (tag: instagram-config)
         $this->publishes([
-            __DIR__.'/../../config/instagram.php' => config_path('instagram.php'),
+            __DIR__ . '/../../config/instagram.php' => config_path('instagram.php'),
         ], 'instagram-config');
 
-        // Si tienes config, vistas o rutas, se agregan aquí
+        // Cargar y publicar rutas del webhook Instagram
+        $this->loadRoutesFrom(__DIR__ . '/../../routes/instagram_webhook.php');
+        $this->publishes([
+            __DIR__ . '/../../routes/instagram_webhook.php' => base_path('routes/instagram_webhook.php'),
+        ], 'instagram-webhook-routes');
 
-        // $this->publishes([
-        //     __DIR__.'/../../config/instagram.php' => config_path('instagram.php'),
-        // ], 'instagram-config');
+        // Publicar configuración para logging personalizado (tag: instagram-logging)
+        $this->publishes([
+            __DIR__ . '/../../config/logging-additions.php' => config_path('logging-additions.php'),
+        ], 'instagram-logging');
 
-        // $this->loadRoutesFrom(__DIR__.'/../../routes/web.php');
+        // PUBLICACIÓN COMPLETA (TODO JUNTO) para simplicidad (tag: instagram-api-manager)
+        $this->publishes([
+            __DIR__ . '/../../database/migrations/' => database_path('migrations'),
+            __DIR__ . '/../../config/instagram.php' => config_path('instagram.php'),
+            __DIR__ . '/../../routes/instagram_webhook.php' => base_path('routes/instagram_webhook.php'),
+            __DIR__ . '/../../config/logging-additions.php' => config_path('logging-additions.php'),
+        ], 'instagram-api-manager');
+
+        // Puedes cargar vistas o comandos si el paquete los tuviera aquí
         // $this->loadViewsFrom(__DIR__.'/../../resources/views', 'instagram');
+        // $this->commands([
+        //     YourCommandClass::class,
+        // ]);
     }
 }
