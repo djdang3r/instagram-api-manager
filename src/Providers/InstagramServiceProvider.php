@@ -22,6 +22,9 @@ class InstagramServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Cargar migraciones directamente desde el paquete para que se ejecuten con php artisan migrate sin publicar
+        $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
+
         // PUBLICACIÓN DE RECURSOS CON TAGS PARA FACILITAR LA PUBLICACIÓN
 
         // Publicar migraciones del paquete (tag: instagram-migrations)

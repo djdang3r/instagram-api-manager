@@ -140,6 +140,7 @@ El paquete utiliza un canal de log Laravel llamado `instagram` configurado para 
             'path' => storage_path('logs/instagram.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => 14,
+            'tap' => [\ScriptDevelop\InstagramApiManager\Logging\CustomizeFormatter::class],
         ],
     ```
 
