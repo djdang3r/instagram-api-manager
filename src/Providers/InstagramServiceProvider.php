@@ -43,6 +43,14 @@ class InstagramServiceProvider extends ServiceProvider
             __DIR__ . '/../../routes/instagram_webhook.php' => base_path('routes/instagram_webhook.php'),
         ], 'instagram-webhook-routes');
 
+        // Cargar ruta internamente para que funcione sin publicar
+        $this->loadRoutesFrom(__DIR__ . '/../../routes/instagram_callback.php');
+
+        // Publicar archivo de ruta para que el usuario pueda copiar y modificar si quiere
+        $this->publishes([
+            __DIR__ . '/../../routes/instagram_callback.php' => base_path('routes/instagram_callback.php'),
+        ], 'instagram-callback-routes');
+
         // Publicar configuración para logging personalizado (tag: instagram-logging)
         $this->publishes([
             __DIR__ . '/../../config/logging-additions.php' => config_path('logging-additions.php'),
