@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use ScriptDevelop\InstagramApiManager\Traits\GeneratesUlid;
 
-class InstagramMessage extends Model
+class MessengerMessage extends Model
 {
     use SoftDeletes, GeneratesUlid;
 
-    protected $table = 'instagram_messages';
+    protected $table = 'messenger_messages';
 
     protected $keyType = 'string';
 
@@ -26,11 +26,6 @@ class InstagramMessage extends Model
         'message_from',
         'message_to',
         'message_content',
-        'message_context',
-        'message_context_id',
-        'message_context_from',
-        'caption',
-        'media_url',
         'json_content',
         'status',
         'sent_at',
@@ -53,8 +48,8 @@ class InstagramMessage extends Model
         'sent_at', 'read_at', 'edited_at', 'failed_at', 'created_at', 'updated_at', 'deleted_at',
     ];
 
-    public function instagramConversation(): BelongsTo
+    public function messengerConversation(): BelongsTo
     {
-        return $this->belongsTo(InstagramConversation::class, 'conversation_id', 'id');
+        return $this->belongsTo(MessengerConversation::class, 'conversation_id', 'id');
     }
 }

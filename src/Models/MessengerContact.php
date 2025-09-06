@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use ScriptDevelop\InstagramApiManager\Traits\GeneratesUlid;
 
-class InstagramContact extends Model
+class MessengerContact extends Model
 {
     use SoftDeletes, GeneratesUlid;
 
-    protected $table = 'instagram_contacts';
+    protected $table = 'messenger_contacts';
 
     protected $keyType = 'string';
 
@@ -19,16 +19,18 @@ class InstagramContact extends Model
 
     protected $fillable = [
         'id',
-        'instagram_business_account_id',
-        'instagram_user_id',
+        'page_id',
+        'messenger_user_id',
         'username',
         'profile_picture',
     ];
 
-    protected $dates = ['created_at', 'updated_at', 'deleted_at'];
+    protected $dates = [
+        'created_at', 'updated_at', 'deleted_at',
+    ];
 
-    public function instagramBusinessAccount(): BelongsTo
+    public function facebookPage(): BelongsTo
     {
-        return $this->belongsTo(InstagramBusinessAccount::class, 'instagram_business_account_id', 'instagram_business_account_id');
+        return $this->belongsTo(FacebookPage::class, 'page_id', 'page_id');
     }
 }

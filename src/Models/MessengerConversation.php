@@ -8,11 +8,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use ScriptDevelop\InstagramApiManager\Traits\GeneratesUlid;
 
-class InstagramConversation extends Model
+class MessengerConversation extends Model
 {
     use SoftDeletes, GeneratesUlid;
 
-    protected $table = 'instagram_conversations';
+    protected $table = 'messenger_conversations';
 
     protected $keyType = 'string';
 
@@ -20,21 +20,21 @@ class InstagramConversation extends Model
 
     protected $fillable = [
         'id',
-        'instagram_business_account_id',
+        'page_id',
         'conversation_id',
-        'instagram_user_id',
+        'messenger_user_id',
         'last_message_at',
     ];
 
     protected $dates = ['last_message_at', 'created_at', 'updated_at', 'deleted_at'];
 
-    public function instagramBusinessAccount(): BelongsTo
+    public function facebookPage(): BelongsTo
     {
-        return $this->belongsTo(InstagramBusinessAccount::class, 'instagram_business_account_id', 'instagram_business_account_id');
+        return $this->belongsTo(FacebookPage::class, 'page_id', 'page_id');
     }
 
-    public function instagramMessages(): HasMany
+    public function messengerMessages(): HasMany
     {
-        return $this->hasMany(InstagramMessage::class, 'conversation_id', 'id');
+        return $this->hasMany(MessengerMessage::class, 'conversation_id', 'id');
     }
 }
