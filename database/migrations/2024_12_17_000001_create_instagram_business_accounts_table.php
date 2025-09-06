@@ -19,6 +19,8 @@ class CreateInstagramBusinessAccountsTable extends Migration
             $table->softDeletes();
 
             $table->foreign('facebook_page_id')->references('page_id')->on('facebook_pages')->onDelete('cascade');
+
+            $table->index('access_token');
         });
     }
 

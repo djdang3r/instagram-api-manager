@@ -20,6 +20,9 @@ class CreateFacebookPagesTable extends Migration
             $table->softDeletes();
 
             $table->foreign('meta_app_id')->references('id')->on('meta_apps')->onDelete('cascade');
+
+            $table->index('access_token');
+            $table->index('is_active');
         });
     }
 

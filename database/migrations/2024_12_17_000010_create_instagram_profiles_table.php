@@ -12,6 +12,7 @@ class CreateInstagramProfilesTable extends Migration
             $table->ulid('id')->primary();
             $table->string('instagram_business_account_id');
             $table->string('profile_name');
+            $table->string('username')->nullable(); 
             $table->string('profile_picture')->nullable();
             $table->string('bio')->nullable();
             
@@ -19,6 +20,9 @@ class CreateInstagramProfilesTable extends Migration
             $table->softDeletes();
 
             $table->foreign('instagram_business_account_id')->references('instagram_business_account_id')->on('instagram_business_accounts')->onDelete('cascade');
+
+            $table->index('profile_name');
+            $table->index('username');
         });
     }
 

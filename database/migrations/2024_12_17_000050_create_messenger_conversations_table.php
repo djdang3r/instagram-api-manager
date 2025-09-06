@@ -19,6 +19,9 @@ class CreateMessengerConversationsTable extends Migration
             $table->softDeletes();
 
             $table->foreign('page_id')->references('page_id')->on('facebook_pages')->onDelete('cascade');
+
+            $table->index('messenger_user_id');
+            $table->index('last_message_at');
         });
     }
 

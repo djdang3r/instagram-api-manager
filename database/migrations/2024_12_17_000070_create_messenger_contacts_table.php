@@ -17,6 +17,9 @@ class CreateMessengerContactsTable extends Migration
             $table->timestamps();
 
             $table->foreign('page_id')->references('page_id')->on('facebook_pages')->onDelete('cascade');
+
+            $table->index('messenger_user_id');
+            $table->index('username');
         });
     }
 

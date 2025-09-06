@@ -33,6 +33,11 @@ class CreateMessengerMessagesTable extends Migration
             $table->softDeletes();
 
             $table->foreign('conversation_id')->references('id')->on('messenger_conversations')->onDelete('cascade');
+
+            $table->index('message_method');
+            $table->index('message_from');
+            $table->index('message_to');
+            $table->index('status');
         });
     }
 

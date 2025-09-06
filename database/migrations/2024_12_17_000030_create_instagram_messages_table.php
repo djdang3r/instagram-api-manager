@@ -33,11 +33,16 @@ class CreateInstagramMessagesTable extends Migration
             $table->text('message_error')->nullable();
             $table->text('details_error')->nullable();
             $table->json('json')->nullable();
-            
+
             $table->timestamps();
             $table->softDeletes();
 
             $table->foreign('conversation_id')->references('id')->on('instagram_conversations')->onDelete('cascade');
+
+            $table->index('message_method');
+            $table->index('message_from');
+            $table->index('message_to');
+            $table->index('status');
         });
     }
 

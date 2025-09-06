@@ -16,7 +16,9 @@ class CreateMetaAppsTable extends Migration
             $table->string('app_access_token');
             $table->json('webhook_fields')->nullable(); // Ej: messages, messaging_postbacks, etc.
             $table->boolean('is_active')->default(true);
+            
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
