@@ -1,6 +1,6 @@
 <?php
 
-namespace ScriptDevelop\WhatsappManager\Logging;
+namespace ScriptDevelop\InstagramApiManager\Logging;
 
 use Monolog\Formatter\LineFormatter;
 
