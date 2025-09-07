@@ -21,6 +21,8 @@ class RefreshInstagramTokens extends Command
 
     public function handle()
     {
+        $instagramService = app(InstagramAccountService::class);
+        
         $accounts = InstagramBusinessAccount::all();
 
         foreach ($accounts as $account) {

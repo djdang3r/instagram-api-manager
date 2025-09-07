@@ -14,7 +14,9 @@ class CreateMessengerContactsTable extends Migration
             $table->string('messenger_user_id')->unique();
             $table->string('username')->nullable();
             $table->string('profile_picture')->nullable();
+
             $table->timestamps();
+            $table->softDeletes();
 
             $table->foreign('page_id')->references('page_id')->on('facebook_pages')->onDelete('cascade');
 

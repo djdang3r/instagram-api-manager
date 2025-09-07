@@ -28,6 +28,7 @@ class InstagramAccountService
         'instagram_business_manage_messages',
         'instagram_business_manage_comments',
         'instagram_business_content_publish',
+        'instagram_business_manage_insights',
     ], ?string $state = null): string {
         $clientId = config('instagram.client_id');
         $redirectUri = config('instagram.redirect_uri') ?: route('instagram.auth.callback');
@@ -43,7 +44,8 @@ class InstagramAccountService
             'force_reauth' => 'true',
         ]);
 
-        $url = "https://www.instagram.com/oauth/authorize?" . $params;
+        // $url = "https://www.instagram.com/oauth/authorize?" . $params;
+        $url = "https://www.facebook.com/v12.0/dialog/oauth?" . $params;
 
         if (app()->runningInConsole()) {
             file_put_contents('php://stdout', "URL OAuth Instagram: $url\n");
@@ -72,8 +74,8 @@ class InstagramAccountService
                 ]
             );
 
-            if (empty($response['access_token']) || empty($response['user_id'])) {
-                Log::error('Instagram OAuth respuesta incompleta', ['response' => $response]);
+            if (!isset($response['access_token']) || !isset($response['user_id'])) {
+                Log::error('Respuesta de API incompleta', ['response' => $response]);
                 DB::rollBack();
                 return null;
             }

@@ -36,7 +36,7 @@ class MetaApp extends Model
     // Cifrar app_access_token automáticamente al guardar
     public function setAppAccessTokenAttribute($value)
     {
-        $this->attributes['app_access_token'] = encrypt($value);
+        $this->attributes['app_access_token'] = $value ? encrypt($value) : null;
     }
 
     // Descifrar app_access_token automáticamente al obtener
@@ -48,5 +48,17 @@ class MetaApp extends Model
     public function facebookPages(): HasMany
     {
         return $this->hasMany(FacebookPage::class, 'meta_app_id', 'id');
+    }
+
+    public function instagramBusinessAccounts()
+    {
+        return $this->hasManyThrough(
+            InstagramBusinessAccount::class,
+            FacebookPage::class,
+            'meta_app_id', // Foreign key on FacebookPage table
+            'facebook_page_id', // Foreign key on InstagramBusinessAccount table
+            'id', // Local key on MetaApp table
+            'page_id' // Local key on FacebookPage table
+        );
     }
 }

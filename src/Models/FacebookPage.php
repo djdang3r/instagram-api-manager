@@ -39,7 +39,7 @@ class FacebookPage extends Model
 
     public function setAccessTokenAttribute($value)
     {
-        $this->attributes['access_token'] = encrypt($value);
+        $this->attributes['access_token'] = $value ? encrypt($value) : null;
     }
 
     public function getAccessTokenAttribute($value)
