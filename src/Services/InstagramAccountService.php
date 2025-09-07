@@ -44,8 +44,7 @@ class InstagramAccountService
             'force_reauth' => 'true',
         ]);
 
-        // $url = "https://www.instagram.com/oauth/authorize?" . $params;
-        $url = "https://www.facebook.com/v12.0/dialog/oauth?" . $params;
+        $url = "https://www.instagram.com/oauth/authorize?" . $params;
 
         if (app()->runningInConsole()) {
             file_put_contents('php://stdout', "URL OAuth Instagram: $url\n");
