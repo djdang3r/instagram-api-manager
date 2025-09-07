@@ -4,14 +4,14 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateMessengerConversationsTable extends Migration
+return new class extends Migration
 {
     public function up(): void
     {
         Schema::create('messenger_conversations', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->string('page_id');
-            $table->string('conversation_id')->unique();
+            $table->string('conversation_id');
             $table->string('messenger_user_id');
             $table->timestamp('last_message_at')->nullable();
             
@@ -20,6 +20,7 @@ class CreateMessengerConversationsTable extends Migration
 
             $table->foreign('page_id')->references('page_id')->on('facebook_pages')->onDelete('cascade');
 
+            $table->unique('conversation_id');
             $table->index('messenger_user_id');
             $table->index('last_message_at');
         });
@@ -29,4 +30,4 @@ class CreateMessengerConversationsTable extends Migration
     {
         Schema::dropIfExists('messenger_conversations');
     }
-}
+};

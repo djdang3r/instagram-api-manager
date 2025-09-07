@@ -4,14 +4,14 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateInstagramMessagesTable extends Migration
+return new class extends Migration
 {
     public function up(): void
     {
         Schema::create('instagram_messages', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->ulid('conversation_id');
-            $table->string('message_id')->unique();
+            $table->string('message_id');
             $table->enum('message_method', ['incoming', 'outgoing']);
             $table->enum('message_type', ['text', 'audio', 'photo', 'gif', 'video', 'sticker', 'reaction', 'reply']);
             $table->string('message_from', 45);
@@ -20,8 +20,8 @@ class CreateInstagramMessagesTable extends Migration
             $table->text('message_context')->nullable();
             $table->string('message_context_id', 45)->nullable();
             $table->string('message_context_from', 45)->nullable();
-            $table->string('caption', 45)->nullable();
-            $table->string('media_url')->nullable();
+            $table->text('caption')->nullable(); // Cambiado a TEXT
+            $table->text('media_url')->nullable(); // Cambiado a TEXT
             $table->json('json_content')->nullable();
             $table->enum('status', ['pending', 'sent', 'delivered', 'read', 'failed', 'received'])->default('pending');
             $table->timestamp('sent_at')->nullable();
@@ -39,6 +39,7 @@ class CreateInstagramMessagesTable extends Migration
 
             $table->foreign('conversation_id')->references('id')->on('instagram_conversations')->onDelete('cascade');
 
+            $table->unique('message_id');
             $table->index('message_method');
             $table->index('message_from');
             $table->index('message_to');
@@ -50,4 +51,4 @@ class CreateInstagramMessagesTable extends Migration
     {
         Schema::dropIfExists('instagram_messages');
     }
-}
+};

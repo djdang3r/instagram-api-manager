@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateFacebookPagesTable extends Migration
+return new class extends Migration
 {
     public function up(): void
     {
@@ -12,7 +12,7 @@ class CreateFacebookPagesTable extends Migration
             $table->string('page_id')->primary();
             $table->ulid('meta_app_id');
             $table->string('name')->nullable();
-            $table->text('access_token');
+            $table->text('access_token'); // Cambiado a TEXT
             $table->json('tasks')->nullable();
             $table->boolean('is_active')->default(true);
 
@@ -20,8 +20,8 @@ class CreateFacebookPagesTable extends Migration
             $table->softDeletes();
 
             $table->foreign('meta_app_id')->references('id')->on('meta_apps')->onDelete('cascade');
-
-            $table->index('access_token');
+            
+            // Índices (sin índice en access_token porque es TEXT)
             $table->index('is_active');
         });
     }
@@ -30,4 +30,4 @@ class CreateFacebookPagesTable extends Migration
     {
         Schema::dropIfExists('facebook_pages');
     }
-}
+};

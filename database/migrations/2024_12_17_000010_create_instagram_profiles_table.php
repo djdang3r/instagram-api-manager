@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateInstagramProfilesTable extends Migration
+return new class extends Migration
 {
     public function up(): void
     {
@@ -12,10 +12,10 @@ class CreateInstagramProfilesTable extends Migration
             $table->ulid('id')->primary();
             $table->string('instagram_business_account_id');
             $table->string('profile_name');
-            $table->string('username')->nullable(); 
-            $table->string('profile_picture')->nullable();
-            $table->string('bio')->nullable();
-            
+            $table->string('username')->nullable();
+            $table->text('profile_picture')->nullable(); // Cambiado a TEXT
+            $table->text('bio')->nullable(); // Cambiado a TEXT
+
             $table->timestamps();
             $table->softDeletes();
 
@@ -30,4 +30,4 @@ class CreateInstagramProfilesTable extends Migration
     {
         Schema::dropIfExists('instagram_profiles');
     }
-}
+};

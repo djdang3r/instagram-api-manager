@@ -4,14 +4,14 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateMessengerMessagesTable extends Migration
+return new class extends Migration
 {
     public function up(): void
     {
         Schema::create('messenger_messages', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->ulid('conversation_id');
-            $table->string('message_id')->unique();
+            $table->string('message_id');
             $table->enum('message_method', ['incoming', 'outgoing']);
             $table->enum('message_type', ['text', 'audio', 'photo', 'gif', 'video', 'sticker', 'reaction', 'reply']);
             $table->string('message_from', 45);
@@ -34,6 +34,7 @@ class CreateMessengerMessagesTable extends Migration
 
             $table->foreign('conversation_id')->references('id')->on('messenger_conversations')->onDelete('cascade');
 
+            $table->unique('message_id');
             $table->index('message_method');
             $table->index('message_from');
             $table->index('message_to');
@@ -45,4 +46,4 @@ class CreateMessengerMessagesTable extends Migration
     {
         Schema::dropIfExists('messenger_messages');
     }
-}
+};
