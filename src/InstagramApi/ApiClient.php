@@ -42,22 +42,29 @@ class ApiClient
             $options = [
                 'headers' => array_merge([
                     'Accept' => 'application/json',
-                    'Content-Type' => 'application/json',
                 ], $headers),
             ];
 
+            // Manejar diferentes tipos de datos
             if (isset($data['multipart'])) {
                 $options['multipart'] = $data['multipart'];
-                unset($options['headers']['Content-Type']);
             } elseif (is_resource($data)) {
                 $options['body'] = $data;
-                unset($options['headers']['Content-Type']);
             } elseif (!empty($data)) {
                 if ($method === 'GET') {
                     // Para GET, los datos van en query string
                     $query = array_merge($query, $data);
                 } else {
-                    $options['json'] = $data;
+                    // Para POST, determinar si usar form_params o json
+                    $isFormData = isset($data['multipart']) || (isset($headers['Content-Type']) && 
+                                strpos($headers['Content-Type'], 'multipart/form-data') !== false);
+                    
+                    if ($isFormData) {
+                        $options['form_params'] = $data;
+                    } else {
+                        $options['json'] = $data;
+                        $options['headers']['Content-Type'] = 'application/json';
+                    }
                 }
             }
 

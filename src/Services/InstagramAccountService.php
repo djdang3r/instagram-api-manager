@@ -52,60 +52,70 @@ class InstagramAccountService
         DB::beginTransaction();
 
         try {
-            // Crear cliente temporal para OAuth (sin versión)
+            // Crear cliente temporal para OAuth de Instagram (sin versión)
             $oauthClient = new ApiClient(
-                config('instagram.oauth_base_url', 'https://graph.facebook.com'),
+                config('instagram.oauth_base_url', 'https://api.instagram.com'),
                 '', // Sin versión para endpoints de OAuth
                 (int) config('instagram.timeout', 30)
             );
 
-            // Intercambiar código por token de acceso
+            // Intercambiar código por token de acceso - FORMA CORRECTA SEGÚN DOCUMENTACIÓN
+            // Usar form-data (multipart) como indica la documentación
             $response = $oauthClient->request(
                 'POST',
                 'oauth/access_token',
-                [],
-                null,
-                [
-                    'client_id' => config('instagram.client_id'),
-                    'client_secret' => config('instagram.client_secret'),
-                    'redirect_uri' => config('instagram.redirect_uri') ?: route('instagram.auth.callback'),
-                    'code' => $code,
+                [], // Sin parámetros en la URL
+                [ // Datos en el cuerpo como form-data
+                    'multipart' => [
+                        [
+                            'name' => 'client_id',
+                            'contents' => config('instagram.client_id')
+                        ],
+                        [
+                            'name' => 'client_secret',
+                            'contents' => config('instagram.client_secret')
+                        ],
+                        [
+                            'name' => 'grant_type',
+                            'contents' => 'authorization_code'
+                        ],
+                        [
+                            'name' => 'redirect_uri',
+                            'contents' => config('instagram.redirect_uri') ?: route('instagram.auth.callback')
+                        ],
+                        [
+                            'name' => 'code',
+                            'contents' => $code
+                        ]
+                    ]
                 ]
             );
 
-            if (empty($response['access_token'])) {
-                Log::error('Instagram OAuth: Falta access_token', ['response' => $response]);
+            // La respuesta de Instagram viene en formato diferente según la documentación
+            if (isset($response['data'][0]['access_token'])) {
+                // Formato nuevo según documentación
+                $accessToken = $response['data'][0]['access_token'];
+                $userId = $response['data'][0]['user_id'] ?? null;
+            } elseif (isset($response['access_token'])) {
+                // Formato alternativo que podría devolver la API
+                $accessToken = $response['access_token'];
+                $userId = $response['user_id'] ?? null;
+            } else {
+                Log::error('Instagram OAuth: Formato de respuesta inesperado', ['response' => $response]);
                 DB::rollBack();
                 return null;
             }
 
-            $accessToken = $response['access_token'];
-            
-            // Obtener ID de usuario desde el token (puede requerir un endpoint adicional)
-            // Para Instagram Business, necesitamos obtener el ID de la cuenta de negocio
-            $userInfo = $this->apiClient->request(
-                'GET',
-                'me',
-                [],
-                null,
-                [
-                    'fields' => 'id,username,account_type,name',
-                    'access_token' => $accessToken
-                ]
-            );
-
-            if (empty($userInfo['id'])) {
-                Log::error('Instagram OAuth: No se pudo obtener user info', ['response' => $userInfo]);
+            if (empty($accessToken) || empty($userId)) {
+                Log::error('Instagram OAuth: Falta access_token o user_id', ['response' => $response]);
                 DB::rollBack();
                 return null;
             }
 
-            $userId = $userInfo['id'];
-
-            // Obtener perfil completo
+            // Obtener información del perfil usando Graph API
             $profileData = $this->apiClient->request(
                 'GET',
-                $userId,
+                'me',
                 [],
                 null,
                 [
@@ -119,7 +129,7 @@ class InstagramAccountService
                 [
                     'access_token' => $accessToken,
                     'tasks' => null,
-                    'name' => $profileData['name'] ?? $userInfo['name'] ?? '',
+                    'name' => $profileData['name'] ?? '',
                     'facebook_page_id' => '',
                 ]
             );
