@@ -61,7 +61,7 @@ class InstagramAccountService
 
             // Intercambiar código por token de acceso
             $response = $oauthClient->request(
-                'GET',
+                'POST',
                 'oauth/access_token',
                 [],
                 null,

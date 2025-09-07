@@ -14,6 +14,34 @@ class InstagramAuthController extends Controller
      */
     public function callback(Request $request)
     {
+        // Primero, verificar si estamos en la redirección intermedia de l.instagram.com
+        if ($request->has('u')) {
+            // Esta es la redirección intermedia, extraer la URL real
+            $redirectUrl = urldecode($request->input('u'));
+            
+            // Parsear la URL para obtener los parámetros
+            $urlParts = parse_url($redirectUrl);
+            if (isset($urlParts['query'])) {
+                parse_str($urlParts['query'], $queryParams);
+                
+                // Recuperar el código y estado de la URL
+                $code = $queryParams['code'] ?? null;
+                $state = $queryParams['state'] ?? null;
+                
+                if ($code) {
+                    // Redirigir a nosotros mismos con los parámetros correctos
+                    return redirect()->route('instagram.auth.callback', [
+                        'code' => $code,
+                        'state' => $state
+                    ]);
+                }
+            }
+            
+            Log::error('No se pudo extraer el código de la URL intermedia', ['url' => $redirectUrl]);
+            return redirect('/')->with('error', 'Error en el proceso de autenticación');
+        }
+
+        // Si llegamos aquí, es el callback directo con los parámetros
         $code = $request->get('code');
         $error = $request->get('error');
         $errorReason = $request->get('error_reason');
@@ -30,6 +58,7 @@ class InstagramAuthController extends Controller
         }
 
         if (!$code) {
+            Log::error('No se recibió código de autorización en el callback');
             return redirect('/')->with('error', 'No se recibió código de autorización');
         }
 
