@@ -17,20 +17,16 @@ class InstagramAuthController extends Controller
     {
         // Primero, verificar si estamos en la redirección intermedia de l.instagram.com
         if ($request->has('u')) {
-            // Esta es la redirección intermedia, extraer la URL real
             $redirectUrl = urldecode($request->input('u'));
             
-            // Parsear la URL para obtener los parámetros
             $urlParts = parse_url($redirectUrl);
             if (isset($urlParts['query'])) {
                 parse_str($urlParts['query'], $queryParams);
                 
-                // Recuperar el código y estado de la URL
                 $code = $queryParams['code'] ?? null;
                 $state = $queryParams['state'] ?? null;
                 
                 if ($code) {
-                    // Redirigir a nosotros mismos con los parámetros correctos
                     return redirect()->route('instagram.auth.callback', [
                         'code' => $code,
                         'state' => $state
@@ -113,5 +109,22 @@ class InstagramAuthController extends Controller
             Log::error('Excepción en callback Instagram:', ['error' => $e->getMessage()]);
             return redirect('/')->with('error', 'Error interno del servidor');
         }
+    }
+
+    public function connect()
+    {
+        $instagramAccountService = app(InstagramAccountService::class);
+        $authData = $instagramAccountService->getAuthorizationUrl();
+        
+        // Guardar el estado en una cookie de corta duración como respaldo
+        return redirect($authData['url'])->cookie(
+            'instagram_oauth_state', 
+            $authData['state'], 
+            10, // 10 minutos
+            '/',
+            parse_url(config('app.url'), PHP_URL_HOST),
+            false,
+            false
+        );
     }
 }
