@@ -27,7 +27,8 @@ class InstagramAccountService
         'instagram_business_basic',
         'instagram_business_manage_messages',
         'instagram_business_manage_comments',
-        'instagram_business_content_publish'
+        'instagram_business_content_publish',
+        'instagram_business_manage_insights'
     ], ?string $state = null): string {
         $clientId = config('instagram.client_id');
         $redirectUri = config('instagram.redirect_uri') ?: route('instagram.auth.callback');
@@ -40,9 +41,10 @@ class InstagramAccountService
             'scope' => $scope,
             'response_type' => 'code',
             'state' => $state,
+            'force_reauth' => 'true',
         ]);
 
-        return "https://www.facebook.com/v19.0/dialog/oauth?" . $params;
+        return "https://www.instagram.com/oauth/authorize?" . $params;
     }
 
     public function handleCallback(string $code): ?InstagramBusinessAccount
