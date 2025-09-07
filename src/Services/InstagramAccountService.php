@@ -131,16 +131,7 @@ class InstagramAccountService
             }
 
             // Obtener información del perfil usando Graph API
-            $profileData = $this->apiClient->request(
-                'GET',
-                'me',
-                [],
-                null,
-                [
-                    'fields' => 'id,username,account_type,media_count,followers_count,follows_count,name,profile_picture_url,biography',
-                    'access_token' => $accessToken
-                ]
-            );
+            $profileData = $this->getProfileInfo($accessToken);
 
             $account = InstagramBusinessAccount::updateOrCreate(
                 ['instagram_business_account_id' => $userId],
@@ -162,6 +153,15 @@ class InstagramAccountService
                         'username' => $profileData['username'] ?? null,
                         'profile_picture' => $profileData['profile_picture_url'] ?? null,
                         'bio' => $profileData['biography'] ?? null,
+                        'account_type' => $profileData['account_type'] ?? null,
+                        'followers_count' => $profileData['followers_count'] ?? null,
+                        'follows_count' => $profileData['follows_count'] ?? null,
+                        'media_count' => $profileData['media_count'] ?? null,
+                        'website' => $profileData['website'] ?? null,
+                        // Instagram no devuelve category_name e is_verified en el endpoint básico,
+                        // pero los dejamos por si decides usar endpoints extendidos
+                        'last_synced_at' => now(),
+                        'raw_api_response' => $profileData // Guardar la respuesta completa para referencia
                     ]
                 );
             }
@@ -278,6 +278,73 @@ class InstagramAccountService
         } catch (Exception $e) {
             Log::error('Error vinculando cuenta con página de Facebook:', ['error' => $e->getMessage()]);
             return false;
+        }
+    }
+
+    /**
+     * Obtener información del perfil de Instagram
+     */
+    public function getProfileInfo(string $accessToken): ?array
+    {
+        try {
+            return $this->apiClient->request(
+                'GET',
+                'me',
+                [],
+                null,
+                [
+                    'fields' => 'id,username,account_type,media_count,followers_count,follows_count,name,profile_picture_url,biography',
+                    'access_token' => $accessToken
+                ]
+            );
+        } catch (Exception $e) {
+            Log::error('Error obteniendo información del perfil:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * Obtener medios del usuario
+     */
+    public function getUserMedia(string $instagramUserId, string $accessToken, int $limit = 25): ?array
+    {
+        try {
+            return $this->apiClient->request(
+                'GET',
+                $instagramUserId . '/media',
+                [],
+                null,
+                [
+                    'fields' => 'id,caption,media_type,media_url,thumbnail_url,timestamp,username,permalink,children{media_url,media_type}',
+                    'access_token' => $accessToken,
+                    'limit' => $limit
+                ]
+            );
+        } catch (Exception $e) {
+            Log::error('Error obteniendo medios del usuario:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * Obtener detalles de un medio específico
+     */
+    public function getMediaDetails(string $mediaId, string $accessToken): ?array
+    {
+        try {
+            return $this->apiClient->request(
+                'GET',
+                $mediaId,
+                [],
+                null,
+                [
+                    'fields' => 'id,media_type,media_url,thumbnail_url,timestamp,username,caption,permalink,children{media_url,media_type}',
+                    'access_token' => $accessToken
+                ]
+            );
+        } catch (Exception $e) {
+            Log::error('Error obteniendo detalles del medio:', ['error' => $e->getMessage()]);
+            return null;
         }
     }
 }

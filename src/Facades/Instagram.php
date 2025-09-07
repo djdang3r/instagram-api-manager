@@ -20,4 +20,9 @@ class Instagram extends Facade
     {
         return app('instagram.message');
     }
+
+    public static function media()
+    {
+        return app('instagram.media');
+    }
 }
