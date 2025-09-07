@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 class InstagramAccountService
 {
     protected ApiClient $apiClient;
+    protected ?InstagramBusinessAccount $currentAccount = null;
 
     public function __construct()
     {
@@ -22,6 +23,27 @@ class InstagramAccountService
             config('instagram.api_version', 'v19.0'),
             (int) config('instagram.timeout', 30)
         );
+    }
+
+    /**
+     * Establecer la cuenta actual para las operaciones
+     */
+    public function forAccount(InstagramBusinessAccount $account): self
+    {
+        $this->currentAccount = $account;
+        return $this;
+    }
+
+    /**
+     * Establecer la cuenta actual por ID
+     */
+    public function forAccountId(string $accountId): self
+    {
+        $account = InstagramBusinessAccount::find($accountId);
+        if ($account) {
+            $this->currentAccount = $account;
+        }
+        return $this;
     }
 
     public function getAuthorizationUrl(array $scopes = [
@@ -131,7 +153,16 @@ class InstagramAccountService
             }
 
             // Obtener información del perfil usando Graph API
-            $profileData = $this->getProfileInfo($accessToken);
+            $profileData = $this->apiClient->request(
+                'GET',
+                'me',
+                [],
+                null,
+                [
+                    'fields' => 'id,username,account_type,media_count,followers_count,follows_count,name,profile_picture_url,biography,website',
+                    'access_token' => $accessToken
+                ]
+            );
 
             $account = InstagramBusinessAccount::updateOrCreate(
                 ['instagram_business_account_id' => $userId],
@@ -158,10 +189,8 @@ class InstagramAccountService
                         'follows_count' => $profileData['follows_count'] ?? null,
                         'media_count' => $profileData['media_count'] ?? null,
                         'website' => $profileData['website'] ?? null,
-                        // Instagram no devuelve category_name e is_verified en el endpoint básico,
-                        // pero los dejamos por si decides usar endpoints extendidos
                         'last_synced_at' => now(),
-                        'raw_api_response' => $profileData // Guardar la respuesta completa para referencia
+                        'raw_api_response' => $profileData
                     ]
                 );
             }
@@ -264,6 +293,91 @@ class InstagramAccountService
     }
 
     /**
+     * Obtener información del perfil
+     */
+    public function getProfileInfo(?string $accessToken = null): ?array
+    {
+        $accessToken = $accessToken ?? $this->currentAccount?->access_token;
+        
+        if (!$accessToken) {
+            throw new \Exception('Access token is required');
+        }
+
+        try {
+            return $this->apiClient->request(
+                'GET',
+                'me',
+                [],
+                null,
+                [
+                    'fields' => 'id,username,account_type,media_count,followers_count,follows_count,name,profile_picture_url,biography,website',
+                    'access_token' => $accessToken
+                ]
+            );
+        } catch (Exception $e) {
+            Log::error('Error obteniendo información del perfil:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * Obtener medios del usuario
+     */
+    public function getUserMedia(?string $userId = null, ?string $accessToken = null): ?array
+    {
+        $userId = $userId ?? $this->currentAccount?->instagram_business_account_id;
+        $accessToken = $accessToken ?? $this->currentAccount?->access_token;
+        
+        if (!$userId || !$accessToken) {
+            throw new \Exception('User ID and access token are required');
+        }
+
+        try {
+            return $this->apiClient->request(
+                'GET',
+                $userId . '/media',
+                [],
+                null,
+                [
+                    'access_token' => $accessToken,
+                    'fields' => 'id,caption,media_type,media_url,thumbnail_url,timestamp,permalink,children{media_url,media_type}'
+                ]
+            );
+        } catch (Exception $e) {
+            Log::error('Error obteniendo medios del usuario:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * Obtener detalles de un medio específico
+     */
+    public function getMediaDetails(string $mediaId, ?string $accessToken = null): ?array
+    {
+        $accessToken = $accessToken ?? $this->currentAccount?->access_token;
+        
+        if (!$accessToken) {
+            throw new \Exception('Access token is required');
+        }
+
+        try {
+            return $this->apiClient->request(
+                'GET',
+                $mediaId,
+                [],
+                null,
+                [
+                    'access_token' => $accessToken,
+                    'fields' => 'id,media_type,media_url,thumbnail_url,timestamp,username,caption,permalink,children{media_url,media_type}'
+                ]
+            );
+        } catch (Exception $e) {
+            Log::error('Error obteniendo detalles del medio:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
      * Método adicional para vincular una cuenta de Instagram con una página de Facebook
      */
     public function linkWithFacebookPage(string $instagramAccountId, string $facebookPageId): bool
@@ -278,73 +392,6 @@ class InstagramAccountService
         } catch (Exception $e) {
             Log::error('Error vinculando cuenta con página de Facebook:', ['error' => $e->getMessage()]);
             return false;
-        }
-    }
-
-    /**
-     * Obtener información del perfil de Instagram
-     */
-    public function getProfileInfo(string $accessToken): ?array
-    {
-        try {
-            return $this->apiClient->request(
-                'GET',
-                'me',
-                [],
-                null,
-                [
-                    'fields' => 'id,username,account_type,media_count,followers_count,follows_count,name,profile_picture_url,biography',
-                    'access_token' => $accessToken
-                ]
-            );
-        } catch (Exception $e) {
-            Log::error('Error obteniendo información del perfil:', ['error' => $e->getMessage()]);
-            return null;
-        }
-    }
-
-    /**
-     * Obtener medios del usuario
-     */
-    public function getUserMedia(string $instagramUserId, string $accessToken, int $limit = 25): ?array
-    {
-        try {
-            return $this->apiClient->request(
-                'GET',
-                $instagramUserId . '/media',
-                [],
-                null,
-                [
-                    'fields' => 'id,caption,media_type,media_url,thumbnail_url,timestamp,username,permalink,children{media_url,media_type}',
-                    'access_token' => $accessToken,
-                    'limit' => $limit
-                ]
-            );
-        } catch (Exception $e) {
-            Log::error('Error obteniendo medios del usuario:', ['error' => $e->getMessage()]);
-            return null;
-        }
-    }
-
-    /**
-     * Obtener detalles de un medio específico
-     */
-    public function getMediaDetails(string $mediaId, string $accessToken): ?array
-    {
-        try {
-            return $this->apiClient->request(
-                'GET',
-                $mediaId,
-                [],
-                null,
-                [
-                    'fields' => 'id,media_type,media_url,thumbnail_url,timestamp,username,caption,permalink,children{media_url,media_type}',
-                    'access_token' => $accessToken
-                ]
-            );
-        } catch (Exception $e) {
-            Log::error('Error obteniendo detalles del medio:', ['error' => $e->getMessage()]);
-            return null;
         }
     }
 }
