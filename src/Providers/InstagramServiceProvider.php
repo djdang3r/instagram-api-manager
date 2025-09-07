@@ -119,6 +119,11 @@ class InstagramServiceProvider extends ServiceProvider
             \ScriptDevelop\InstagramApiManager\Console\Commands\RefreshInstagramTokens::class,
         ]);
 
+        // Registrar el comando Artisan para limpiar estados OAuth expirados
+        $this->commands([
+            \ScriptDevelop\InstagramApiManager\Console\Commands\CleanupOauthStates::class,
+        ]);
+
         // Puedes cargar vistas o comandos si el paquete los tuviera aquí
         // $this->loadViewsFrom(__DIR__.'/../../resources/views', 'instagram');
         // $this->commands([

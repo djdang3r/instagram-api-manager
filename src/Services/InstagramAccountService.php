@@ -5,10 +5,11 @@ namespace ScriptDevelop\InstagramApiManager\Services;
 use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
 use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
 use ScriptDevelop\InstagramApiManager\Models\InstagramProfile;
+use ScriptDevelop\InstagramApiManager\Models\OauthState;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Session;
 use Exception;
+use Illuminate\Support\Carbon;
 
 class InstagramAccountService
 {
@@ -35,7 +36,16 @@ class InstagramAccountService
         $scope = implode(',', $scopes);
         $state = $state ?? bin2hex(random_bytes(20));
 
-        // Para desarrollo, podríamos omitir el estado o usar una solución alternativa
+        // Guardar el estado en la base de datos para validación posterior
+        OauthState::create([
+            'state' => $state,
+            'service' => 'instagram',
+            'ip_address' => request()->ip(),
+            'expires_at' => Carbon::now()->addMinutes(10)
+        ]);
+
+        Log::debug('Estado OAuth guardado en base de datos: ' . $state);
+
         $params = http_build_query([
             'client_id' => $clientId,
             'redirect_uri' => $redirectUri,
@@ -50,25 +60,21 @@ class InstagramAccountService
 
     public function handleCallback(string $code, ?string $state = null): ?InstagramBusinessAccount
     {
-        // Para desarrollo con ngrok, omitir validación de estado temporalmente
-        // En producción, se debe implementar una validación adecuada
-        if (app()->environment('local') || strpos(request()->getHost(), 'ngrok') !== false) {
-            Log::warning('Validación de estado OAuth desactivada para entorno de desarrollo con ngrok');
-        } else {
-            // Validación de estado para producción (implementar cuando sea necesario)
-            $savedState = request()->cookie('instagram_oauth_state');
-            if ($state && $savedState && $savedState !== $state) {
-                Log::error('El estado de OAuth no coincide', [
-                    'expected' => $savedState,
+        // Validar estado OAuth
+        if ($state) {
+            $isValidState = OauthState::isValid($state, 'instagram');
+            
+            if (!$isValidState) {
+                Log::error('El estado de OAuth no es válido o ha expirado', [
                     'received' => $state
                 ]);
                 return null;
             }
-        }
-        
-        // Limpiar la cookie si existe
-        if (request()->hasCookie('instagram_oauth_state')) {
-            cookie()->queue(cookie()->forget('instagram_oauth_state'));
+            
+            // Eliminar el estado usado
+            OauthState::where('state', $state)->where('service', 'instagram')->delete();
+        } else {
+            Log::warning('No se recibió estado OAuth en el callback');
         }
 
         DB::beginTransaction();
@@ -81,17 +87,19 @@ class InstagramAccountService
                 (int) config('instagram.timeout', 30)
             );
 
-            // Intercambiar código por token de acceso - según documentación oficial
+            // Intercambiar código por token de acceso - USAR form_params (x-www-form-urlencoded)
             $response = $oauthClient->request(
                 'POST',
                 'oauth/access_token',
                 [], // Sin parámetros en la URL
-                [ // Datos en el cuerpo como form-data
-                    'client_id' => config('instagram.client_id'),
-                    'client_secret' => config('instagram.client_secret'),
-                    'grant_type' => 'authorization_code',
-                    'redirect_uri' => config('instagram.redirect_uri') ?: route('instagram.auth.callback'),
-                    'code' => $code,
+                [ // Datos en el cuerpo como form_params (x-www-form-urlencoded)
+                    'form_params' => [
+                        'client_id' => config('instagram.client_id'),
+                        'client_secret' => config('instagram.client_secret'),
+                        'grant_type' => 'authorization_code',
+                        'redirect_uri' => config('instagram.redirect_uri') ?: route('instagram.auth.callback'),
+                        'code' => $code,
+                    ]
                 ]
             );
 

@@ -6,7 +6,6 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use ScriptDevelop\InstagramApiManager\Services\InstagramAccountService;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Session;
 
 class InstagramAuthController extends Controller
 {
@@ -114,17 +113,8 @@ class InstagramAuthController extends Controller
     public function connect()
     {
         $instagramAccountService = app(InstagramAccountService::class);
-        $authData = $instagramAccountService->getAuthorizationUrl();
+        $authUrl = $instagramAccountService->getAuthorizationUrl();
         
-        // Guardar el estado en una cookie de corta duración como respaldo
-        return redirect($authData['url'])->cookie(
-            'instagram_oauth_state', 
-            $authData['state'], 
-            10, // 10 minutos
-            '/',
-            parse_url(config('app.url'), PHP_URL_HOST),
-            false,
-            false
-        );
+        return redirect($authUrl);
     }
 }

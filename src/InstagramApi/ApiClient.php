@@ -48,6 +48,8 @@ class ApiClient
             // Manejar diferentes tipos de datos
             if (isset($data['multipart'])) {
                 $options['multipart'] = $data['multipart'];
+            } elseif (isset($data['form_params'])) {
+                $options['form_params'] = $data['form_params'];
             } elseif (is_resource($data)) {
                 $options['body'] = $data;
             } elseif (!empty($data)) {
