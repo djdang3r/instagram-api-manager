@@ -60,6 +60,18 @@ class InstagramAccountService
 
     public function handleCallback(string $code, ?string $state = null): ?InstagramBusinessAccount
     {
+        // Verificar que el redirect_uri coincida exactamente
+        $expectedRedirectUri = config('instagram.redirect_uri') ?: route('instagram.auth.callback');
+        $currentUri = request()->fullUrl();
+        
+        if (strpos($currentUri, $expectedRedirectUri) === false) {
+            Log::error('El redirect_uri no coincide con el configurado', [
+                'expected' => $expectedRedirectUri,
+                'actual' => $currentUri
+            ]);
+            return null;
+        }
+
         // Validar estado OAuth
         if ($state) {
             $isValidState = OauthState::isValid($state, 'instagram');
@@ -207,6 +219,25 @@ class InstagramAccountService
     public function refreshLongLivedToken(string $longLivedToken): ?array
     {
         try {
+            // Verificar que el token tenga al menos 24 horas de antigüedad
+            $account = InstagramBusinessAccount::where('access_token', $longLivedToken)->first();
+            if (!$account || !$account->token_obtained_at) {
+                Log::error('No se puede refrescar token: cuenta no encontrada o sin fecha de obtención');
+                return null;
+            }
+            
+            $tokenAge = now()->diffInHours($account->token_obtained_at);
+            if ($tokenAge < 24) {
+                Log::error('No se puede refrescar token: debe tener al menos 24 horas de antigüedad');
+                return null;
+            }
+            
+            // Verificar permiso instagram_business_basic
+            if (!$this->hasPermission($account, 'instagram_business_basic')) {
+                Log::error('No se puede refrescar token: falta permiso instagram_business_basic');
+                return null;
+            }
+
             // Crear cliente para endpoint de refresh (según documentación)
             $refreshClient = new ApiClient(
                 config('instagram.graph_base_url', 'https://graph.instagram.com'),

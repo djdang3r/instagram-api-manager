@@ -25,6 +25,12 @@ class InstagramAuthController extends Controller
                 $code = $queryParams['code'] ?? null;
                 $state = $queryParams['state'] ?? null;
                 
+                // Limpiar el #_ del código si está presente (según documentación)
+                if ($code && strpos($code, '#_') !== false) {
+                    $code = str_replace('#_', '', $code);
+                    Log::debug('Código limpiado de #_: ', ['code' => $code]);
+                }
+                
                 if ($code) {
                     return redirect()->route('instagram.auth.callback', [
                         'code' => $code,
@@ -43,6 +49,12 @@ class InstagramAuthController extends Controller
         $error = $request->get('error');
         $errorReason = $request->get('error_reason');
         $errorDescription = $request->get('error_description');
+
+        // Limpiar el #_ del código si está presente (según documentación)
+        if ($code && strpos($code, '#_') !== false) {
+            $code = str_replace('#_', '', $code);
+            Log::debug('Código limpiado de #_: ', ['code' => $code]);
+        }
 
         Log::debug('Callback de Instagram recibido', [
             'code' => $code,
