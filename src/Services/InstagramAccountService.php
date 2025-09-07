@@ -60,18 +60,6 @@ class InstagramAccountService
 
     public function handleCallback(string $code, ?string $state = null): ?InstagramBusinessAccount
     {
-        // Verificar que el redirect_uri coincida exactamente
-        $expectedRedirectUri = config('instagram.redirect_uri') ?: route('instagram.auth.callback');
-        $currentUri = request()->fullUrl();
-        
-        if (strpos($currentUri, $expectedRedirectUri) === false) {
-            Log::error('El redirect_uri no coincide con el configurado', [
-                'expected' => $expectedRedirectUri,
-                'actual' => $currentUri
-            ]);
-            return null;
-        }
-
         // Validar estado OAuth
         if ($state) {
             $isValidState = OauthState::isValid($state, 'instagram');
