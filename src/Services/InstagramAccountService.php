@@ -15,7 +15,6 @@ class InstagramAccountService
 
     public function __construct()
     {
-        // Cliente para Graph API (para la mayoría de endpoints)
         $this->apiClient = new ApiClient(
             config('instagram.graph_base_url', 'https://graph.instagram.com'),
             config('instagram.api_version', 'v19.0'),
@@ -59,8 +58,7 @@ class InstagramAccountService
                 (int) config('instagram.timeout', 30)
             );
 
-            // Intercambiar código por token de acceso - FORMA CORRECTA SEGÚN DOCUMENTACIÓN
-            // Usar form-data (multipart) como indica la documentación
+            // Intercambiar código por token de acceso
             $response = $oauthClient->request(
                 'POST',
                 'oauth/access_token',
@@ -124,13 +122,14 @@ class InstagramAccountService
                 ]
             );
 
+            // CORRECCIÓN: Eliminada la referencia a $userInfo que no estaba definida
             $account = InstagramBusinessAccount::updateOrCreate(
                 ['instagram_business_account_id' => $userId],
                 [
                     'access_token' => $accessToken,
                     'tasks' => null,
-                    'name' => $profileData['name'] ?? $userInfo['name'] ?? '',
-                    'facebook_page_id' => null,
+                    'name' => $profileData['name'] ?? '',
+                    'facebook_page_id' => null, // Puede ser null inicialmente
                 ]
             );
 
@@ -208,6 +207,24 @@ class InstagramAccountService
         } catch (Exception $e) {
             Log::error('Error refrescando token:', ['error' => $e->getMessage()]);
             return null;
+        }
+    }
+
+    /**
+     * Método adicional para vincular una cuenta de Instagram con una página de Facebook
+     */
+    public function linkWithFacebookPage(string $instagramAccountId, string $facebookPageId): bool
+    {
+        try {
+            $account = InstagramBusinessAccount::find($instagramAccountId);
+            if ($account) {
+                $account->facebook_page_id = $facebookPageId;
+                return $account->save();
+            }
+            return false;
+        } catch (Exception $e) {
+            Log::error('Error vinculando cuenta con página de Facebook:', ['error' => $e->getMessage()]);
+            return false;
         }
     }
 }

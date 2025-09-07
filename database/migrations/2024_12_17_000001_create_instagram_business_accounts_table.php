@@ -10,18 +10,21 @@ return new class extends Migration
     {
         Schema::create('instagram_business_accounts', function (Blueprint $table) {
             $table->string('instagram_business_account_id')->primary();
-            $table->string('facebook_page_id');
+            $table->string('facebook_page_id')->nullable(); // Puede ser null inicialmente
             $table->string('name');
-            $table->text('access_token'); // Cambiado a TEXT
+            $table->text('access_token'); // TEXT para tokens encriptados
             $table->integer('token_expires_in')->nullable();
             $table->json('tasks')->nullable();
 
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreign('facebook_page_id')->references('page_id')->on('facebook_pages')->onDelete('cascade');
-            
-            // Eliminado el índice único en 'name' para evitar conflictos
+            // La clave foránea solo se aplica si hay valor (usando condición)
+            $table->foreign('facebook_page_id')
+                  ->references('page_id')
+                  ->on('facebook_pages')
+                  ->onDelete('set null'); // Si se elimina la página, se establece a null
+
             $table->index('name');
         });
     }

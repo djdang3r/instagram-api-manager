@@ -80,7 +80,7 @@ class InstagramAuthController extends Controller
                 return redirect('/')->with('success', 'Autenticación completada y token largo obtenido');
             }
 
-            return redirect('/')->with('success', 'Autenticación completada');
+            return redirect('/')->with('success', 'Autenticación completada. La cuenta se guardó correctamente.');
 
         } catch (\Exception $e) {
             Log::error('Excepción en callback Instagram:', ['error' => $e->getMessage()]);
