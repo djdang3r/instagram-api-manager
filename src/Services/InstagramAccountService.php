@@ -103,11 +103,21 @@ class InstagramAccountService
                 ]
             );
 
-            // La documentación indica que la respuesta viene en formato {"data": [{...}]}
+            // Manejar ambos formatos de respuesta de Instagram
             if (isset($response['data'][0]['access_token'])) {
+                // Formato antiguo: {"data": [{"access_token": "...", "user_id": "...", "permissions": "..."}]}
                 $accessToken = $response['data'][0]['access_token'];
                 $userId = $response['data'][0]['user_id'] ?? null;
                 $permissions = $response['data'][0]['permissions'] ?? null;
+            } elseif (isset($response['access_token'])) {
+                // Formato nuevo: {"access_token": "...", "user_id": "...", "permissions": [...]}
+                $accessToken = $response['access_token'];
+                $userId = $response['user_id'] ?? null;
+                
+                // Convertir array de permisos a string separado por comas
+                $permissions = is_array($response['permissions'] ?? null) 
+                    ? implode(',', $response['permissions']) 
+                    : ($response['permissions'] ?? null);
             } else {
                 Log::error('Instagram OAuth: Formato de respuesta inesperado', ['response' => $response]);
                 DB::rollBack();
