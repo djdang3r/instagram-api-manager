@@ -14,7 +14,9 @@ return new class extends Migration
             $table->string('name');
             $table->text('access_token'); // TEXT para tokens encriptados
             $table->integer('token_expires_in')->nullable();
+            $table->text('permissions')->nullable(); // Campo para almacenar permisos
             $table->json('tasks')->nullable();
+            $table->timestamp('token_obtained_at')->nullable();
 
             $table->timestamps();
             $table->softDeletes();

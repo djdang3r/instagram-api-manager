@@ -7,6 +7,7 @@ use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
 use ScriptDevelop\InstagramApiManager\Models\InstagramProfile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
 use Exception;
 
 class InstagramAccountService
@@ -26,13 +27,15 @@ class InstagramAccountService
         'instagram_business_basic',
         'instagram_business_manage_messages',
         'instagram_business_manage_comments',
-        'instagram_business_content_publish',
-        'instagram_business_manage_insights'
+        'instagram_business_content_publish'
     ], ?string $state = null): string {
         $clientId = config('instagram.client_id');
         $redirectUri = config('instagram.redirect_uri') ?: route('instagram.auth.callback');
         $scope = implode(',', $scopes);
         $state = $state ?? bin2hex(random_bytes(20));
+
+        // Guardar el estado en la sesión para validación CSRF
+        Session::put('instagram_oauth_state', $state);
 
         $params = http_build_query([
             'client_id' => $clientId,
@@ -46,8 +49,20 @@ class InstagramAccountService
         return "https://www.instagram.com/oauth/authorize?" . $params;
     }
 
-    public function handleCallback(string $code): ?InstagramBusinessAccount
+    public function handleCallback(string $code, ?string $state = null): ?InstagramBusinessAccount
     {
+        // Validar estado si se proporcionó (protección CSRF)
+        if ($state && Session::get('instagram_oauth_state') !== $state) {
+            Log::error('El estado de OAuth no coincide', [
+                'expected' => Session::get('instagram_oauth_state'),
+                'received' => $state
+            ]);
+            return null;
+        }
+
+        // Limpiar el estado de la sesión después de validar
+        Session::forget('instagram_oauth_state');
+
         DB::beginTransaction();
 
         try {
@@ -58,46 +73,25 @@ class InstagramAccountService
                 (int) config('instagram.timeout', 30)
             );
 
-            // Intercambiar código por token de acceso
+            // Intercambiar código por token de acceso - según documentación oficial
             $response = $oauthClient->request(
                 'POST',
                 'oauth/access_token',
                 [], // Sin parámetros en la URL
                 [ // Datos en el cuerpo como form-data
-                    'multipart' => [
-                        [
-                            'name' => 'client_id',
-                            'contents' => config('instagram.client_id')
-                        ],
-                        [
-                            'name' => 'client_secret',
-                            'contents' => config('instagram.client_secret')
-                        ],
-                        [
-                            'name' => 'grant_type',
-                            'contents' => 'authorization_code'
-                        ],
-                        [
-                            'name' => 'redirect_uri',
-                            'contents' => config('instagram.redirect_uri') ?: route('instagram.auth.callback')
-                        ],
-                        [
-                            'name' => 'code',
-                            'contents' => $code
-                        ]
-                    ]
+                    'client_id' => config('instagram.client_id'),
+                    'client_secret' => config('instagram.client_secret'),
+                    'grant_type' => 'authorization_code',
+                    'redirect_uri' => config('instagram.redirect_uri') ?: route('instagram.auth.callback'),
+                    'code' => $code,
                 ]
             );
 
-            // La respuesta de Instagram viene en formato diferente según la documentación
+            // La documentación indica que la respuesta viene en formato {"data": [{...}]}
             if (isset($response['data'][0]['access_token'])) {
-                // Formato nuevo según documentación
                 $accessToken = $response['data'][0]['access_token'];
                 $userId = $response['data'][0]['user_id'] ?? null;
-            } elseif (isset($response['access_token'])) {
-                // Formato alternativo que podría devolver la API
-                $accessToken = $response['access_token'];
-                $userId = $response['user_id'] ?? null;
+                $permissions = $response['data'][0]['permissions'] ?? null;
             } else {
                 Log::error('Instagram OAuth: Formato de respuesta inesperado', ['response' => $response]);
                 DB::rollBack();
@@ -122,7 +116,6 @@ class InstagramAccountService
                 ]
             );
 
-            // CORRECCIÓN: Eliminada la referencia a $userInfo que no estaba definida
             $account = InstagramBusinessAccount::updateOrCreate(
                 ['instagram_business_account_id' => $userId],
                 [
@@ -130,6 +123,8 @@ class InstagramAccountService
                     'tasks' => null,
                     'name' => $profileData['name'] ?? '',
                     'facebook_page_id' => null, // Puede ser null inicialmente
+                    'permissions' => $permissions, // Almacenar los permisos concedidos
+                    'token_obtained_at' => now(),
                 ]
             );
 
@@ -158,7 +153,7 @@ class InstagramAccountService
     public function exchangeForLongLivedToken(string $shortLivedToken): ?array
     {
         try {
-            // Crear cliente para endpoint de exchange
+            // Crear cliente para endpoint de exchange (según documentación)
             $exchangeClient = new ApiClient(
                 config('instagram.graph_base_url', 'https://graph.instagram.com'),
                 '', // Sin versión para este endpoint
@@ -186,7 +181,7 @@ class InstagramAccountService
     public function refreshLongLivedToken(string $longLivedToken): ?array
     {
         try {
-            // Crear cliente para endpoint de refresh
+            // Crear cliente para endpoint de refresh (según documentación)
             $refreshClient = new ApiClient(
                 config('instagram.graph_base_url', 'https://graph.instagram.com'),
                 '', // Sin versión para este endpoint
@@ -208,6 +203,19 @@ class InstagramAccountService
             Log::error('Error refrescando token:', ['error' => $e->getMessage()]);
             return null;
         }
+    }
+
+    /**
+     * Verificar si un token tiene un permiso específico
+     */
+    public function hasPermission(InstagramBusinessAccount $account, string $permission): bool
+    {
+        if (empty($account->permissions)) {
+            return false;
+        }
+
+        $permissions = explode(',', $account->permissions);
+        return in_array(trim($permission), $permissions);
     }
 
     /**

@@ -152,6 +152,13 @@ La ruta /instagram-webhook está registrada y excluida de CSRF para evitar bloqu
 
 Puedes personalizar el controlador InstagramWebhookController según tus necesidades.
 
+
+Autenticacion de usuarios:
+use ScriptDevelop\InstagramApiManager\Facades\Instagram;
+$url = Instagram::account()->getAuthorizationUrl();
+
+
+
 Extensión y personalización
 Puedes extender los modelos para añadir relaciones y eventos personalizados.
 

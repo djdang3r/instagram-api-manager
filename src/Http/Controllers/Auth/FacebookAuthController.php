@@ -5,6 +5,7 @@ namespace ScriptDevelop\InstagramApiManager\Http\Controllers\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use ScriptDevelop\InstagramApiManager\Services\FacebookAccountService;
+use Illuminate\Support\Facades\Log;
 
 class FacebookAuthController extends Controller
 {

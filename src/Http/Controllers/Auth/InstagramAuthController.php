@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use ScriptDevelop\InstagramApiManager\Services\InstagramAccountService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
 
 class InstagramAuthController extends Controller
 {
@@ -43,9 +44,20 @@ class InstagramAuthController extends Controller
 
         // Si llegamos aquí, es el callback directo con los parámetros
         $code = $request->get('code');
+        $state = $request->get('state');
         $error = $request->get('error');
         $errorReason = $request->get('error_reason');
         $errorDescription = $request->get('error_description');
+
+        // Manejar cancelación de autorización según documentación
+        if ($error === 'access_denied' && $errorReason === 'user_denied') {
+            Log::warning('Usuario denegó la autorización de Instagram', [
+                'error_reason' => $errorReason,
+                'error_description' => $errorDescription
+            ]);
+            
+            return redirect('/')->with('warning', 'El usuario denegó los permisos solicitados');
+        }
 
         if ($error) {
             Log::error('Error de autorización Instagram:', [
@@ -64,10 +76,16 @@ class InstagramAuthController extends Controller
 
         try {
             $instagramAccountService = app(InstagramAccountService::class);
-            $account = $instagramAccountService->handleCallback($code);
+            $account = $instagramAccountService->handleCallback($code, $state);
             
             if (!$account) {
                 return redirect('/')->with('error', 'No se pudo procesar la autenticación');
+            }
+
+            // Verificar si tenemos el permiso básico necesario para obtener token largo
+            if (!$instagramAccountService->hasPermission($account, 'instagram_business_basic')) {
+                Log::warning('La cuenta no tiene el permiso instagram_business_basic necesario para obtener token largo');
+                return redirect('/')->with('success', 'Autenticación completada. Pero no tiene permisos para token largo.');
             }
 
             // Opcional: intercambiar por token largo
@@ -75,6 +93,7 @@ class InstagramAuthController extends Controller
             if ($longLivedTokenData && isset($longLivedTokenData['access_token'])) {
                 $account->access_token = $longLivedTokenData['access_token'];
                 $account->token_expires_in = $longLivedTokenData['expires_in'] ?? null;
+                $account->token_obtained_at = now();
                 $account->save();
                 
                 return redirect('/')->with('success', 'Autenticación completada y token largo obtenido');
