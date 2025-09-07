@@ -129,8 +129,8 @@ class InstagramAccountService
                 [
                     'access_token' => $accessToken,
                     'tasks' => null,
-                    'name' => $profileData['name'] ?? '',
-                    'facebook_page_id' => '',
+                    'name' => $profileData['name'] ?? $userInfo['name'] ?? '',
+                    'facebook_page_id' => null,
                 ]
             );
 

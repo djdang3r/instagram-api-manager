@@ -12,7 +12,7 @@ class CreateFacebookPagesTable extends Migration
             $table->string('page_id')->primary();
             $table->ulid('meta_app_id');
             $table->string('name')->nullable();
-            $table->string('access_token');
+            $table->text('access_token');
             $table->json('tasks')->nullable();
             $table->boolean('is_active')->default(true);
 

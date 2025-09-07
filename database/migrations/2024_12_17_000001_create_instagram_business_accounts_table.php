@@ -10,9 +10,9 @@ class CreateInstagramBusinessAccountsTable extends Migration
     {
         Schema::create('instagram_business_accounts', function (Blueprint $table) {
             $table->string('instagram_business_account_id')->primary();
-            $table->string('facebook_page_id')->unique();
+            $table->string('facebook_page_id')->nullable();
             $table->string('name')->unique();
-            $table->string('access_token');
+            $table->text('access_token');
             $table->integer('token_expires_in')->nullable();
             $table->json('tasks')->nullable();
 

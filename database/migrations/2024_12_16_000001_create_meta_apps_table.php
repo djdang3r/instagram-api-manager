@@ -13,7 +13,7 @@ class CreateMetaAppsTable extends Migration
             $table->string('app_id')->unique();
             $table->string('app_secret');
             $table->string('verify_token')->unique();
-            $table->string('app_access_token');
+            $table->text('app_access_token');
             $table->json('webhook_fields')->nullable(); // Ej: messages, messaging_postbacks, etc.
             $table->boolean('is_active')->default(true);
             
