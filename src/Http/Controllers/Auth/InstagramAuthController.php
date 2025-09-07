@@ -49,6 +49,14 @@ class InstagramAuthController extends Controller
         $errorReason = $request->get('error_reason');
         $errorDescription = $request->get('error_description');
 
+        Log::debug('Callback de Instagram recibido', [
+            'code' => $code,
+            'state' => $state,
+            'error' => $error,
+            'error_reason' => $errorReason,
+            'error_description' => $errorDescription
+        ]);
+
         // Manejar cancelación de autorización según documentación
         if ($error === 'access_denied' && $errorReason === 'user_denied') {
             Log::warning('Usuario denegó la autorización de Instagram', [

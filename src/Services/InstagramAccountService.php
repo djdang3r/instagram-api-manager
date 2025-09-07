@@ -36,6 +36,9 @@ class InstagramAccountService
 
         // Guardar el estado en la sesión para validación CSRF
         Session::put('instagram_oauth_state', $state);
+        Session::save(); // Forzar guardado inmediato
+
+        Log::debug('Estado guardado en sesión: ' . $state);
 
         $params = http_build_query([
             'client_id' => $clientId,
@@ -52,9 +55,14 @@ class InstagramAccountService
     public function handleCallback(string $code, ?string $state = null): ?InstagramBusinessAccount
     {
         // Validar estado si se proporcionó (protección CSRF)
-        if ($state && Session::get('instagram_oauth_state') !== $state) {
+        $savedState = Session::get('instagram_oauth_state');
+        
+        Log::debug('Estado recibido: ' . $state);
+        Log::debug('Estado guardado: ' . $savedState);
+        
+        if ($state && $savedState !== $state) {
             Log::error('El estado de OAuth no coincide', [
-                'expected' => Session::get('instagram_oauth_state'),
+                'expected' => $savedState,
                 'received' => $state
             ]);
             return null;
@@ -62,6 +70,7 @@ class InstagramAccountService
 
         // Limpiar el estado de la sesión después de validar
         Session::forget('instagram_oauth_state');
+        Session::save();
 
         DB::beginTransaction();
 
