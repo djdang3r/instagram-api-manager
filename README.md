@@ -159,6 +159,32 @@ $url = Instagram::account()->getAuthorizationUrl();
 
 
 
+use ScriptDevelop\InstagramApiManager\Facades\Instagram;
+use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
+
+// Obtener una cuenta
+$account = InstagramBusinessAccount::first();
+
+// Usar la cuenta para obtener información
+$profile = Instagram::forAccount($account)->getProfileInfo();
+$media = Instagram::forAccount($account)->getUserMedia();
+
+// O usando el método helper account()
+$profile = Instagram::account($account)->getProfileInfo();
+$media = Instagram::account($account)->getUserMedia();
+
+// O usando el ID de la cuenta
+$profile = Instagram::forAccountId('account-id')->getProfileInfo();
+$media = Instagram::forAccountId('account-id')->getUserMedia();
+
+// También puedes seguir usando los métodos con parámetros explícitos
+$profile = Instagram::account()->getProfileInfo($accessToken);
+$media = Instagram::account()->getUserMedia($userId, $accessToken);
+
+
+
+
+
 Extensión y personalización
 Puedes extender los modelos para añadir relaciones y eventos personalizados.
 

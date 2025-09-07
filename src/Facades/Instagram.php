@@ -8,29 +8,40 @@ use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
 /**
  * @method static \ScriptDevelop\InstagramApiManager\Services\InstagramAccountService forAccount(InstagramBusinessAccount $account)
  * @method static \ScriptDevelop\InstagramApiManager\Services\InstagramAccountService forAccountId(string $accountId)
- * @method static string getAuthorizationUrl(array $scopes = [], ?string $state = null)
- * @method static \ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount|null handleCallback(string $code, ?string $state = null)
- * @method static array|null exchangeForLongLivedToken(string $shortLivedToken)
- * @method static array|null refreshLongLivedToken(string $longLivedToken)
- * @method static bool hasPermission(\ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount $account, string $permission)
  * @method static array|null getProfileInfo(string|null $accessToken = null)
  * @method static array|null getUserMedia(string|null $userId = null, string|null $accessToken = null)
  * @method static array|null getMediaDetails(string $mediaId, string|null $accessToken = null)
- * @method static bool linkWithFacebookPage(string $instagramAccountId, string $facebookPageId)
+ * @method static \ScriptDevelop\InstagramApiManager\Services\InstagramAccountService account(InstagramBusinessAccount|string|null $account = null)
  */
 class Instagram extends Facade
 {
     protected static function getFacadeAccessor()
     {
-        return 'instagram'; // Llave general, opcional
+        return 'instagram.account';
     }
 
     /**
-     * Método helper para facilitar el uso
+     * Proxy para el método forAccount del servicio.
+     */
+    public static function forAccount(InstagramBusinessAccount $account)
+    {
+        return self::getFacadeRoot()->forAccount($account);
+    }
+
+    /**
+     * Proxy para el método forAccountId del servicio.
+     */
+    public static function forAccountId(string $accountId)
+    {
+        return self::getFacadeRoot()->forAccountId($accountId);
+    }
+
+    /**
+     * Método helper para facilitar el uso.
      */
     public static function account(InstagramBusinessAccount|string|null $account = null): \ScriptDevelop\InstagramApiManager\Services\InstagramAccountService
     {
-        $service = app('instagram.account');
+        $service = self::getFacadeRoot();
         
         if ($account instanceof InstagramBusinessAccount) {
             return $service->forAccount($account);
@@ -41,15 +52,5 @@ class Instagram extends Facade
         }
         
         return $service;
-    }
-
-    public static function message()
-    {
-        return app('instagram.message');
-    }
-
-    public static function media()
-    {
-        return app('instagram.media');
     }
 }

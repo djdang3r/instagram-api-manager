@@ -46,6 +46,91 @@ class InstagramAccountService
         return $this;
     }
 
+    /**
+     * Obtener información del perfil
+     */
+    public function getProfileInfo(?string $accessToken = null): ?array
+    {
+        $accessToken = $accessToken ?? $this->currentAccount?->access_token;
+        
+        if (!$accessToken) {
+            throw new \Exception('Access token is required');
+        }
+
+        try {
+            return $this->apiClient->request(
+                'GET',
+                'me',
+                [],
+                null,
+                [
+                    'fields' => 'id,username,account_type,media_count,followers_count,follows_count,name,profile_picture_url,biography,website',
+                    'access_token' => $accessToken
+                ]
+            );
+        } catch (Exception $e) {
+            Log::error('Error obteniendo información del perfil:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * Obtener medios del usuario
+     */
+    public function getUserMedia(?string $userId = null, ?string $accessToken = null): ?array
+    {
+        $userId = $userId ?? $this->currentAccount?->instagram_business_account_id;
+        $accessToken = $accessToken ?? $this->currentAccount?->access_token;
+        
+        if (!$userId || !$accessToken) {
+            throw new \Exception('User ID and access token are required');
+        }
+
+        try {
+            return $this->apiClient->request(
+                'GET',
+                $userId . '/media',
+                [],
+                null,
+                [
+                    'access_token' => $accessToken,
+                    'fields' => 'id,caption,media_type,media_url,thumbnail_url,timestamp,permalink,children{media_url,media_type}'
+                ]
+            );
+        } catch (Exception $e) {
+            Log::error('Error obteniendo medios del usuario:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * Obtener detalles de un medio específico
+     */
+    public function getMediaDetails(string $mediaId, ?string $accessToken = null): ?array
+    {
+        $accessToken = $accessToken ?? $this->currentAccount?->access_token;
+        
+        if (!$accessToken) {
+            throw new \Exception('Access token is required');
+        }
+
+        try {
+            return $this->apiClient->request(
+                'GET',
+                $mediaId,
+                [],
+                null,
+                [
+                    'access_token' => $accessToken,
+                    'fields' => 'id,media_type,media_url,thumbnail_url,timestamp,username,caption,permalink,children{media_url,media_type}'
+                ]
+            );
+        } catch (Exception $e) {
+            Log::error('Error obteniendo detalles del medio:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
     public function getAuthorizationUrl(array $scopes = [
         'instagram_business_basic',
         'instagram_business_manage_messages',
@@ -159,7 +244,7 @@ class InstagramAccountService
                 [],
                 null,
                 [
-                    'fields' => 'id,username,account_type,media_count,followers_count,follows_count,name,profile_picture_url,biography,website',
+                    'fields' => 'id,username,account_type,media_count,followers_count,follows_count,name,profile_picture_url,biography',
                     'access_token' => $accessToken
                 ]
             );
@@ -290,91 +375,6 @@ class InstagramAccountService
 
         $permissions = explode(',', $account->permissions);
         return in_array(trim($permission), $permissions);
-    }
-
-    /**
-     * Obtener información del perfil
-     */
-    public function getProfileInfo(?string $accessToken = null): ?array
-    {
-        $accessToken = $accessToken ?? $this->currentAccount?->access_token;
-        
-        if (!$accessToken) {
-            throw new \Exception('Access token is required');
-        }
-
-        try {
-            return $this->apiClient->request(
-                'GET',
-                'me',
-                [],
-                null,
-                [
-                    'fields' => 'id,username,account_type,media_count,followers_count,follows_count,name,profile_picture_url,biography,website',
-                    'access_token' => $accessToken
-                ]
-            );
-        } catch (Exception $e) {
-            Log::error('Error obteniendo información del perfil:', ['error' => $e->getMessage()]);
-            return null;
-        }
-    }
-
-    /**
-     * Obtener medios del usuario
-     */
-    public function getUserMedia(?string $userId = null, ?string $accessToken = null): ?array
-    {
-        $userId = $userId ?? $this->currentAccount?->instagram_business_account_id;
-        $accessToken = $accessToken ?? $this->currentAccount?->access_token;
-        
-        if (!$userId || !$accessToken) {
-            throw new \Exception('User ID and access token are required');
-        }
-
-        try {
-            return $this->apiClient->request(
-                'GET',
-                $userId . '/media',
-                [],
-                null,
-                [
-                    'access_token' => $accessToken,
-                    'fields' => 'id,caption,media_type,media_url,thumbnail_url,timestamp,permalink,children{media_url,media_type}'
-                ]
-            );
-        } catch (Exception $e) {
-            Log::error('Error obteniendo medios del usuario:', ['error' => $e->getMessage()]);
-            return null;
-        }
-    }
-
-    /**
-     * Obtener detalles de un medio específico
-     */
-    public function getMediaDetails(string $mediaId, ?string $accessToken = null): ?array
-    {
-        $accessToken = $accessToken ?? $this->currentAccount?->access_token;
-        
-        if (!$accessToken) {
-            throw new \Exception('Access token is required');
-        }
-
-        try {
-            return $this->apiClient->request(
-                'GET',
-                $mediaId,
-                [],
-                null,
-                [
-                    'access_token' => $accessToken,
-                    'fields' => 'id,media_type,media_url,thumbnail_url,timestamp,username,caption,permalink,children{media_url,media_type}'
-                ]
-            );
-        } catch (Exception $e) {
-            Log::error('Error obteniendo detalles del medio:', ['error' => $e->getMessage()]);
-            return null;
-        }
     }
 
     /**
