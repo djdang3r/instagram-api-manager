@@ -13,29 +13,17 @@ class ApiClient
     protected string $baseUrl;
     protected string $version;
 
-    public function __construct(string $baseUrl, string $version = 'v19.0', int $timeout = 30)
+    public function __construct(string $baseUrl, string $version = '', int $timeout = 30)
     {
         $this->baseUrl = rtrim($baseUrl, '/');
         $this->version = $version;
         $this->client = new Client([
-            'base_uri' => $this->baseUrl . '/',
             'timeout' => $timeout,
         ]);
     }
 
     /**
-     * Realiza una petición HTTP hacia la API, con manejo de parámetros, datos y headers.
-     * 
-     * @param string $method Método HTTP (GET, POST, etc).
-     * @param string $endpoint Endpoint con o sin placeholders.
-     * @param array $params Valores para sustituir placeholders en el endpoint.
-     * @param mixed|null $data Cuerpo de la petición si aplica.
-     * @param array $query Parámetros query string.
-     * @param array $headers Headers adicionales.
-     * @param bool $isMultimedia Si es true, indica petición para multimedia (sin versión).
-     * 
-     * @return mixed Array decodificado o string si multimedia.
-     * @throws ApiException
+     * Realiza una petición HTTP hacia la API
      */
     public function request(
         string $method,
@@ -44,57 +32,70 @@ class ApiClient
         mixed $data = null,
         array $query = [],
         array $headers = [],
-        bool $isMultimedia = false
+        bool $isFullUrl = false,
+        string $customBaseUrl = null
     ): mixed {
         try {
-            $url = $this->buildUrl($endpoint, $params, $query, $isMultimedia);
+            $baseUrl = $customBaseUrl ?: $this->baseUrl;
+            $url = $this->buildUrl($endpoint, $params, $query, $isFullUrl, $baseUrl);
 
             $options = [
                 'headers' => array_merge([
                     'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
                 ], $headers),
             ];
 
             if (isset($data['multipart'])) {
                 $options['multipart'] = $data['multipart'];
+                unset($options['headers']['Content-Type']);
             } elseif (is_resource($data)) {
                 $options['body'] = $data;
+                unset($options['headers']['Content-Type']);
             } elseif (!empty($data)) {
-                $options['json'] = $data;
+                if ($method === 'GET') {
+                    // Para GET, los datos van en query string
+                    $query = array_merge($query, $data);
+                } else {
+                    $options['json'] = $data;
+                }
             }
 
-            $response = $this->client->request($method, $url, $options);
-
-            $statusCode = $response->getStatusCode();
-
-            if ($statusCode >= 200 && $statusCode < 300) {
-                $logArray = [
-                    'URL' => $url,
-                    'status_code' => $statusCode,
-                ];
-
-                if (!$isMultimedia) {
-                    $logArray['response_body'] = $response->getBody()->getContents();
-                }
-
-                Log::channel('instagram')->info('Respuesta exitosa de la API.', $logArray);
-
-                if ($isMultimedia) {
-                    return $response->getBody()->getContents();
-                }
-
-                return json_decode($response->getBody(), true) ?: [];
+            // Agregar query parameters a la URL
+            if (!empty($query)) {
+                $separator = strpos($url, '?') === false ? '?' : '&';
+                $url .= $separator . http_build_query($query);
             }
 
-            Log::channel('instagram')->warning('ERROR Respuesta no exitosa de la API.', [
-                'status_code' => $statusCode,
-                'response_body' => $response->getBody()->getContents(),
+            Log::channel('instagram')->debug('Solicitud API:', [
+                'method' => $method,
+                'url' => $url,
+                'options' => $options
             ]);
 
-            throw new ApiException('Respuesta no exitosa de la API.', $statusCode);
+            $response = $this->client->request($method, $url, $options);
+            $statusCode = $response->getStatusCode();
+            $content = $response->getBody()->getContents();
+
+            if ($statusCode >= 200 && $statusCode < 300) {
+                Log::channel('instagram')->info('Respuesta exitosa:', [
+                    'url' => $url,
+                    'status' => $statusCode,
+                    'response' => $content
+                ]);
+
+                return json_decode($content, true) ?? $content;
+            }
+
+            Log::channel('instagram')->warning('Error en respuesta:', [
+                'status' => $statusCode,
+                'response' => $content
+            ]);
+
+            throw new ApiException('Error en la API', $statusCode);
 
         } catch (GuzzleException $e) {
-            Log::channel('instagram')->error('API Error', [
+            Log::channel('instagram')->error('Error API:', [
                 'url' => $url ?? $endpoint,
                 'error' => $e->getMessage()
             ]);
@@ -103,53 +104,33 @@ class ApiClient
     }
 
     /**
-     * Request específico para multimedia, sin usar versión en URL.
+     * Construye la URL correctamente
      */
-    public function requestMultimedia(
-        string $method,
-        string $endpoint,
-        array $params = [],
-        mixed $data = null,
-        array $query = [],
-        array $headers = []
-    ) {
-        return $this->request(
-            $method,
-            $endpoint,
-            $params,
-            $data,
-            $query,
-            $headers,
-            true
-        );
-    }
-
-    /**
-     * Construye la URL con versión, parámetros y query string.
-     */
-    protected function buildUrl(string $endpoint, array $params, array $query = [], bool $isMultimedia = false): string
+    protected function buildUrl(string $endpoint, array $params, array $query = [], bool $isFullUrl = false, string $baseUrl = null): string
     {
-        if ($isMultimedia) {
+        $baseUrl = $baseUrl ?: $this->baseUrl;
+        
+        if ($isFullUrl) {
             $url = $endpoint;
         } else {
-            $url = str_replace(
-                array_map(fn ($k) => '{' . $k . '}', array_keys($params)),
+            // Reemplazar placeholders
+            $processedEndpoint = str_replace(
+                array_map(fn($k) => '{' . $k . '}', array_keys($params)),
                 array_values($params),
-                $this->version . '/' . $endpoint
+                $endpoint
             );
+            
+            // Construir URL con versión si está definida
+            $url = $this->version ? $baseUrl . '/' . $this->version . '/' . $processedEndpoint 
+                                  : $baseUrl . '/' . $processedEndpoint;
         }
 
-        if (!empty($query)) {
-            $url .= '?' . http_build_query($query);
-        }
-
-        Log::channel('instagram')->info('URL construida:', ['url' => $url]);
-
+        Log::channel('instagram')->debug('URL construida:', ['url' => $url]);
         return $url;
     }
 
     /**
-     * Manejo avanzado de excepciones para ApiException.
+     * Manejo de excepciones
      */
     protected function handleException(GuzzleException $e): ApiException
     {
@@ -160,12 +141,13 @@ class ApiClient
         if ($e instanceof \GuzzleHttp\Exception\RequestException && $e->hasResponse()) {
             $response = $e->getResponse();
             $statusCode = $response->getStatusCode();
-            $body = json_decode($response->getBody(), true);
+            $content = $response->getBody()->getContents();
+            $body = json_decode($content, true) ?? [];
             $message = $body['error']['message'] ?? $message;
 
-            Log::channel('instagram')->error('Error en la respuesta de la API.', [
-                'status_code' => $statusCode,
-                'response_body' => $body,
+            Log::channel('instagram')->error('Error detallado:', [
+                'status' => $statusCode,
+                'body' => $body,
                 'headers' => $response->getHeaders(),
             ]);
         }

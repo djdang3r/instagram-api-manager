@@ -2,7 +2,6 @@
 
 namespace ScriptDevelop\InstagramApiManager\Services;
 
-use ScriptDevelop\InstagramApiManager\FacebookApi\Endpoints\FacebookEndpoints;
 use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
 use ScriptDevelop\InstagramApiManager\Models\FacebookPage;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +21,7 @@ class FacebookAccountService
         );
     }
 
-    public function getAuthorizationUrl(array $scopes = ['pages_show_list', 'pages_messaging'], ?string $state = null): string
+    public function getAuthorizationUrl(array $scopes = ['pages_show_list', 'pages_read_engagement', 'pages_messaging'], ?string $state = null): string
     {
         $clientId = config('facebook.client_id');
         $redirectUri = config('facebook.redirect_uri') ?: route('facebook.auth.callback');
@@ -36,7 +35,7 @@ class FacebookAccountService
             'state' => $state,
         ]);
 
-        return "https://www.facebook.com/v23.0/dialog/oauth?" . $params;
+        return "https://www.facebook.com/v19.0/dialog/oauth?" . $params;
     }
 
     public function handleCallback(string $code): bool
@@ -44,9 +43,10 @@ class FacebookAccountService
         DB::beginTransaction();
 
         try {
-            $response = $this->apiClient->request(
+            // Obtener access token de usuario
+            $tokenResponse = $this->apiClient->request(
                 'GET',
-                FacebookEndpoints::GET_USER_MANAGED_PAGES,
+                'oauth/access_token',
                 [],
                 null,
                 [
@@ -57,26 +57,28 @@ class FacebookAccountService
                 ]
             );
 
-            if (!isset($response['access_token'])) {
-                Log::error('Datos incompletos token Facebook', ['response' => $response]);
+            if (!isset($tokenResponse['access_token'])) {
+                Log::error('Facebook OAuth: Falta access_token', ['response' => $tokenResponse]);
                 DB::rollBack();
                 return false;
             }
 
-            $accessToken = $response['access_token'];
+            $accessToken = $tokenResponse['access_token'];
 
+            // Obtener páginas del usuario
             $pagesResponse = $this->apiClient->request(
                 'GET',
-                FacebookEndpoints::GET_USER_MANAGED_PAGES,
+                'me/accounts',
                 [],
                 null,
                 [
-                    'access_token' => $accessToken,
+                    'fields' => 'id,name,access_token,tasks,instagram_business_account',
+                    'access_token' => $accessToken
                 ]
             );
 
             if (empty($pagesResponse['data'])) {
-                Log::warning('No se obtuvieron páginas de Facebook con token.');
+                Log::warning('No se obtuvieron páginas de Facebook');
                 DB::rollBack();
                 return false;
             }
@@ -88,16 +90,16 @@ class FacebookAccountService
                         'name' => $page['name'] ?? '',
                         'access_token' => $page['access_token'] ?? '',
                         'tasks' => $page['tasks'] ?? [],
+                        'instagram_business_account' => $page['instagram_business_account']['id'] ?? null,
                     ]
                 );
             }
 
             DB::commit();
-
             return true;
 
         } catch (Exception $e) {
-            Log::error('Excepción en OAuth Facebook AccountService', ['error' => $e->getMessage()]);
+            Log::error('Error en OAuth Facebook:', ['error' => $e->getMessage()]);
             DB::rollBack();
             return false;
         }
