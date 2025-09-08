@@ -277,7 +277,7 @@ class InstagramMessageService
     /**
      * Método genérico para enviar mensajes y manejar el estado en la base de datos
      */
-    protected function sendMessageGeneric(string $recipientId, array $payload, string $messageType, string $conversationId = null, ?string $mediaUrl = null, ?string $postId = null): ?array
+    protected function sendMessageGeneric(string $recipientId, array $payload, string $messageType, ?string $conversationId = null, ?string $mediaUrl = null, ?string $postId = null): ?array
     {
         $this->validateCredentials();
 
@@ -354,7 +354,7 @@ class InstagramMessageService
     /**
      * Enviar un mensaje de texto
      */
-    public function sendTextMessage(string $recipientId, string $text, string $conversationId = null): ?array
+    public function sendTextMessage(string $recipientId, string $text, ?string $conversationId = null): ?array
     {
         $payload = [
             'recipient' => [
@@ -371,7 +371,7 @@ class InstagramMessageService
     /**
      * Enviar una imagen o GIF
      */
-    public function sendImageMessage(string $recipientId, string $imageUrl, string $conversationId = null): ?array
+    public function sendImageMessage(string $recipientId, string $imageUrl, ?string $conversationId = null): ?array
     {
         $payload = [
             'recipient' => [
@@ -393,7 +393,7 @@ class InstagramMessageService
     /**
      * Enviar un mensaje de audio
      */
-    public function sendAudioMessage(string $recipientId, string $audioUrl, string $conversationId = null): ?array
+    public function sendAudioMessage(string $recipientId, string $audioUrl, ?string $conversationId = null): ?array
     {
         $payload = [
             'recipient' => [
@@ -415,7 +415,7 @@ class InstagramMessageService
     /**
      * Enviar un mensaje de video
      */
-    public function sendVideoMessage(string $recipientId, string $videoUrl, string $conversationId = null): ?array
+    public function sendVideoMessage(string $recipientId, string $videoUrl, ?string $conversationId = null): ?array
     {
         $payload = [
             'recipient' => [
@@ -437,7 +437,7 @@ class InstagramMessageService
     /**
      * Enviar un sticker (corazón)
      */
-    public function sendStickerMessage(string $recipientId, string $conversationId = null): ?array
+    public function sendStickerMessage(string $recipientId, ?string $conversationId = null): ?array
     {
         $payload = [
             'recipient' => [
@@ -456,7 +456,7 @@ class InstagramMessageService
     /**
      * Reaccionar a un mensaje
      */
-    public function reactToMessage(string $recipientId, string $messageId, string $reaction = 'love', string $conversationId = null): ?array
+    public function reactToMessage(string $recipientId, string $messageId, string $reaction = 'love', ?string $conversationId = null): ?array
     {
         $payload = [
             'recipient' => [
@@ -475,7 +475,7 @@ class InstagramMessageService
     /**
      * Eliminar reacción de un mensaje
      */
-    public function unreactToMessage(string $recipientId, string $messageId, string $conversationId = null): ?array
+    public function unreactToMessage(string $recipientId, string $messageId, ?string $conversationId = null): ?array
     {
         $payload = [
             'recipient' => [
@@ -493,7 +493,7 @@ class InstagramMessageService
     /**
      * Enviar un post publicado
      */
-    public function sendPublishedPost(string $recipientId, string $postId, string $conversationId = null): ?array
+    public function sendPublishedPost(string $recipientId, string $postId, ?string $conversationId = null): ?array
     {
         if (!$this->verifyPostOwnership($postId)) {
             throw new Exception("El usuario no es propietario de este post");
@@ -519,7 +519,7 @@ class InstagramMessageService
     /**
      * Enviar un mensaje fuera de la ventana de 24 horas usando una etiqueta
      */
-    public function sendMessageWithTag(string $recipientId, string $text, string $tag, string $conversationId = null): ?array
+    public function sendMessageWithTag(string $recipientId, string $text, string $tag, ?string $conversationId = null): ?array
     {
         $allowedTags = ['ISSUE_RESOLUTION', 'APPOINTMENT_UPDATE', 'SHIPPING_UPDATE', 'RESERVATION_UPDATE', 'GAME_EVENT', 'TRANSPORTATION_UPDATE', 'FEATURE_FUNCTIONALITY_UPDATE', 'TICKET_UPDATE'];
         
