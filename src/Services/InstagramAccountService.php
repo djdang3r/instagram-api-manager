@@ -244,7 +244,7 @@ class InstagramAccountService
                 [],
                 null,
                 [
-                    'fields' => 'id,username,account_type,media_count,followers_count,follows_count,name,profile_picture_url,biography',
+                    'fields' => 'id,user_id,username,account_type,media_count,followers_count,follows_count,name,profile_picture_url,biography',
                     'access_token' => $accessToken
                 ]
             );
@@ -266,6 +266,7 @@ class InstagramAccountService
                     ['instagram_business_account_id' => $userId],
                     [
                         'profile_name' => $profileData['name'] ?? '',
+                        'user_id' => $profileData['user_id'] ?? null,
                         'username' => $profileData['username'] ?? null,
                         'profile_picture' => $profileData['profile_picture_url'] ?? null,
                         'bio' => $profileData['biography'] ?? null,

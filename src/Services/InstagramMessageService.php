@@ -8,6 +8,7 @@ use Exception;
 use ScriptDevelop\InstagramApiManager\Models\InstagramConversation;
 use ScriptDevelop\InstagramApiManager\Models\InstagramMessage;
 use ScriptDevelop\InstagramApiManager\Models\InstagramContact;
+use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
 
 class InstagramMessageService
 {
@@ -122,6 +123,12 @@ class InstagramMessageService
 
     protected function processMessage(array $messageData): void
     {
+        // Filtrar mensajes de eco (mensajes que nosotros enviamos)
+        if (isset($messageData['message']['is_echo']) && $messageData['message']['is_echo'] === true) {
+            Log::info('Ignorando mensaje de eco (enviado por nosotros mismos)');
+            return;
+        }
+        
         $senderId = $messageData['sender']['id'] ?? null;
         $recipientId = $messageData['recipient']['id'] ?? null;
         
@@ -131,6 +138,15 @@ class InstagramMessageService
         }
 
         try {
+            // Verificar que la cuenta de negocio existe en la base de datos
+            $businessAccount = InstagramBusinessAccount::where('instagram_business_account_id', $recipientId)->first();
+            if (!$businessAccount) {
+                Log::error('La cuenta de Instagram Business no existe en la base de datos', [
+                    'account_id' => $recipientId
+                ]);
+                return;
+            }
+            
             $conversation = $this->findOrCreateConversation($recipientId, $senderId);
 
             $conversation->update([
@@ -151,6 +167,8 @@ class InstagramMessageService
                 $this->processReferral($conversation, $messageData['referral'], $senderId, $recipientId);
             } elseif (isset($messageData['read'])) {
                 $this->processRead($conversation, $messageData['read'], $senderId, $recipientId);
+            } elseif (isset($messageData['message_edit'])) {
+                $this->processMessageEdit($conversation, $messageData['message_edit'], $senderId, $recipientId);
             } else {
                 Log::warning('Unknown message type received', $messageData);
             }
@@ -170,6 +188,15 @@ class InstagramMessageService
      */
     protected function processIncomingMessage(InstagramConversation $conversation, array $message, string $senderId, string $recipientId): void
     {
+        $messageId = $message['mid'] ?? uniqid();
+
+        // Verificar si el mensaje ya existe para evitar duplicados
+        $existingMessage = InstagramMessage::where('message_id', $messageId)->first();
+        if ($existingMessage) {
+            Log::info('Mensaje duplicado ignorado', ['message_id' => $messageId]);
+            return;
+        }
+
         $messageType = $this->determineMessageType($message);
         $messageData = [
             'conversation_id' => $conversation->id,
@@ -200,8 +227,19 @@ class InstagramMessageService
         }
 
         InstagramMessage::create($messageData);
+        Log::info('Mensaje entrante guardado', ['message_id' => $messageId, 'type' => $messageType]);
     }
     
+    // Añadir método para procesar ediciones de mensajes
+    protected function processMessageEdit(InstagramConversation $conversation, array $messageEdit, string $senderId, string $recipientId): void
+    {
+        Log::info('Edición de mensaje procesada', [
+            'conversation_id' => $conversation->id,
+            'message_edit' => $messageEdit
+        ]);
+        
+        // Opcional: puedes implementar lógica para actualizar mensajes editados
+    }
     protected function processOptin(InstagramConversation $conversation, array $optin, string $senderId, string $recipientId): void
     {
         Log::info('Instagram optin processed', [

@@ -14,6 +14,7 @@ return new class extends Migration
             
             // Información básica del perfil
             $table->string('profile_name');
+            $table->string('user_id');
             $table->string('username')->nullable();
             $table->text('profile_picture')->nullable();
             $table->text('bio')->nullable();
