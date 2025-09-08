@@ -207,8 +207,11 @@ class InstagramMessageService
                 Log::warning('Unknown message type received', $messageData);
             }
 
-            // Actualizar contacto con el businessAccountId correcto
-            $this->updateContact($senderId, $businessAccount->instagram_business_account_id, $messageData);
+            // SOLO actualizar contacto si tenemos información de perfil
+            // Los eventos como 'read' no tienen información de perfil
+            if (isset($messageData['sender']['profile']) || isset($messageData['message']) || isset($messageData['postback'])) {
+                $this->updateContact($senderId, $businessAccount->instagram_business_account_id, $messageData);
+            }
             
         } catch (Exception $e) {
             Log::error('Error processing Instagram message:', [
@@ -323,19 +326,30 @@ class InstagramMessageService
 
     protected function updateContact(string $instagramUserId, string $businessAccountId, array $messageData): void
     {
-        $profile = $messageData['sender']['profile'] ?? [];
-        
-        InstagramContact::updateOrCreate(
-            [
-                'instagram_business_account_id' => $businessAccountId,
-                'instagram_user_id' => $instagramUserId
-            ],
-            [
-                'username' => $profile['username'] ?? null,
-                'profile_picture' => $profile['profile_pic'] ?? null,
-                'name' => $profile['name'] ?? null,
-            ]
-        );
+        try {
+            $profile = $messageData['sender']['profile'] ?? [];
+            
+            // Solo crear/actualizar si tenemos información útil
+            if (!empty($profile) || $instagramUserId) {
+                InstagramContact::updateOrCreate(
+                    [
+                        'instagram_business_account_id' => $businessAccountId,
+                        'instagram_user_id' => $instagramUserId
+                    ],
+                    [
+                        'username' => $profile['username'] ?? null,
+                        'profile_picture' => $profile['profile_pic'] ?? null,
+                        'name' => $profile['name'] ?? null,
+                    ]
+                );
+            }
+        } catch (Exception $e) {
+            Log::error('Error updating Instagram contact:', [
+                'error' => $e->getMessage(),
+                'user_id' => $instagramUserId,
+                'business_account_id' => $businessAccountId
+            ]);
+        }
     }
 
     public function markAsRead(string $messageId): bool
