@@ -129,10 +129,19 @@ class InstagramMessageService
             Log::info('Ignorando mensaje de eco (enviado por nosotros mismos)');
             return;
         }
-        
+
+        // Algunos eventos (como message_edit y read) no tienen sender y recipient en el nivel superior
         $senderId = $messageData['sender']['id'] ?? null;
         $recipientId = $messageData['recipient']['id'] ?? null;
-        
+
+        // Si no hay sender y recipient, puede ser un evento que no requiere procesamiento de mensaje
+        if (!$senderId && !$recipientId) {
+            // Loggear para depuración pero no procesar
+            Log::info('Evento sin sender o recipient, ignorando', $messageData);
+            return;
+        }
+
+        // Si solo falta uno, loggear advertencia
         if (!$senderId || !$recipientId) {
             Log::warning('Invalid message data: missing sender or recipient', $messageData);
             return;
@@ -198,7 +207,8 @@ class InstagramMessageService
                 Log::warning('Unknown message type received', $messageData);
             }
 
-            $this->updateContact($senderId, $messageData);
+            // Actualizar contacto con el businessAccountId correcto
+            $this->updateContact($senderId, $businessAccount->instagram_business_account_id, $messageData);
             
         } catch (Exception $e) {
             Log::error('Error processing Instagram message:', [
@@ -290,6 +300,12 @@ class InstagramMessageService
                 ->update(['status' => 'read', 'read_at' => now()]);
         }
         
+        // También puedes procesar el mid específico si está disponible
+        if (isset($read['mid'])) {
+            InstagramMessage::where('message_id', $read['mid'])
+                ->update(['status' => 'read', 'read_at' => now()]);
+        }
+        
         Log::info('Instagram read receipt processed', [
             'conversation_id' => $conversation->id,
             'read' => $read
@@ -305,12 +321,15 @@ class InstagramMessageService
         return 'text';
     }
 
-    protected function updateContact(string $instagramUserId, array $messageData): void
+    protected function updateContact(string $instagramUserId, string $businessAccountId, array $messageData): void
     {
         $profile = $messageData['sender']['profile'] ?? [];
         
         InstagramContact::updateOrCreate(
-            ['instagram_user_id' => $instagramUserId],
+            [
+                'instagram_business_account_id' => $businessAccountId,
+                'instagram_user_id' => $instagramUserId
+            ],
             [
                 'username' => $profile['username'] ?? null,
                 'profile_picture' => $profile['profile_pic'] ?? null,
