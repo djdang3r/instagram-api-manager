@@ -53,4 +53,12 @@ class Instagram extends Facade
         
         return $service;
     }
+
+    /**
+     * Obtener el servicio de mensajes
+     */
+    public static function message(): \ScriptDevelop\InstagramApiManager\Services\InstagramMessageService
+    {
+        return app('instagram.message');
+    }
 }

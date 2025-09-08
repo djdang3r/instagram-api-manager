@@ -1,0 +1,35 @@
+<?php
+
+namespace ScriptDevelop\InstagramApiManager\Console\Commands;
+
+use Illuminate\Console\Command;
+use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
+use ScriptDevelop\InstagramApiManager\Services\InstagramMessageService;
+
+class SyncInstagramConversations extends Command
+{
+    protected $signature = 'instagram:conversations:sync';
+    protected $description = 'Sync Instagram conversations from API';
+
+    public function handle()
+    {
+        $accounts = InstagramBusinessAccount::whereNotNull('access_token')->get();
+        
+        foreach ($accounts as $account) {
+            $this->info("Syncing conversations for account: {$account->instagram_business_account_id}");
+            
+            try {
+                app(InstagramMessageService::class)
+                    ->withAccessToken($account->access_token)
+                    ->withInstagramUserId($account->instagram_business_account_id)
+                    ->syncConversations($account->access_token, $account->instagram_business_account_id);
+                
+                $this->info("Successfully synced conversations for account: {$account->instagram_business_account_id}");
+            } catch (\Exception $e) {
+                $this->error("Error syncing conversations for account {$account->instagram_business_account_id}: {$e->getMessage()}");
+            }
+        }
+        
+        $this->info('Instagram conversations sync completed');
+    }
+}

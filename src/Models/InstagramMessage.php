@@ -14,7 +14,6 @@ class InstagramMessage extends Model
     protected $table = 'instagram_messages';
 
     protected $keyType = 'string';
-
     public $incrementing = false;
 
     protected $fillable = [
@@ -29,6 +28,7 @@ class InstagramMessage extends Model
         'message_context',
         'message_context_id',
         'message_context_from',
+        'attachments',
         'caption',
         'media_url',
         'json_content',
@@ -42,19 +42,47 @@ class InstagramMessage extends Model
         'message_error',
         'details_error',
         'json',
+        'created_time',
+        'is_unsupported',
+        'reactions',
     ];
 
     protected $casts = [
+        'message_from' => 'array',
+        'message_to' => 'array',
+        'attachments' => 'array',
         'json_content' => 'array',
         'json' => 'array',
+        'reactions' => 'array',
+        'created_time' => 'datetime',
+        'sent_at' => 'datetime',
+        'read_at' => 'datetime',
+        'edited_at' => 'datetime',
+        'failed_at' => 'datetime',
+        'is_unsupported' => 'boolean',
     ];
 
     protected $dates = [
-        'sent_at', 'read_at', 'edited_at', 'failed_at', 'created_at', 'updated_at', 'deleted_at',
+        'created_time', 'sent_at', 'read_at', 'edited_at', 'failed_at', 
+        'created_at', 'updated_at', 'deleted_at',
     ];
 
-    public function instagramConversation(): BelongsTo
+    public function conversation(): BelongsTo
     {
         return $this->belongsTo(InstagramConversation::class, 'conversation_id', 'id');
+    }
+
+    public function getSenderAttribute()
+    {
+        return is_array($this->message_from) ? 
+            ($this->message_from['id'] ?? null) : 
+            $this->message_from;
+    }
+
+    public function getRecipientAttribute()
+    {
+        return is_array($this->message_to) ? 
+            ($this->message_to['id'] ?? null) : 
+            $this->message_to;
     }
 }

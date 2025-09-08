@@ -118,6 +118,8 @@ class InstagramServiceProvider extends ServiceProvider
         $this->commands([
             \ScriptDevelop\InstagramApiManager\Console\Commands\RefreshInstagramTokens::class,
             \ScriptDevelop\InstagramApiManager\Console\Commands\CleanupOauthStates::class,
+            \ScriptDevelop\InstagramApiManager\Console\Commands\ProcessPendingMessages::class,
+            \ScriptDevelop\InstagramApiManager\Console\Commands\SyncInstagramConversations::class,
         ]);
 
         // Puedes cargar vistas o comandos si el paquete los tuviera aquí

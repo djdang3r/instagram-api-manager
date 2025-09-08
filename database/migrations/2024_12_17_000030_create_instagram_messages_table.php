@@ -14,14 +14,15 @@ return new class extends Migration
             $table->string('message_id');
             $table->enum('message_method', ['incoming', 'outgoing']);
             $table->enum('message_type', ['text', 'audio', 'photo', 'gif', 'video', 'sticker', 'reaction', 'reply']);
-            $table->string('message_from', 45);
-            $table->string('message_to', 45);
+            $table->json('message_from')->nullable();
+            $table->json('message_to')->nullable();
             $table->text('message_content')->nullable();
             $table->text('message_context')->nullable();
-            $table->string('message_context_id', 45)->nullable();
-            $table->string('message_context_from', 45)->nullable();
-            $table->text('caption')->nullable(); // Cambiado a TEXT
-            $table->text('media_url')->nullable(); // Cambiado a TEXT
+            $table->string('message_context_id')->nullable();
+            $table->string('message_context_from')->nullable();
+            $table->json('attachments')->nullable();
+            $table->text('caption')->nullable();
+            $table->text('media_url')->nullable();
             $table->json('json_content')->nullable();
             $table->enum('status', ['pending', 'sent', 'delivered', 'read', 'failed', 'received'])->default('pending');
             $table->timestamp('sent_at')->nullable();
@@ -33,17 +34,22 @@ return new class extends Migration
             $table->text('message_error')->nullable();
             $table->text('details_error')->nullable();
             $table->json('json')->nullable();
+            $table->timestamp('created_time')->nullable();
+            $table->boolean('is_unsupported')->default(false);
+            $table->json('reactions')->nullable();
 
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreign('conversation_id')->references('id')->on('instagram_conversations')->onDelete('cascade');
+            $table->foreign('conversation_id')
+                ->references('id')
+                ->on('instagram_conversations')
+                ->onDelete('cascade');
 
             $table->unique('message_id');
             $table->index('message_method');
-            $table->index('message_from');
-            $table->index('message_to');
             $table->index('status');
+            $table->index('created_time');
         });
     }
 
