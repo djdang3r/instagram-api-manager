@@ -334,6 +334,19 @@ class InstagramMessageService
         try {
             $profile = $messageData['sender']['profile'] ?? [];
             
+            Log::debug('Intentando actualizar contacto', [
+                'user_id' => $instagramUserId,
+                'business_account_id' => $businessAccountId,
+                'has_profile_data' => !empty($profile)
+            ]);
+            
+            // Si no hay información de perfil en el webhook, intentar obtenerla via API
+            if (empty($profile)) {
+                Log::info('No hay información de perfil en el webhook, intentando obtener via API');
+                $profile = $this->getUserProfileViaApi($instagramUserId, $businessAccountId);
+            }
+            
+            // Crear o actualizar el contacto incluso si no tenemos información completa
             InstagramContact::updateOrCreate(
                 [
                     'instagram_business_account_id' => $businessAccountId,
@@ -345,6 +358,11 @@ class InstagramMessageService
                     'name' => $profile['name'] ?? null,
                 ]
             );
+            
+            Log::info('Contacto actualizado/creado exitosamente', [
+                'user_id' => $instagramUserId,
+                'business_account_id' => $businessAccountId
+            ]);
         } catch (Exception $e) {
             Log::error('Error updating Instagram contact:', [
                 'error' => $e->getMessage(),
@@ -847,5 +865,57 @@ class InstagramMessageService
         }
         
         return 'text';
+    }
+
+    /**
+     * Obtener información del perfil de un usuario de Instagram via API
+     * según la documentación oficial de Meta
+     */
+    protected function getUserProfileViaApi(string $userId, string $businessAccountId): array
+    {
+        try {
+            $businessAccount = InstagramBusinessAccount::where('instagram_business_account_id', $businessAccountId)->first();
+            
+            if (!$businessAccount || !$businessAccount->access_token) {
+                Log::warning('No se puede obtener perfil via API: falta access token o cuenta no encontrada');
+                return [];
+            }
+            
+            // Verificar que la cuenta tenga el permiso necesario
+            if (!app(InstagramAccountService::class)->hasPermission($businessAccount, 'instagram_business_basic')) {
+                Log::warning('No se puede obtener perfil via API: falta permiso instagram_business_basic');
+                return [];
+            }
+            
+            // Usar el endpoint correcto según la documentación de Instagram
+            // https://graph.instagram.com/{user-id}?fields={fields}&access_token={access-token}
+            $response = $this->apiClient->request(
+                'GET',
+                $userId,
+                [],
+                null,
+                [
+                    'access_token' => $businessAccount->access_token,
+                    'fields' => 'username,name,profile_pic,follower_count,is_user_follow_business,is_business_follow_user,is_verified_user'
+                ]
+            );
+            
+            Log::debug('Respuesta de API para perfil de usuario:', ['response' => $response]);
+            
+            return [
+                'username' => $response['username'] ?? null,
+                'name' => $response['name'] ?? null,
+                'profile_pic' => $response['profile_pic'] ?? null,
+                'follower_count' => $response['follower_count'] ?? null,
+                'is_verified' => $response['is_verified_user'] ?? false
+            ];
+        } catch (Exception $e) {
+            Log::error('Error obteniendo perfil via API:', [
+                'error' => $e->getMessage(),
+                'user_id' => $userId,
+                'business_account_id' => $businessAccountId
+            ]);
+            return [];
+        }
     }
 }
