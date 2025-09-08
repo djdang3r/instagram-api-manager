@@ -9,6 +9,7 @@ use ScriptDevelop\InstagramApiManager\Models\InstagramConversation;
 use ScriptDevelop\InstagramApiManager\Models\InstagramMessage;
 use ScriptDevelop\InstagramApiManager\Models\InstagramContact;
 use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
+use ScriptDevelop\InstagramApiManager\Models\InstagramProfile;
 
 class InstagramMessageService
 {
@@ -137,6 +138,7 @@ class InstagramMessageService
             return;
         }
 
+        // Asegurar que sean strings
         if (is_array($senderId)) {
             $senderId = $senderId['id'] ?? (string) $senderId;
         }
@@ -148,16 +150,29 @@ class InstagramMessageService
         $recipientId = (string) $recipientId;
 
         try {
-            // Verificar que la cuenta de negocio existe en la base de datos
+            // BUSCAR LA CUENTA DE NEGOCIO CORRECTAMENTE
+            // Primero intentar buscar por instagram_business_account_id
             $businessAccount = InstagramBusinessAccount::where('instagram_business_account_id', $recipientId)->first();
+            
+            // Si no se encuentra, buscar por user_id a través del perfil
+            if (!$businessAccount) {
+                $profile = InstagramProfile::where('user_id', $recipientId)->first();
+                if ($profile) {
+                    $businessAccount = InstagramBusinessAccount::where('instagram_business_account_id', $profile->instagram_business_account_id)->first();
+                }
+            }
+
             if (!$businessAccount) {
                 Log::error('La cuenta de Instagram Business no existe en la base de datos', [
-                    'account_id' => $recipientId
+                    'recipient_id' => $recipientId,
+                    'sender_id' => $senderId,
+                    'message_data' => $messageData
                 ]);
                 return;
             }
             
-            $conversation = $this->findOrCreateConversation($recipientId, $senderId);
+            // Usar el instagram_business_account_id correcto para la conversación
+            $conversation = $this->findOrCreateConversation($businessAccount->instagram_business_account_id, $senderId);
 
             $conversation->update([
                 'last_message_at' => now(),
@@ -166,19 +181,19 @@ class InstagramMessageService
             ]);
 
             if (isset($messageData['message'])) {
-                $this->processIncomingMessage($conversation, $messageData['message'], $senderId, $recipientId);
+                $this->processIncomingMessage($conversation, $messageData['message'], $senderId, $businessAccount->instagram_business_account_id);
             } elseif (isset($messageData['postback'])) {
-                $this->processPostback($conversation, $messageData['postback'], $senderId, $recipientId);
+                $this->processPostback($conversation, $messageData['postback'], $senderId, $businessAccount->instagram_business_account_id);
             } elseif (isset($messageData['reaction'])) {
-                $this->processReaction($conversation, $messageData['reaction'], $senderId, $recipientId);
+                $this->processReaction($conversation, $messageData['reaction'], $senderId, $businessAccount->instagram_business_account_id);
             } elseif (isset($messageData['optin'])) {
-                $this->processOptin($conversation, $messageData['optin'], $senderId, $recipientId);
+                $this->processOptin($conversation, $messageData['optin'], $senderId, $businessAccount->instagram_business_account_id);
             } elseif (isset($messageData['referral'])) {
-                $this->processReferral($conversation, $messageData['referral'], $senderId, $recipientId);
+                $this->processReferral($conversation, $messageData['referral'], $senderId, $businessAccount->instagram_business_account_id);
             } elseif (isset($messageData['read'])) {
-                $this->processRead($conversation, $messageData['read'], $senderId, $recipientId);
+                $this->processRead($conversation, $messageData['read'], $senderId, $businessAccount->instagram_business_account_id);
             } elseif (isset($messageData['message_edit'])) {
-                $this->processMessageEdit($conversation, $messageData['message_edit'], $senderId, $recipientId);
+                $this->processMessageEdit($conversation, $messageData['message_edit'], $senderId, $businessAccount->instagram_business_account_id);
             } else {
                 Log::warning('Unknown message type received', $messageData);
             }
