@@ -48,8 +48,6 @@ class InstagramMessage extends Model
     ];
 
     protected $casts = [
-        'message_from' => 'array',
-        'message_to' => 'array',
         'attachments' => 'array',
         'json_content' => 'array',
         'json' => 'array',
@@ -74,15 +72,11 @@ class InstagramMessage extends Model
 
     public function getSenderAttribute()
     {
-        return is_array($this->message_from) ? 
-            ($this->message_from['id'] ?? null) : 
-            $this->message_from;
+        return $this->message_from;
     }
 
     public function getRecipientAttribute()
     {
-        return is_array($this->message_to) ? 
-            ($this->message_to['id'] ?? null) : 
-            $this->message_to;
+        return $this->message_to;
     }
 }

@@ -76,8 +76,8 @@ class InstagramMessageService
             'message_id' => 'postback_' . ($postback['mid'] ?? uniqid()),
             'message_method' => 'incoming',
             'message_type' => 'postback',
-            'message_from' => ['id' => $senderId],
-            'message_to' => ['id' => $recipientId],
+            'message_from' => $senderId,
+            'message_to' => $recipientId,
             'message_content' => $postback['title'] ?? $postback['payload'] ?? null,
             'json_content' => $postback,
             'status' => 'received',
@@ -136,6 +136,16 @@ class InstagramMessageService
             Log::warning('Invalid message data: missing sender or recipient', $messageData);
             return;
         }
+
+        if (is_array($senderId)) {
+            $senderId = $senderId['id'] ?? (string) $senderId;
+        }
+        $senderId = (string) $senderId;
+        
+        if (is_array($recipientId)) {
+            $recipientId = $recipientId['id'] ?? (string) $recipientId;
+        }
+        $recipientId = (string) $recipientId;
 
         try {
             // Verificar que la cuenta de negocio existe en la base de datos
@@ -735,8 +745,8 @@ class InstagramMessageService
                         'conversation_id' => $conversation->id,
                         'message_method' => $this->determineMessageMethod($messageData, $conversation->instagram_business_account_id),
                         'message_type' => $this->determineMessageTypeFromApi($messageData),
-                        'message_from' => $messageData['from'] ?? [],
-                        'message_to' => $messageData['to']['data'] ?? [],
+                        'message_from' => $messageData['from']['id'] ?? null,
+                        'message_to' => $messageData['to']['data'][0]['id'] ?? null,
                         'message_content' => $messageData['message'] ?? null,
                         'attachments' => $messageData['attachments']['data'] ?? [],
                         'status' => 'received',
@@ -769,7 +779,10 @@ class InstagramMessageService
      */
     protected function determineMessageMethod(array $messageData, string $businessAccountId): string
     {
-        $senderId = $messageData['from']['id'] ?? null;
+        $senderId = is_array($messageData['from']) ? 
+            ($messageData['from']['id'] ?? null) : 
+            $messageData['from'];
+        
         return $senderId === $businessAccountId ? 'outgoing' : 'incoming';
     }
 

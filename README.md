@@ -174,15 +174,70 @@ $profile = Instagram::account($account)->getProfileInfo();
 $media = Instagram::account($account)->getUserMedia();
 
 // O usando el ID de la cuenta
-$profile = Instagram::forAccountId('account-id')->getProfileInfo();
-$media = Instagram::forAccountId('account-id')->getUserMedia();
+$profile = Instagram::account('17918115224312316')->getProfileInfo();
+$media = Instagram::account('17918115224312316')->getUserMedia();
 
 // También puedes seguir usando los métodos con parámetros explícitos
 $profile = Instagram::account()->getProfileInfo($accessToken);
 $media = Instagram::account()->getUserMedia($userId, $accessToken);
 
+// Opción 4: Encadenamiento manual
+$service = Instagram::account();
+$service->forAccount($account);
+$profile = $service->getProfileInfo();
 
 
+
+
+
+
+
+
+
+
+use ScriptDevelop\InstagramApiManager\Facades\Instagram;
+use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
+
+// Obtener una cuenta
+$account = InstagramBusinessAccount::first();
+
+// Enviar un mensaje de texto
+$result = Instagram::message()
+    ->withAccessToken($account->access_token)
+    ->withInstagramUserId($account->instagram_business_account_id)
+    ->sendTextMessage('RECIPIENT_IGSID', 'Hola, este es un mensaje de prueba');
+
+// Enviar una imagen
+$result = Instagram::message()
+    ->withAccessToken($account->access_token)
+    ->withInstagramUserId($account->instagram_business_account_id)
+    ->sendImageMessage('RECIPIENT_IGSID', 'https://example.com/image.jpg');
+
+// Enviar un sticker
+$result = Instagram::message()
+    ->withAccessToken($account->access_token)
+    ->withInstagramUserId($account->instagram_business_account_id)
+    ->sendStickerMessage('RECIPIENT_IGSID');
+
+// Reaccionar a un mensaje
+$result = Instagram::message()
+    ->withAccessToken($account->access_token)
+    ->withInstagramUserId($account->instagram_business_account_id)
+    ->reactToMessage('RECIPIENT_IGSID', 'MESSAGE_ID', 'love');
+
+// Obtener conversaciones
+$conversations = Instagram::message()
+    ->withAccessToken($account->access_token)
+    ->withInstagramUserId($account->instagram_business_account_id)
+    ->getConversations();
+
+
+
+
+
+
+
+    
 
 
 Extensión y personalización

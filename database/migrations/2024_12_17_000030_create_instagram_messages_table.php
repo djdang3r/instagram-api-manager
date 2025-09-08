@@ -14,8 +14,8 @@ return new class extends Migration
             $table->string('message_id');
             $table->enum('message_method', ['incoming', 'outgoing']);
             $table->enum('message_type', ['text', 'audio', 'photo', 'gif', 'video', 'sticker', 'reaction', 'reply']);
-            $table->json('message_from')->nullable();
-            $table->json('message_to')->nullable();
+            $table->string('message_from', 45);
+            $table->string('message_to', 45);
             $table->text('message_content')->nullable();
             $table->text('message_context')->nullable();
             $table->string('message_context_id')->nullable();
