@@ -47,13 +47,16 @@ class InstagramMessageService
     public function processWebhookPayload(array $payload): void
     {
         try {
+            Log::channel('instagram')->debug('Webhook payload received', ['payload' => $payload]);
+            
             foreach ($payload['entry'] ?? [] as $entry) {
                 foreach ($entry['messaging'] ?? [] as $messaging) {
+                    Log::channel('instagram')->debug('Processing messaging entry', ['messaging' => $messaging]);
                     $this->processMessage($messaging);
                 }
             }
         } catch (Exception $e) {
-            Log::error('Error processing Instagram webhook:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error processing Instagram webhook:', ['error' => $e->getMessage()]);
         }
     }
 
@@ -70,11 +73,10 @@ class InstagramMessageService
     /**
      * Procesar postbacks (botones, quick replies, etc.)
      */
-    protected function processPostback(InstagramConversation $conversation, array $postback, string $senderId, string $recipientId): void
+    protected function processPostback(InstagramConversation $conversation, array $postback, string $senderId, string $recipientId, $timestamp = null): void
     {
         $messageId = $postback['mid'] ?? 'postback_' . uniqid();
 
-        // Verificar si el mensaje ya existe para evitar duplicados
         $existingMessage = InstagramMessage::where('message_id', $messageId)->first();
         if ($existingMessage) {
             Log::info('Postback duplicado ignorado', ['message_id' => $messageId]);
@@ -94,9 +96,7 @@ class InstagramMessageService
             'json_content' => $postback,
             'status' => 'received',
             'created_time' => now(),
-            'sent_at' => isset($postback['timestamp']) ? 
-                date('Y-m-d H:i:s', $postback['timestamp'] / 1000) : 
-                now()
+            'sent_at' => $timestamp ? date('Y-m-d H:i:s', $timestamp / 1000) : now()
         ];
 
         InstagramMessage::create($messageData);
@@ -106,7 +106,6 @@ class InstagramMessageService
             'postback' => $postback
         ]);
 
-        // Manejar la lógica del postback según el payload
         $this->handlePostbackPayload($postback['payload'] ?? null, $conversation, $senderId, $recipientId);
     }
 
@@ -221,7 +220,13 @@ class InstagramMessageService
                     $this->updateContact($senderId, $businessAccount->instagram_business_account_id, $messageData);
                 }
             } elseif (isset($messageData['postback'])) {
-                $this->processPostback($conversation, $messageData['postback'], $senderId, $businessAccount->instagram_business_account_id);
+                $this->processPostback(
+                    $conversation, 
+                    $messageData['postback'], 
+                    $senderId, 
+                    $businessAccount->instagram_business_account_id,
+                    $messageData['timestamp'] ?? null // Pasar el timestamp
+                );
                 $this->updateContact($senderId, $businessAccount->instagram_business_account_id, $messageData);
             } elseif (isset($messageData['reaction'])) {
                 $this->processReaction($conversation, $messageData['reaction'], $senderId, $businessAccount->instagram_business_account_id);
@@ -395,6 +400,7 @@ class InstagramMessageService
                     'username' => $profile['username'] ?? null,
                     'profile_picture' => $profile['profile_pic'] ?? null,
                     'name' => $profile['name'] ?? null,
+                    'last_interaction' => now(),
                 ]
             );
             
