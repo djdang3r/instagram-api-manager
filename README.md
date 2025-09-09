@@ -237,6 +237,85 @@ $conversations = Instagram::message()
 
 
 
+
+
+
+use ScriptDevelop\InstagramApiManager\Facades\Instagram;
+
+// Obtener una cuenta
+$account = InstagramBusinessAccount::first();
+
+// Preparar quick replies
+$quickReplies = [
+    [
+        'content_type' => 'text',
+        'title' => 'Opción 1',
+        'payload' => 'OPTION_1_PAYLOAD'
+    ],
+    [
+        'content_type' => 'text',
+        'title' => 'Opción 2',
+        'payload' => 'OPTION_2_PAYLOAD'
+    ],
+    [
+        'content_type' => 'text',
+        'title' => 'Opción 3',
+        'payload' => 'OPTION_3_PAYLOAD'
+    ]
+];
+
+// Enviar mensaje con quick replies
+$result = Instagram::message()
+    ->withAccessToken($account->access_token)
+    ->withInstagramUserId($account->instagram_business_account_id)
+    ->sendQuickReplies('RECIPIENT_IGSID', 'Por favor selecciona una opción:', $quickReplies);
+
+
+
+
+
+
+
+
+
+
+use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
+use ScriptDevelop\InstagramApiManager\Facades\Instagram;
+
+$account = InstagramBusinessAccount::first();
+
+$elements = [
+    [
+        'title' => 'Welcome!',
+        'image_url' => 'https://example.com/image.jpg',
+        'subtitle' => 'This is a generic template example',
+        'default_action' => [
+            'type' => 'web_url',
+            'url' => 'https://example.com'
+        ],
+        'buttons' => [
+            [
+                'type' => 'web_url',
+                'url' => 'https://example.com',
+                'title' => 'Visit Website'
+            ],
+            [
+                'type' => 'postback',
+                'title' => 'Start Chat',
+                'payload' => 'START_CHAT_PAYLOAD'
+            ]
+        ]
+    ]
+];
+
+$result = Instagram::message()
+    ->withAccessToken($account->access_token)
+    ->withInstagramUserId($account->instagram_business_account_id)
+    ->sendGenericTemplate('807022408557003', $elements);
+
+
+    
+
     
 
 

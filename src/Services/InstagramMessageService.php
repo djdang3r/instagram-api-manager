@@ -72,6 +72,8 @@ class InstagramMessageService
      */
     protected function processPostback(InstagramConversation $conversation, array $postback, string $senderId, string $recipientId): void
     {
+        $payload = $postback['payload'] ?? null;
+        
         InstagramMessage::create([
             'conversation_id' => $conversation->id,
             'message_id' => 'postback_' . ($postback['mid'] ?? uniqid()),
@@ -79,7 +81,9 @@ class InstagramMessageService
             'message_type' => 'postback',
             'message_from' => $senderId,
             'message_to' => $recipientId,
-            'message_content' => $postback['title'] ?? $postback['payload'] ?? null,
+            'message_content' => $postback['title'] ?? $payload ?? null,
+            'message_context' => 'postback',
+            'message_context_id' => $payload,
             'json_content' => $postback,
             'status' => 'received',
             'created_time' => now(),
@@ -87,6 +91,11 @@ class InstagramMessageService
                 date('Y-m-d H:i:s', $postback['timestamp'] / 1000) : 
                 now()
         ]);
+        
+        // Procesar el payload si existe
+        if ($payload) {
+            $this->processPostbackPayload($payload, $senderId, $recipientId);
+        }
         
         Log::info('Instagram postback processed', [
             'conversation_id' => $conversation->id,
@@ -192,6 +201,14 @@ class InstagramMessageService
             // Procesar diferentes tipos de eventos
             if (isset($messageData['message'])) {
                 $this->processIncomingMessage($conversation, $messageData['message'], $senderId, $businessAccount->instagram_business_account_id);
+
+                // Verificar si es una default action de plantilla genérica
+                if (isset($messageData['message']['quick_reply'])) {
+                    // Es un quick reply, ya se procesa en processIncomingMessage
+                } elseif (isset($messageData['message']['attachments'])) {
+                    // Podría ser una default action de plantilla
+                    $this->checkForDefaultAction($conversation, $messageData['message'], $senderId, $businessAccount->instagram_business_account_id);
+                }
                 
                 // SOLO actualizar contacto para mensajes entrantes (no ecos)
                 if (!isset($messageData['message']['is_echo']) || $messageData['message']['is_echo'] !== true) {
@@ -1068,5 +1085,127 @@ class InstagramMessageService
         }
         
         return true;
+    }
+
+    /**
+     * Procesar el payload de un postback y ejecutar la acción correspondiente
+     */
+    protected function processPostbackPayload(string $payload, string $senderId, string $businessAccountId): void
+    {
+        try {
+            Log::info('Procesando postback payload', [
+                'payload' => $payload,
+                'sender_id' => $senderId,
+                'business_account_id' => $businessAccountId
+            ]);
+            
+            // Aquí puedes agregar lógica para diferentes tipos de payloads
+            // Por ejemplo:
+            switch ($payload) {
+                case 'START_CHAT_PAYLOAD':
+                    $this->handleStartChat($senderId, $businessAccountId);
+                    break;
+                case 'VIEW_PRODUCTS_PAYLOAD':
+                    $this->handleViewProducts($senderId, $businessAccountId);
+                    break;
+                case 'TALK_TO_AGENT_PAYLOAD':
+                    $this->handleTalkToAgent($senderId, $businessAccountId);
+                    break;
+                default:
+                    Log::info('Payload no reconocido', ['payload' => $payload]);
+                    break;
+            }
+        } catch (Exception $e) {
+            Log::error('Error procesando postback payload:', [
+                'error' => $e->getMessage(),
+                'payload' => $payload
+            ]);
+        }
+    }
+
+    /**
+     * Manejar inicio de chat
+     */
+    protected function handleStartChat(string $senderId, string $businessAccountId): void
+    {
+        Log::info('Iniciando chat con usuario', [
+            'sender_id' => $senderId,
+            'business_account_id' => $businessAccountId
+        ]);
+        
+        // Enviar mensaje de bienvenida
+        $this->withAccessToken($this->accessToken)
+            ->withInstagramUserId($businessAccountId)
+            ->sendTextMessage($senderId, '¡Hola! Bienvenido a nuestro chat. ¿En qué puedo ayudarte hoy?');
+    }
+
+    /**
+     * Manejar visualización de productos
+     */
+    protected function handleViewProducts(string $senderId, string $businessAccountId): void
+    {
+        Log::info('Mostrando productos al usuario', [
+            'sender_id' => $senderId,
+            'business_account_id' => $businessAccountId
+        ]);
+        
+        // Enviar mensaje con productos
+        $this->withAccessToken($this->accessToken)
+            ->withInstagramUserId($businessAccountId)
+            ->sendTextMessage($senderId, 'Aquí tienes nuestros productos destacados: https://example.com/products');
+    }
+
+    /**
+     * Manejar solicitud de agente humano
+     */
+    protected function handleTalkToAgent(string $senderId, string $businessAccountId): void
+    {
+        Log::info('Conectando usuario con agente', [
+            'sender_id' => $senderId,
+            'business_account_id' => $businessAccountId
+        ]);
+        
+        // Notificar que se conectará con un agente
+        $this->withAccessToken($this->accessToken)
+            ->withInstagramUserId($businessAccountId)
+            ->sendTextMessage($senderId, 'Un agente se conectará contigo shortly. Por favor, espera un momento.');
+    }
+
+    /**
+     * Procesar default action de plantilla genérica
+     */
+    protected function processDefaultAction(InstagramConversation $conversation, array $actionData, string $senderId, string $recipientId): void
+    {
+        $url = $actionData['url'] ?? null;
+        
+        InstagramMessage::create([
+            'conversation_id' => $conversation->id,
+            'message_id' => 'action_' . uniqid(),
+            'message_method' => 'incoming',
+            'message_type' => 'generic_template_action',
+            'message_from' => $senderId,
+            'message_to' => $recipientId,
+            'message_content' => 'Default action triggered',
+            'message_context' => 'default_action',
+            'message_context_id' => $url,
+            'json_content' => $actionData,
+            'status' => 'received',
+            'created_time' => now()
+        ]);
+        
+        Log::info('Default action de plantilla genérica procesada', [
+            'conversation_id' => $conversation->id,
+            'action_data' => $actionData
+        ]);
+    }
+
+    /**
+     * Verificar si el mensaje contiene una default action de plantilla genérica
+     */
+    protected function checkForDefaultAction(InstagramConversation $conversation, array $message, string $senderId, string $recipientId): void
+    {
+        // Lógica para detectar default actions de plantillas genéricas
+        // Esto depende de cómo Instagram envíe estas interacciones en el webhook
+        // Puede requerir ajustes basados en la documentación oficial o experimentación
     }
 }
