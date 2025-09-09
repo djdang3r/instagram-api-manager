@@ -314,9 +314,233 @@ $result = Instagram::message()
     ->sendGenericTemplate('807022408557003', $elements);
 
 
-    
+use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
+use ScriptDevelop\InstagramApiManager\Facades\Instagram;
+$account = InstagramBusinessAccount::first();
 
+$elements = [
+    [
+        'title' => 'Bienvenido a nuestra tienda',
+        'image_url' => 'https://example.com/welcome.jpg',
+        'subtitle' => '¿Cómo podemos ayudarte hoy?',
+        'default_action' => [
+            'type' => 'web_url',
+            'url' => 'https://example.com'
+        ],
+        'buttons' => [
+            [
+                'type' => 'postback',
+                'title' => 'Ver Productos',
+                'payload' => 'VIEW_PRODUCTS_PAYLOAD'
+            ],
+            [
+                'type' => 'postback',
+                'title' => 'Hablar con Agente',
+                'payload' => 'TALK_TO_AGENT_PAYLOAD'
+            ],
+            [
+                'type' => 'web_url',
+                'url' => 'https://example.com/help',
+                'title' => 'Centro de Ayuda'
+            ]
+        ]
+    ]
+];
+
+$result = Instagram::message()
+    ->withAccessToken($account->access_token)
+    ->withInstagramUserId($account->instagram_business_account_id)
+    ->sendGenericTemplate('807022408557003', $elements);
+
+
+
+
+
+
+
+
+
+use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
+use ScriptDevelop\InstagramApiManager\Facades\Instagram;
+$account = InstagramBusinessAccount::first();
+
+$buttons = [
+        [
+            'type' => 'web_url',
+            'url' => 'https://tu-sitio.com/catalogo',
+            'title' => 'Ver Catálogo'
+        ],
+        [
+            'type' => 'postback',
+            'payload' => 'SPEAK_WITH_AGENT',
+            'title' => 'Hablar con Agente'
+        ],
+        [
+            'type' => 'postback',
+            'payload' => 'VIEW_ORDER_STATUS',
+            'title' => 'Estado de Pedido'
+        ]
+    ];
     
+    $result = Instagram::message()
+        ->withAccessToken($account->access_token)
+        ->withInstagramUserId($account->instagram_business_account_id)
+        ->sendButtonTemplate(
+            '807022408557003', 
+            '¡Bienvenido! ¿En qué podemos ayudarte hoy?', 
+            $buttons
+        );
+
+
+
+
+
+
+use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
+use ScriptDevelop\InstagramApiManager\Facades\Instagram;
+
+$account = InstagramBusinessAccount::first();
+
+// Para usar el nuevo servicio de menú persistente
+$buttons = [
+    Instagram::persistentMenu()->createPostbackButton('Ver Productos', 'VIEW_PRODUCTS'),
+    Instagram::persistentMenu()->createPostbackButton('Hablar con Agente', 'TALK_TO_AGENT'),
+    Instagram::persistentMenu()->createUrlButton('Visitar Sitio', 'https://example.com', 'full')
+];
+
+$menu = Instagram::persistentMenu()->createLocalizedMenu('default', false, $buttons);
+
+$result = Instagram::persistentMenu()
+    ->withAccessToken($account->access_token)
+    ->withInstagramUserId($account->instagram_business_account_id)
+    ->setPersistentMenu([$menu]);
+
+1. Obtener el menú actual
+   $currentMenu = Instagram::persistentMenu()
+    ->withAccessToken($account->access_token)
+    ->withInstagramUserId($account->instagram_business_account_id)
+    ->getPersistentMenu();
+
+    print_r($currentMenu);
+    
+2. Eliminar el menú
+    $deleteResult = Instagram::persistentMenu()
+    ->withAccessToken($account->access_token)
+    ->withInstagramUserId($account->instagram_business_account_id)
+    ->deletePersistentMenu();
+
+    print_r($deleteResult);
+
+3. Crear menús localizados
+   // Menú en español
+    $spanishButtons = [
+        Instagram::persistentMenu()->createPostbackButton('Ver Catálogo', 'VIEW_CATALOG'),
+        Instagram::persistentMenu()->createPostbackButton('Soporte Técnico', 'TECH_SUPPORT'),
+        Instagram::persistentMenu()->createUrlButton('Nuestro Sitio', 'https://tu-sitio.com', 'full')
+    ];
+
+    $spanishMenu = Instagram::persistentMenu()->createLocalizedMenu('es_ES', false, $spanishButtons);
+
+    // Menú en inglés (default)
+    $englishButtons = [
+        Instagram::persistentMenu()->createPostbackButton('View Catalog', 'VIEW_CATALOG'),
+        Instagram::persistentMenu()->createPostbackButton('Technical Support', 'TECH_SUPPORT'),
+        Instagram::persistentMenu()->createUrlButton('Our Website', 'https://your-site.com', 'full')
+    ];
+
+    $englishMenu = Instagram::persistentMenu()->createLocalizedMenu('default', false, $englishButtons);
+
+    // Configurar ambos menús
+    $result = Instagram::persistentMenu()
+        ->withAccessToken($account->access_token)
+        ->withInstagramUserId($account->instagram_business_account_id)
+        ->setPersistentMenu([$englishMenu, $spanishMenu]);
+
+Probar la funcionalidad de los botones
+Para botones de postback:
+Haz clic en "Ver Productos" o "Hablar con Agente" en Instagram
+
+Tu webhook recibirá un evento messaging_postbacks con el payload correspondiente
+
+Puedes manejar estos postbacks en tu controlador de webhook
+
+Para botones de URL:
+Haz clic en "Visitar Sitio"
+
+Se abrirá la URL en el navegador dentro de la app de Instagram
+
+Verificación adicional
+Puedes verificar que el menú se configuró correctamente obteniendo el menú actual:
+
+Consideraciones importantes
+Tiempo de actualización: El menú puede tardar unos minutos en aparecer en todas las conversaciones
+
+Conversaciones existentes: Los usuarios deben refrescar su bandeja de entrada para ver los cambios
+
+Nuevas conversaciones: Verán el menú actualizado inmediatamente
+
+Límites: Máximo 5 botones por menú y 640 caracteres para el texto
+
+¡El hecho de que hayas recibido "result": "success" indica que todo está funcionando correctamente! Ahora solo necesitas abrir Instagram para ver el menú en acción.
+
+
+
+
+
+1. Establecer Ice Breakers
+
+
+use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
+use ScriptDevelop\InstagramApiManager\Facades\Instagram;
+
+$account = InstagramBusinessAccount::first();
+
+// Crear acciones de ice breaker
+$actions = [
+    Instagram::persistentMenu()->createIceBreakerAction('¿Cuáles son sus horarios?', 'HORARIOS_PAYLOAD'),
+    Instagram::persistentMenu()->createIceBreakerAction('¿Dónde están ubicados?', 'UBICACION_PAYLOAD'),
+    Instagram::persistentMenu()->createIceBreakerAction('¿Qué productos ofrecen?', 'PRODUCTOS_PAYLOAD'),
+    Instagram::persistentMenu()->createIceBreakerAction('¿Cómo contacto a un agente?', 'CONTACTO_PAYLOAD')
+];
+
+// Crear ice breaker
+$iceBreaker = Instagram::persistentMenu()->createIceBreaker('default', $actions);
+
+// Establecer ice breakers
+$result = Instagram::persistentMenu()
+    ->withAccessToken($account->access_token)
+    ->withInstagramUserId($account->instagram_business_account_id)
+    ->setIceBreakers([$iceBreaker]);
+
+2. Obtener Ice Breakers Actuales
+
+    $iceBreakers = Instagram::persistentMenu()
+    ->withAccessToken($account->access_token)
+    ->withInstagramUserId($account->instagram_business_account_id)
+    ->getIceBreakers();
+
+
+3. Eliminar Ice Breakers
+
+    $result = Instagram::persistentMenu()
+    ->withAccessToken($account->access_token)
+    ->withInstagramUserId($account->instagram_business_account_id)
+    ->deleteIceBreakers();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 Extensión y personalización

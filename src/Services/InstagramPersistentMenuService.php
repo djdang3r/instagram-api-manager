@@ -232,4 +232,158 @@ class InstagramPersistentMenuService
             'payload' => $payload
         ];
     }
+
+    // =========================================================================
+    // MÉTODOS PARA ICE BREAKERS
+    // =========================================================================
+
+    /**
+     * Establecer ice breakers
+     */
+    public function setIceBreakers(array $iceBreakers): ?array
+    {
+        $this->validateCredentials();
+
+        // Validar la estructura de los ice breakers
+        $this->validateIceBreakers($iceBreakers);
+
+        $payload = [
+            'platform' => 'instagram',
+            'ice_breakers' => $iceBreakers
+        ];
+
+        try {
+            $response = $this->apiClient->request(
+                'POST',
+                $this->instagramUserId . '/messenger_profile',
+                [],
+                $payload,
+                [
+                    'access_token' => $this->accessToken
+                ]
+            );
+
+            Log::info('Ice breakers set successfully', ['response' => $response]);
+            return $response;
+        } catch (Exception $e) {
+            Log::error('Error setting ice breakers:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * Obtener ice breakers actuales
+     */
+    public function getIceBreakers(): ?array
+    {
+        $this->validateCredentials();
+
+        try {
+            $response = $this->apiClient->request(
+                'GET',
+                $this->instagramUserId . '/messenger_profile',
+                [],
+                null,
+                [
+                    'access_token' => $this->accessToken,
+                    'fields' => 'ice_breakers',
+                    'platform' => 'instagram'
+                ]
+            );
+
+            Log::info('Ice breakers retrieved successfully', ['response' => $response]);
+            return $response;
+        } catch (Exception $e) {
+            Log::error('Error getting ice breakers:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * Eliminar ice breakers
+     */
+    public function deleteIceBreakers(): ?array
+    {
+        $this->validateCredentials();
+
+        try {
+            $payload = [
+                'fields' => ['ice_breakers']
+            ];
+
+            $response = $this->apiClient->request(
+                'DELETE',
+                $this->instagramUserId . '/messenger_profile',
+                [],
+                $payload,
+                [
+                    'access_token' => $this->accessToken
+                ]
+            );
+
+            Log::info('Ice breakers deleted successfully', ['response' => $response]);
+            return $response;
+        } catch (Exception $e) {
+            Log::error('Error deleting ice breakers:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * Validar la estructura de ice breakers
+     */
+    protected function validateIceBreakers(array $iceBreakers): bool
+    {
+        foreach ($iceBreakers as $iceBreaker) {
+            if (!isset($iceBreaker['locale'])) {
+                throw new Exception('Cada ice breaker debe tener un locale');
+            }
+
+            if (!isset($iceBreaker['call_to_actions']) || !is_array($iceBreaker['call_to_actions'])) {
+                throw new Exception('Cada ice breaker debe tener un array de call_to_actions');
+            }
+
+            if (count($iceBreaker['call_to_actions']) > 4) {
+                throw new Exception('Cada ice breaker no puede tener más de 4 preguntas');
+            }
+
+            foreach ($iceBreaker['call_to_actions'] as $action) {
+                if (!isset($action['question']) || empty($action['question'])) {
+                    throw new Exception('Cada acción debe tener una pregunta');
+                }
+
+                if (!isset($action['payload']) || empty($action['payload'])) {
+                    throw new Exception('Cada acción debe tener un payload');
+                }
+
+                if (strlen($action['question']) > 100) {
+                    throw new Exception('La pregunta no puede exceder 100 caracteres');
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Crear un ice breaker localizado
+     */
+    public function createIceBreaker(string $locale, array $callToActions): array
+    {
+        return [
+            'locale' => $locale,
+            'call_to_actions' => $callToActions
+        ];
+    }
+
+    /**
+     * Crear una acción de ice breaker
+     */
+    public function createIceBreakerAction(string $question, string $payload): array
+    {
+        return [
+            'question' => $question,
+            'payload' => $payload
+        ];
+    }
 }
