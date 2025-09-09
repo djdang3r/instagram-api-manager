@@ -258,6 +258,17 @@ class InstagramMessageService
                 now()
         ];
 
+        // Detectar y procesar quick replies
+        if (isset($message['quick_reply'])) {
+            $messageData['message_type'] = 'quick_reply';
+            $messageData['message_context'] = 'quick_reply_response';
+            $messageData['message_context_id'] = $message['quick_reply']['payload'] ?? null;
+            Log::info('Quick reply recibido', [
+                'payload' => $message['quick_reply']['payload'] ?? null,
+                'text' => $message['text'] ?? null
+            ]);
+        }
+
         // Procesar adjuntos si existen
         if (isset($message['attachments']) && is_array($message['attachments'])) {
             foreach ($message['attachments'] as $attachment) {
@@ -322,10 +333,15 @@ class InstagramMessageService
 
     protected function determineMessageType(array $message): string
     {
+        if (isset($message['quick_reply'])) {
+            return 'quick_reply';
+        }
+        
         if (isset($message['attachments'])) {
             $attachment = $message['attachments'][0] ?? [];
             return $attachment['type'] ?? 'text';
         }
+        
         return 'text';
     }
 
@@ -424,6 +440,9 @@ class InstagramMessageService
             $messageData['message_content'] = 'shared_post';
         } elseif ($messageType === 'reaction') {
             $messageData['message_content'] = $payload['payload']['reaction'] ?? 'reaction';
+        } elseif ($messageType === 'quick_reply') {
+            $messageData['message_content'] = $payload['message']['text'];
+            $messageData['json_content'] = ['quick_replies' => $payload['message']['quick_replies']];
         }
 
         $message = InstagramMessage::create($messageData);
@@ -917,5 +936,54 @@ class InstagramMessageService
             ]);
             return [];
         }
+    }
+
+    /**
+     * Enviar un mensaje con Quick Replies
+     */
+    public function sendQuickReplies(string $recipientId, string $text, array $quickReplies, ?string $conversationId = null): ?array
+    {
+        $payload = [
+            'recipient' => [
+                'id' => $recipientId
+            ],
+            'messaging_type' => 'RESPONSE',
+            'message' => [
+                'text' => $text,
+                'quick_replies' => $quickReplies
+            ]
+        ];
+
+        return $this->sendMessageGeneric($recipientId, $payload, 'quick_reply', $conversationId);
+    }
+
+    /**
+     * Validar quick replies antes de enviarlos
+     */
+    protected function validateQuickReplies(array $quickReplies): bool
+    {
+        if (count($quickReplies) > 13) {
+            throw new Exception('Máximo 13 quick replies permitidos');
+        }
+        
+        foreach ($quickReplies as $quickReply) {
+            if (!isset($quickReply['content_type']) || $quickReply['content_type'] !== 'text') {
+                throw new Exception('Quick replies solo soportan content_type: text');
+            }
+            
+            if (!isset($quickReply['title']) || empty($quickReply['title'])) {
+                throw new Exception('Cada quick reply debe tener un título');
+            }
+            
+            if (strlen($quickReply['title']) > 20) {
+                throw new Exception('El título del quick reply no puede exceder 20 caracteres');
+            }
+            
+            if (!isset($quickReply['payload']) || empty($quickReply['payload'])) {
+                throw new Exception('Cada quick reply debe tener un payload');
+            }
+        }
+        
+        return true;
     }
 }
