@@ -443,6 +443,9 @@ class InstagramMessageService
         } elseif ($messageType === 'quick_reply') {
             $messageData['message_content'] = $payload['message']['text'];
             $messageData['json_content'] = ['quick_replies' => $payload['message']['quick_replies']];
+        } elseif ($messageType === 'generic_template') {
+            $messageData['message_content'] = 'Generic Template';
+            $messageData['json_content'] = ['elements' => $payload['message']['attachment']['payload']['elements']];
         }
 
         $message = InstagramMessage::create($messageData);
@@ -943,6 +946,9 @@ class InstagramMessageService
      */
     public function sendQuickReplies(string $recipientId, string $text, array $quickReplies, ?string $conversationId = null): ?array
     {
+        // Validar quick replies
+        $this->validateQuickReplies($quickReplies);
+        
         $payload = [
             'recipient' => [
                 'id' => $recipientId
@@ -981,6 +987,83 @@ class InstagramMessageService
             
             if (!isset($quickReply['payload']) || empty($quickReply['payload'])) {
                 throw new Exception('Cada quick reply debe tener un payload');
+            }
+        }
+        
+        return true;
+    }
+
+    /**
+     * Enviar una plantilla genérica
+     */
+    public function sendGenericTemplate(string $recipientId, array $elements, ?string $conversationId = null): ?array
+    {
+        // Validar elementos de la plantilla
+        $this->validateGenericTemplateElements($elements);
+        
+        $payload = [
+            'recipient' => [
+                'id' => $recipientId
+            ],
+            'message' => [
+                'attachment' => [
+                    'type' => 'template',
+                    'payload' => [
+                        'template_type' => 'generic',
+                        'elements' => $elements
+                    ]
+                ]
+            ]
+        ];
+
+        return $this->sendMessageGeneric($recipientId, $payload, 'generic_template', $conversationId);
+    }
+
+    /**
+     * Validar elementos de plantilla genérica
+     */
+    protected function validateGenericTemplateElements(array $elements): bool
+    {
+        if (count($elements) > 10) {
+            throw new Exception('Máximo 10 elementos permitidos en la plantilla genérica');
+        }
+        
+        foreach ($elements as $element) {
+            if (!isset($element['title']) || empty($element['title'])) {
+                throw new Exception('Cada elemento debe tener un título');
+            }
+            
+            if (strlen($element['title']) > 80) {
+                throw new Exception('El título no puede exceder 80 caracteres');
+            }
+            
+            if (isset($element['subtitle']) && strlen($element['subtitle']) > 80) {
+                throw new Exception('El subtítulo no puede exceder 80 caracteres');
+            }
+            
+            // Validar botones si existen
+            if (isset($element['buttons'])) {
+                if (count($element['buttons']) > 3) {
+                    throw new Exception('Máximo 3 botones por elemento');
+                }
+                
+                foreach ($element['buttons'] as $button) {
+                    if (!isset($button['type']) || !in_array($button['type'], ['web_url', 'postback'])) {
+                        throw new Exception('Tipo de botón no válido. Solo se permiten web_url y postback');
+                    }
+                    
+                    if (!isset($button['title']) || empty($button['title'])) {
+                        throw new Exception('Cada botón debe tener un título');
+                    }
+                    
+                    if ($button['type'] == 'web_url' && !isset($button['url'])) {
+                        throw new Exception('Los botones web_url requieren una URL');
+                    }
+                    
+                    if ($button['type'] == 'postback' && !isset($button['payload'])) {
+                        throw new Exception('Los botones postback requieren un payload');
+                    }
+                }
             }
         }
         

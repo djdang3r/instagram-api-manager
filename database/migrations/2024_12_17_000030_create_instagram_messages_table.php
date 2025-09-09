@@ -13,7 +13,7 @@ return new class extends Migration
             $table->ulid('conversation_id');
             $table->string('message_id');
             $table->enum('message_method', ['incoming', 'outgoing']);
-            $table->enum('message_type', ['text', 'audio', 'photo', 'gif', 'video', 'sticker', 'reaction', 'reply']);
+            $table->enum('message_type', ['text', 'audio', 'photo', 'gif', 'video', 'sticker', 'reaction', 'reply', 'quick_reply', 'generic_template']);
             $table->string('message_from', 45);
             $table->string('message_to', 45);
             $table->text('message_content')->nullable();
