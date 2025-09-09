@@ -475,6 +475,11 @@ class InstagramMessageService
         } elseif ($messageType === 'generic_template') {
             $messageData['message_content'] = 'Generic Template';
             $messageData['json_content'] = ['elements' => $payload['message']['attachment']['payload']['elements']];
+        } elseif ($messageType === 'button_template') {
+            $messageData['message_content'] = $payload['message']['attachment']['payload']['text'] ?? null;
+            $messageData['json_content'] = [
+                'buttons' => $payload['message']['attachment']['payload']['buttons'] ?? []
+            ];
         }
 
         $message = InstagramMessage::create($messageData);
@@ -1178,5 +1183,78 @@ class InstagramMessageService
                 'payload' => $payload
             ]);
         }
+    }
+
+    /**
+     * Enviar una plantilla de botones
+     */
+    public function sendButtonTemplate(string $recipientId, string $text, array $buttons, ?string $conversationId = null): ?array
+    {
+        // Validar botones
+        $this->validateButtonTemplate($text, $buttons);
+        
+        $payload = [
+            'recipient' => [
+                'id' => $recipientId
+            ],
+            'message' => [
+                'attachment' => [
+                    'type' => 'template',
+                    'payload' => [
+                        'template_type' => 'button',
+                        'text' => $text,
+                        'buttons' => $buttons
+                    ]
+                ]
+            ]
+        ];
+
+        return $this->sendMessageGeneric($recipientId, $payload, 'button_template', $conversationId);
+    }
+
+    /**
+     * Validar plantilla de botones
+     */
+    protected function validateButtonTemplate(string $text, array $buttons): bool
+    {
+        // Validar texto
+        if (empty($text)) {
+            throw new Exception('El texto de la plantilla de botones no puede estar vacío');
+        }
+        
+        if (strlen($text) > 640) {
+            throw new Exception('El texto de la plantilla de botones no puede exceder 640 caracteres');
+        }
+        
+        // Validar botones
+        if (count($buttons) < 1 || count($buttons) > 3) {
+            throw new Exception('Debe haber entre 1 y 3 botones');
+        }
+        
+        foreach ($buttons as $button) {
+            if (!isset($button['type']) || !in_array($button['type'], ['web_url', 'postback'])) {
+                throw new Exception('Tipo de botón no válido. Solo se permiten web_url y postback');
+            }
+            
+            if (!isset($button['title']) || empty($button['title'])) {
+                throw new Exception('Cada botón debe tener un título');
+            }
+            
+            if (strlen($button['title']) > 20) {
+                throw new Exception('El título del botón no puede exceder 20 caracteres');
+            }
+            
+            if ($button['type'] == 'web_url') {
+                if (!isset($button['url']) || empty($button['url'])) {
+                    throw new Exception('Los botones web_url requieren una URL');
+                }
+            } elseif ($button['type'] == 'postback') {
+                if (!isset($button['payload']) || empty($button['payload'])) {
+                    throw new Exception('Los botones postback requieren un payload');
+                }
+            }
+        }
+        
+        return true;
     }
 }
