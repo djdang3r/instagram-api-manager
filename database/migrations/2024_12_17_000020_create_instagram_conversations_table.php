@@ -18,6 +18,9 @@ return new class extends Migration
             $table->unsignedInteger('unread_count')->default(0);
             $table->boolean('is_archived')->default(false);
             $table->timestamp('last_message_at')->nullable();
+            $table->timestamp('last_interaction_at')->nullable();
+            $table->string('last_interaction_type', 50)->nullable();
+            $table->string('last_interaction_payload', 255)->nullable();
             
             $table->timestamps();
             $table->softDeletes();

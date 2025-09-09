@@ -211,9 +211,6 @@ class InstagramMessageService
             if (isset($messageData['message'])) {
                 $this->processIncomingMessage($conversation, $messageData['message'], $senderId, $businessAccount->instagram_business_account_id);
 
-                // Verificar default actions en mensajes
-                $this->checkForDefaultAction($conversation, $messageData['message'], $senderId, $businessAccount->instagram_business_account_id);
-
                 // Verificar si es una default action de plantilla genérica
                 if (isset($messageData['message']['quick_reply'])) {
                     // Es un quick reply, ya se procesa en processIncomingMessage
@@ -1097,190 +1094,7 @@ class InstagramMessageService
     }
 
     /**
-     * Procesar el payload de un postback y ejecutar la acción correspondiente
-     */
-    protected function processPostbackPayload(string $payload, string $senderId, string $businessAccountId): void
-    {
-        try {
-            Log::info('Procesando postback payload', [
-                'payload' => $payload,
-                'sender_id' => $senderId,
-                'business_account_id' => $businessAccountId
-            ]);
-            
-            // Aquí puedes agregar lógica para diferentes tipos de payloads
-            // Por ejemplo:
-            switch ($payload) {
-                case 'START_CHAT_PAYLOAD':
-                    $this->handleStartChat($senderId, $businessAccountId);
-                    break;
-                case 'VIEW_PRODUCTS_PAYLOAD':
-                    $this->handleViewProducts($senderId, $businessAccountId);
-                    break;
-                case 'TALK_TO_AGENT_PAYLOAD':
-                    $this->handleTalkToAgent($senderId, $businessAccountId);
-                    break;
-                default:
-                    Log::info('Payload no reconocido', ['payload' => $payload]);
-                    break;
-            }
-        } catch (Exception $e) {
-            Log::error('Error procesando postback payload:', [
-                'error' => $e->getMessage(),
-                'payload' => $payload
-            ]);
-        }
-    }
-
-    /**
-     * Manejar inicio de chat
-     */
-    protected function handleStartChat(string $senderId, string $businessAccountId): void
-    {
-        Log::info('Iniciando chat con usuario', [
-            'sender_id' => $senderId,
-            'business_account_id' => $businessAccountId
-        ]);
-        
-        // Enviar mensaje de bienvenida
-        $this->withAccessToken($this->accessToken)
-            ->withInstagramUserId($businessAccountId)
-            ->sendTextMessage($senderId, '¡Hola! Bienvenido a nuestro chat. ¿En qué puedo ayudarte hoy?');
-    }
-
-    /**
-     * Manejar visualización de productos
-     */
-    protected function handleViewProducts(string $recipientId, string $conversationId): void
-    {
-        // Aquí puedes implementar la lógica para mostrar productos
-        // Por ejemplo, enviar otra plantilla genérica con productos
-        
-        $products = [
-            [
-                'title' => 'Producto 1',
-                'image_url' => 'https://example.com/product1.jpg',
-                'subtitle' => 'Descripción del producto 1 - $50',
-                'buttons' => [
-                    [
-                        'type' => 'postback',
-                        'title' => 'Comprar',
-                        'payload' => 'BUY_PRODUCT_1'
-                    ],
-                    [
-                        'type' => 'postback',
-                        'title' => 'Más Info',
-                        'payload' => 'MORE_INFO_PRODUCT_1'
-                    ]
-                ]
-            ],
-            [
-                'title' => 'Producto 2', 
-                'image_url' => 'https://example.com/product2.jpg',
-                'subtitle' => 'Descripción del producto 2 - $75',
-                'buttons' => [
-                    [
-                        'type' => 'postback',
-                        'title' => 'Comprar',
-                        'payload' => 'BUY_PRODUCT_2'
-                    ],
-                    [
-                        'type' => 'postback',
-                        'title' => 'Más Info',
-                        'payload' => 'MORE_INFO_PRODUCT_2'
-                    ]
-                ]
-            ]
-        ];
-
-        $this->sendGenericTemplate($recipientId, $products, $conversationId);
-    }
-
-    /**
-     * Manejar solicitud de agente humano
-     */
-    protected function handleTalkToAgent(string $recipientId, string $conversationId): void
-    {
-        // Notificar que un agente se pondrá en contacto
-        $this->sendTextMessage($recipientId, 'Un agente se pondrá en contacto contigo en breve. ¿Podrías proporcionarnos tu nombre y el motivo de tu consulta?', $conversationId);
-        
-        // Aquí podrías integrar con un sistema de tickets o notificar a un agente real
-        Log::info('Solicitud de agente recibida', [
-            'recipient_id' => $recipientId,
-            'conversation_id' => $conversationId
-        ]);
-        
-        // Opcional: cambiar el estado de la conversación
-        $conversation = InstagramConversation::find($conversationId);
-        if ($conversation) {
-            $conversation->update([
-                'status' => 'awaiting_agent',
-                'updated_time' => now()
-            ]);
-        }
-    }
-
-    /**
-     * Procesar default action de plantilla genérica
-     */
-    protected function processDefaultAction(InstagramConversation $conversation, array $actionData, string $senderId, string $recipientId): void
-    {
-        $url = $actionData['url'] ?? null;
-        
-        InstagramMessage::create([
-            'conversation_id' => $conversation->id,
-            'message_id' => 'action_' . uniqid(),
-            'message_method' => 'incoming',
-            'message_type' => 'generic_template_action',
-            'message_from' => $senderId,
-            'message_to' => $recipientId,
-            'message_content' => 'Default action triggered',
-            'message_context' => 'default_action',
-            'message_context_id' => $url,
-            'json_content' => $actionData,
-            'status' => 'received',
-            'created_time' => now()
-        ]);
-        
-        Log::info('Default action de plantilla genérica procesada', [
-            'conversation_id' => $conversation->id,
-            'action_data' => $actionData
-        ]);
-    }
-
-    /**
-     * Verificar si el mensaje contiene una default action de plantilla genérica
-     */
-    protected function checkForDefaultAction(InstagramConversation $conversation, array $message, string $senderId, string $recipientId): void
-    {
-        // Las default actions generalmente no envían webhooks ya que son redirecciones web
-        // Pero si Instagram envía algún evento, se procesaría aquí
-        
-        if (isset($message['default_action'])) {
-            Log::info('Default action detectada', [
-                'conversation_id' => $conversation->id,
-                'default_action' => $message['default_action']
-            ]);
-            
-            // Registrar la acción en la base de datos si es necesario
-            InstagramMessage::create([
-                'conversation_id' => $conversation->id,
-                'message_id' => 'default_action_' . uniqid(),
-                'message_method' => 'incoming',
-                'message_type' => 'default_action',
-                'message_from' => $senderId,
-                'message_to' => $recipientId,
-                'message_content' => 'Default action triggered',
-                'message_context' => 'generic_template_default_action',
-                'json_content' => $message['default_action'],
-                'status' => 'received',
-                'created_time' => now()
-            ]);
-        }
-    }
-
-    /**
-     * Manejar la lógica específica basada en el payload del postback
+     * Manejar la lógica genérica de postbacks sin respuestas hardcodeadas
      */
     protected function handlePostbackPayload(?string $payload, InstagramConversation $conversation, string $senderId, string $recipientId): void
     {
@@ -1296,28 +1110,64 @@ class InstagramMessageService
                 return;
             }
 
-            // Configurar el servicio con el token de acceso
-            $this->withAccessToken($businessAccount->access_token)
-                ->withInstagramUserId($businessAccount->instagram_business_account_id);
+            // Registrar el postback en la base de datos para su posterior procesamiento
+            $this->logPostbackInteraction($payload, $conversation, $senderId, $recipientId);
+            
+            // Aquí podrías integrar con un sistema de automatización externo
+            // Por ahora, solo registramos la interacción
+            Log::info('Postback recibido y registrado', [
+                'payload' => $payload,
+                'conversation_id' => $conversation->id,
+                'sender_id' => $senderId
+            ]);
 
-            // Manejar diferentes tipos de payload
-            switch ($payload) {
-                case 'VIEW_PRODUCTS_PAYLOAD':
-                    $this->handleViewProducts($senderId, $conversation->id);
-                    break;
-                
-                case 'TALK_TO_AGENT_PAYLOAD':
-                    $this->handleTalkToAgent($senderId, $conversation->id);
-                    break;
-                
-                default:
-                    Log::info('Postback recibido con payload no manejado', ['payload' => $payload]);
-                    // Respuesta por defecto para payloads no reconocidos
-                    $this->sendTextMessage($senderId, 'Gracias por tu interacción. ¿En qué más puedo ayudarte?', $conversation->id);
-                    break;
-            }
         } catch (Exception $e) {
             Log::error('Error manejando postback payload:', [
+                'error' => $e->getMessage(),
+                'payload' => $payload
+            ]);
+        }
+    }
+
+    /**
+     * Registrar la interacción de postback en la base de datos
+     */
+    protected function logPostbackInteraction(string $payload, InstagramConversation $conversation, string $senderId, string $recipientId): void
+    {
+        try {
+            // Crear un registro de interacción (puedes crear una tabla específica para esto)
+            // Por ahora, usaremos la tabla de mensajes existente
+            $messageId = 'postback_interaction_' . uniqid();
+            
+            InstagramMessage::create([
+                'conversation_id' => $conversation->id,
+                'message_id' => $messageId,
+                'message_method' => 'incoming',
+                'message_type' => 'postback_interaction',
+                'message_from' => $senderId,
+                'message_to' => $recipientId,
+                'message_content' => 'Postback interaction',
+                'message_context' => 'user_interaction',
+                'message_context_id' => $payload,
+                'json_content' => [
+                    'payload' => $payload,
+                    'conversation_id' => $conversation->id,
+                    'timestamp' => now()
+                ],
+                'status' => 'processed',
+                'created_time' => now()
+            ]);
+            
+            // También podrías actualizar la conversación para indicar la última interacción
+            $conversation->update([
+                'last_interaction_at' => now(),
+                'last_interaction_type' => 'postback',
+                'last_interaction_payload' => $payload,
+                'updated_time' => now()
+            ]);
+            
+        } catch (Exception $e) {
+            Log::error('Error registrando interacción de postback:', [
                 'error' => $e->getMessage(),
                 'payload' => $payload
             ]);
