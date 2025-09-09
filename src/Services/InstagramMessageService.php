@@ -10,6 +10,7 @@ use ScriptDevelop\InstagramApiManager\Models\InstagramMessage;
 use ScriptDevelop\InstagramApiManager\Models\InstagramContact;
 use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
 use ScriptDevelop\InstagramApiManager\Models\InstagramProfile;
+use ScriptDevelop\InstagramApiManager\Models\InstagramReferral;
 
 class InstagramMessageService
 {
@@ -242,7 +243,10 @@ class InstagramMessageService
             } elseif (isset($messageData['message_edit'])) {
                 $this->processMessageEdit($conversation, $messageData['message_edit'], $senderId, $businessAccount->instagram_business_account_id);
                 // NO llamar a updateContact para eventos de edición
-            } else {
+            } elseif (isset($messageData['referral'])) {
+                $this->processReferral($conversation, $messageData['referral'], $senderId, $businessAccount->instagram_business_account_id);
+                $this->updateContact($senderId, $businessAccount->instagram_business_account_id, $messageData);
+            }else {
                 Log::warning('Unknown message type received', $messageData);
             }
             
@@ -336,6 +340,55 @@ class InstagramMessageService
             'conversation_id' => $conversation->id,
             'referral' => $referral
         ]);
+
+        // Verificar si es un referral de ig.me
+        if (isset($referral['source']) && $referral['source'] === 'SHORTLINKS') {
+            $this->processIgMeReferral($conversation, $referral, $senderId, $recipientId);
+        }
+    }
+
+    /**
+     * Procesar referrals específicos de ig.me
+     */
+    protected function processIgMeReferral(InstagramConversation $conversation, array $referral, string $senderId, string $recipientId): void
+    {
+        try {
+            $ref = $referral['ref'] ?? null;
+            $source = $referral['source'] ?? null;
+            $type = $referral['type'] ?? null;
+            
+            // Guardar información del referral en la conversación
+            $conversation->update([
+                'last_referral' => $ref,
+                'referral_source' => $source,
+                'referral_type' => $type,
+                'referral_timestamp' => now()
+            ]);
+            
+            // Crear un registro detallado del referral
+            InstagramReferral::create([
+                'conversation_id' => $conversation->id,
+                'instagram_user_id' => $senderId,
+                'instagram_business_account_id' => $recipientId,
+                'ref_parameter' => $ref,
+                'source' => $source,
+                'type' => $type,
+                'processed_at' => now()
+            ]);
+            
+            Log::info('ig.me referral processed', [
+                'conversation_id' => $conversation->id,
+                'ref' => $ref,
+                'source' => $source,
+                'type' => $type
+            ]);
+            
+        } catch (Exception $e) {
+            Log::error('Error processing ig.me referral:', [
+                'error' => $e->getMessage(),
+                'referral' => $referral
+            ]);
+        }
     }
 
     protected function processRead(InstagramConversation $conversation, array $read, string $senderId, string $recipientId): void

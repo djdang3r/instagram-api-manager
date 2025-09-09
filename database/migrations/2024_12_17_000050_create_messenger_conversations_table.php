@@ -14,6 +14,10 @@ return new class extends Migration
             $table->string('conversation_id');
             $table->string('messenger_user_id');
             $table->timestamp('last_message_at')->nullable();
+            $table->string('last_referral', 2083)->nullable();
+            $table->string('referral_source')->nullable();
+            $table->string('referral_type')->nullable();
+            $table->timestamp('referral_timestamp')->nullable();
             
             $table->timestamps();
             $table->softDeletes();

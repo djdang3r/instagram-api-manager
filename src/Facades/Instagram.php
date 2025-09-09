@@ -69,4 +69,12 @@ class Instagram extends Facade
     {
         return app('instagram.persistent_menu');
     }
+
+    /**
+     * Obtener el servicio de enlaces
+     */
+    public static function link(): \ScriptDevelop\InstagramApiManager\Services\InstagramLinkService
+    {
+        return app('instagram.link');
+    }
 }

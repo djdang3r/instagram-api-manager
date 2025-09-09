@@ -214,4 +214,36 @@ class InstagramBusinessAccount extends Model
 
         return now()->diffInDays($expirationDate, false); // negativo si ya expiró
     }
+
+    /**
+     * Obtener el enlace ig.me para esta cuenta
+     */
+    public function getIgMeLink(string $ref = null): string
+    {
+        $username = $this->profile->username ?? null;
+        
+        if (!$username) {
+            throw new \Exception('Username not found for this Instagram business account');
+        }
+        
+        $url = "https://ig.me/{$username}";
+        
+        if ($ref) {
+            // Validar el parámetro ref según las especificaciones de Instagram
+            if (!preg_match('/^[a-zA-Z0-9_=\-]{1,2083}$/', $ref)) {
+                throw new \Exception('Invalid ref parameter. Only alphanumeric characters, hyphens, underscores, and equal signs are allowed, and max length is 2083.');
+            }
+            $url .= "?ref=" . urlencode($ref);
+        }
+        
+        return $url;
+    }
+
+    /**
+     * Obtener el username de la cuenta
+     */
+    public function getUsername(): ?string
+    {
+        return $this->profile->username ?? null;
+    }
 }

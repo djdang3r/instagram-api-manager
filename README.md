@@ -535,6 +535,33 @@ $result = Instagram::persistentMenu()
 
 
 
+Generar enlaces ig.me
+
+use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
+use ScriptDevelop\InstagramApiManager\Facades\Instagram;
+
+$account = InstagramBusinessAccount::first();
+
+// Generar enlace simple
+$link = $account->getIgMeLink();
+// o
+$link = Instagram::link()->generateIgMeLink($account);
+
+// Generar enlace con parámetro de referencia
+$linkWithRef = $account->getIgMeLink('campaign_123');
+// o
+$linkWithRef = Instagram::link()->generateIgMeLink($account, 'campaign_123');
+
+// Generar código QR
+$qrCode = Instagram::link()->generateIgMeQrCode($account, 'campaign_123', 500);
+
+
+Obtener estadísticas de referrals
+
+$stats = Instagram::link()->getReferralStats($account->instagram_business_account_id, 'campaign_123');
+
+
+
 
 
 
@@ -560,6 +587,8 @@ Contacto
 Para dudas o soporte, abre un Issue en el repositorio oficial o contáctanos vía email.
 
 Gracias por usar Instagram API Manager for Laravel.
+
+
 
 
 

@@ -8,6 +8,7 @@ use ScriptDevelop\InstagramApiManager\Services\InstagramMessageService;
 use ScriptDevelop\InstagramApiManager\Services\FacebookAccountService;
 use ScriptDevelop\InstagramApiManager\Services\FacebookMessageService;
 use ScriptDevelop\InstagramApiManager\Services\InstagramPersistentMenuService;
+use ScriptDevelop\InstagramApiManager\Services\InstagramLinkService;
 
 class InstagramServiceProvider extends ServiceProvider
 {
@@ -30,6 +31,10 @@ class InstagramServiceProvider extends ServiceProvider
 
         $this->app->singleton('instagram.persistent_menu', function ($app) {
             return new InstagramPersistentMenuService();
+        });
+
+        $this->app->singleton('instagram.link', function ($app) {
+            return new InstagramLinkService();
         });
 
         $this->app->singleton('facebook.account', function () {
