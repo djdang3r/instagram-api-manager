@@ -67,6 +67,6 @@ class Instagram extends Facade
      */
     public static function persistentMenu(): \ScriptDevelop\InstagramApiManager\Services\InstagramPersistentMenuService
     {
-        return static::getFacadeRoot()->persistentMenu();
+        return app('instagram.persistent_menu');
     }
 }
