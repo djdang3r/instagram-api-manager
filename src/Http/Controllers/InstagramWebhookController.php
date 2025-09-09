@@ -24,15 +24,6 @@ class InstagramWebhookController extends Controller
             return $this->handleVerification($request);
         }
 
-        // Validar firma de webhook para solicitudes POST
-        if ($request->isMethod('post') && !$this->validateWebhookSignature($request)) {
-            Log::channel('instagram')->warning('Invalid webhook signature', [
-                'signature' => $request->header('X-Hub-Signature-256'),
-                'payload' => $request->getContent()
-            ]);
-            return response('Invalid signature', 403);
-        }
-
         // Manejo de eventos (POST)
         if ($request->isMethod('post')) {
             return $this->handleEvent($request);
@@ -58,33 +49,6 @@ class InstagramWebhookController extends Controller
         ]);
 
         return response('Forbidden', 403);
-    }
-
-    protected function validateWebhookSignature(Request $request): bool
-    {
-        $signature = $request->header('X-Hub-Signature-256');
-        
-        if (!$signature) {
-            Log::warning('Missing webhook signature');
-            return false;
-        }
-        
-        $expectedSignature = 'sha256=' . hash_hmac(
-            'sha256', 
-            $request->getContent(), 
-            config('instagram.client_secret')
-        );
-        
-        $isValid = hash_equals($expectedSignature, $signature);
-        
-        if (!$isValid) {
-            Log::warning('Invalid webhook signature', [
-                'expected' => $expectedSignature,
-                'received' => $signature
-            ]);
-        }
-        
-        return $isValid;
     }
 
     protected function handleEvent(Request $request)
