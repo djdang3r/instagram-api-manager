@@ -61,4 +61,12 @@ class Instagram extends Facade
     {
         return app('instagram.message');
     }
+
+    /**
+     * Obtener el servicio de menú persistente
+     */
+    public function persistentMenu(): \ScriptDevelop\InstagramApiManager\Services\InstagramPersistentMenuService
+    {
+        return app('instagram.persistent_menu');
+    }
 }
