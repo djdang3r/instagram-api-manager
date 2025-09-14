@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InstagramReferral extends Model
 {
-    protected $table = 'instagram_referrals';
+    protected $table = 'meta_instagram_referrals';
 
     protected $fillable = [
         'conversation_id',

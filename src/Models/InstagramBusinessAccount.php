@@ -15,7 +15,7 @@ class InstagramBusinessAccount extends Model
 {
     use SoftDeletes, GeneratesUlid;
 
-    protected $table = 'instagram_business_accounts';
+    protected $table = 'meta_instagram_business_accounts';
 
     protected $primaryKey = 'instagram_business_account_id';
 
@@ -226,14 +226,18 @@ class InstagramBusinessAccount extends Model
             throw new \Exception('Username not found for this Instagram business account');
         }
         
-        $url = "https://ig.me/{$username}";
+        // Limpiar el username de caracteres no permitidos en URLs
+        $cleanUsername = preg_replace('/[^a-zA-Z0-9._]/', '', $username);
+        
+        $url = "https://ig.me/{$cleanUsername}";
         
         if ($ref) {
-            // Validar el parámetro ref según las especificaciones de Instagram
-            if (!preg_match('/^[a-zA-Z0-9_=\-]{1,2083}$/', $ref)) {
-                throw new \Exception('Invalid ref parameter. Only alphanumeric characters, hyphens, underscores, and equal signs are allowed, and max length is 2083.');
+            // Validar y limpiar el parámetro ref
+            $cleanRef = preg_replace('/[^a-zA-Z0-9_=\-]/', '', $ref);
+            if (strlen($cleanRef) > 2083) {
+                $cleanRef = substr($cleanRef, 0, 2083);
             }
-            $url .= "?ref=" . urlencode($ref);
+            $url .= "?ref=" . urlencode($cleanRef);
         }
         
         return $url;

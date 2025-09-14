@@ -11,7 +11,7 @@ class InstagramProfile extends Model
 {
     use SoftDeletes, GeneratesUlid;
 
-    protected $table = 'instagram_profiles';
+    protected $table = 'meta_instagram_profiles';
 
     protected $keyType = 'string';
 

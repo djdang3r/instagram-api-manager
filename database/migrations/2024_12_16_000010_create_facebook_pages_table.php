@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('facebook_pages', function (Blueprint $table) {
+        Schema::create('meta_facebook_pages', function (Blueprint $table) {
             $table->string('page_id')->primary();
             $table->ulid('meta_app_id');
             $table->string('name')->nullable();
@@ -28,6 +28,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('facebook_pages');
+        Schema::dropIfExists('meta_facebook_pages');
     }
 };

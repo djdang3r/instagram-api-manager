@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('messenger_contacts', function (Blueprint $table) {
+        Schema::create('meta_messenger_contacts', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->string('page_id');
             $table->string('messenger_user_id');
@@ -18,7 +18,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreign('page_id')->references('page_id')->on('facebook_pages')->onDelete('cascade');
+            $table->foreign('page_id')->references('page_id')->on('meta_facebook_pages')->onDelete('cascade');
 
             $table->unique('messenger_user_id');
             $table->index('username');
@@ -27,6 +27,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('messenger_contacts');
+        Schema::dropIfExists('meta_messenger_contacts');
     }
 };

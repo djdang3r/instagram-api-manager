@@ -11,7 +11,7 @@ class InstagramContact extends Model
 {
     use SoftDeletes, GeneratesUlid;
 
-    protected $table = 'instagram_contacts';
+    protected $table = 'meta_instagram_contacts';
 
     protected $keyType = 'string';
 

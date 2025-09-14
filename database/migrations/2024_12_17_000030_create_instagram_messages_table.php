@@ -20,6 +20,11 @@ return new class extends Migration
             $table->text('message_context')->nullable();
             $table->string('message_context_id')->nullable();
             $table->string('message_context_from')->nullable();
+            $table->string('context_message_id')->nullable();
+            $table->text('context_message_text')->nullable();
+            $table->string('quick_reply_payload', 1000)->nullable();
+            $table->string('postback_payload', 1000)->nullable();
+            $table->string('template_payload', 1000)->nullable();
             $table->json('attachments')->nullable();
             $table->text('caption')->nullable();
             $table->text('media_url')->nullable();

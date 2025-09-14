@@ -12,7 +12,7 @@ class InstagramConversation extends Model
 {
     use SoftDeletes, GeneratesUlid;
 
-    protected $table = 'instagram_conversations';
+    protected $table = 'meta_instagram_conversations';
 
     protected $keyType = 'string';
     public $incrementing = false;

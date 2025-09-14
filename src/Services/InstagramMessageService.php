@@ -94,6 +94,8 @@ class InstagramMessageService
             'message_content' => $postback['title'] ?? $postback['payload'] ?? null,
             'message_context' => 'button_postback',
             'message_context_id' => $postback['payload'] ?? null,
+            'postback_payload' => $postback['payload'] ?? null,
+            'context_message_text' => $postback['title'] ?? null,
             'json_content' => $postback,
             'status' => 'received',
             'created_time' => now(),
@@ -283,6 +285,7 @@ class InstagramMessageService
             'message_content' => $message['text'] ?? null,
             'attachments' => $message['attachments'] ?? null,
             'json_content' => $message,
+            'json' => $message,
             'status' => 'received',
             'created_time' => now(),
             'sent_at' => isset($message['timestamp']) ? 
@@ -295,11 +298,21 @@ class InstagramMessageService
             $messageData['message_type'] = 'quick_reply';
             $messageData['message_context'] = 'quick_reply_response';
             $messageData['message_context_id'] = $message['quick_reply']['payload'] ?? null;
+            $messageData['quick_reply_payload'] = $message['quick_reply']['payload'] ?? null;
+            $messageData['context_message_text'] = $message['text'] ?? null;
             Log::info('Quick reply recibido', [
                 'payload' => $message['quick_reply']['payload'] ?? null,
                 'text' => $message['text'] ?? null
             ]);
         }
+
+        if (isset($message['postback'])) {
+            $messageData['message_type'] = 'postback';
+            $messageData['postback_payload'] = $message['postback']['payload'] ?? null;
+            $messageData['context_message_text'] = $message['postback']['title'] ?? null;
+        }
+
+        InstagramMessage::create($messageData);
 
         // Procesar adjuntos si existen
         if (isset($message['attachments']) && is_array($message['attachments'])) {
@@ -506,6 +519,8 @@ class InstagramMessageService
             'message_type' => $messageType,
             'message_from' => $this->instagramUserId,
             'message_to' => $recipientId,
+            'json_content' => $payload,
+            'json' => $payload,
             'status' => 'pending',
             'created_time' => now(),
         ];

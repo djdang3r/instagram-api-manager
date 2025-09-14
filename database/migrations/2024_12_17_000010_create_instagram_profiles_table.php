@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('instagram_profiles', function (Blueprint $table) {
+        Schema::create('meta_instagram_profiles', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->string('instagram_business_account_id');
             
@@ -40,7 +40,7 @@ return new class extends Migration
             // Clave foránea
             $table->foreign('instagram_business_account_id')
                   ->references('instagram_business_account_id')
-                  ->on('instagram_business_accounts')
+                  ->on('meta_instagram_business_accounts')
                   ->onDelete('cascade');
 
             // Índices
@@ -54,6 +54,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('instagram_profiles');
+        Schema::dropIfExists('meta_instagram_profiles');
     }
 };
