@@ -11,7 +11,7 @@ class MessengerMessage extends Model
 {
     use SoftDeletes, GeneratesUlid;
 
-    protected $table = 'meta_messenger_messages';
+    protected $table = 'messenger_messages';
 
     protected $keyType = 'string';
 

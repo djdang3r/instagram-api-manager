@@ -7,7 +7,7 @@ use Illuminate\Support\Carbon;
 
 class OauthState extends Model
 {
-    protected $table = 'meta_oauth_states';
+    protected $table = 'oauth_states';
 
     protected $fillable = [
         'state',

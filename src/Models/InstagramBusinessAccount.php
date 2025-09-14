@@ -15,7 +15,7 @@ class InstagramBusinessAccount extends Model
 {
     use SoftDeletes, GeneratesUlid;
 
-    protected $table = 'meta_instagram_business_accounts';
+    protected $table = 'instagram_business_accounts';
 
     protected $primaryKey = 'instagram_business_account_id';
 

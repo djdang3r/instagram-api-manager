@@ -11,7 +11,7 @@ class InstagramMessage extends Model
 {
     use SoftDeletes, GeneratesUlid;
 
-    protected $table = 'meta_instagram_messages';
+    protected $table = 'instagram_messages';
 
     protected $keyType = 'string';
     public $incrementing = false;

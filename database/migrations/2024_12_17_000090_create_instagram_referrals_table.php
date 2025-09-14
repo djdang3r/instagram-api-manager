@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('meta_instagram_referrals', function (Blueprint $table) {
+        Schema::create('instagram_referrals', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->ulid('conversation_id');
             $table->string('instagram_user_id');
@@ -20,8 +20,8 @@ return new class extends Migration
             
             $table->timestamps();
 
-            $table->foreign('conversation_id')->references('id')->on('meta_instagram_conversations')->onDelete('cascade');
-            $table->foreign('instagram_business_account_id')->references('meta_instagram_business_account_id')->on('instagram_business_accounts')->onDelete('cascade');
+            $table->foreign('conversation_id')->references('id')->on('instagram_conversations')->onDelete('cascade');
+            $table->foreign('instagram_business_account_id')->references('instagram_business_account_id')->on('instagram_business_accounts')->onDelete('cascade');
             
             $table->index('ref_parameter');
             $table->index('source');
@@ -31,6 +31,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('meta_instagram_referrals');
+        Schema::dropIfExists('instagram_referrals');
     }
 };

@@ -13,7 +13,7 @@ class FacebookPage extends Model
 {
     use SoftDeletes, GeneratesUlid;
 
-    protected $table = 'meta_facebook_pages';
+    protected $table = 'facebook_pages';
 
     protected $primaryKey = 'page_id';
 

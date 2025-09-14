@@ -11,7 +11,7 @@ class MessengerContact extends Model
 {
     use SoftDeletes, GeneratesUlid;
 
-    protected $table = 'meta_messenger_contacts';
+    protected $table = 'messenger_contacts';
 
     protected $keyType = 'string';
 

@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('meta_messenger_messages', function (Blueprint $table) {
+        Schema::create('messenger_messages', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->ulid('conversation_id');
             $table->string('message_id');
@@ -32,7 +32,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreign('conversation_id')->references('id')->on('meta_messenger_conversations')->onDelete('cascade');
+            $table->foreign('conversation_id')->references('id')->on('messenger_conversations')->onDelete('cascade');
 
             $table->unique('message_id');
             $table->index('message_method');
@@ -44,6 +44,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('meta_messenger_messages');
+        Schema::dropIfExists('messenger_messages');
     }
 };

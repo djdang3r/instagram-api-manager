@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('meta_instagram_business_accounts', function (Blueprint $table) {
+        Schema::create('instagram_business_accounts', function (Blueprint $table) {
             $table->string('instagram_business_account_id')->primary();
             $table->string('facebook_page_id')->nullable(); // Puede ser null inicialmente
             $table->string('name');
@@ -24,7 +24,7 @@ return new class extends Migration
             // La clave foránea solo se aplica si hay valor (usando condición)
             $table->foreign('facebook_page_id')
                   ->references('page_id')
-                  ->on('meta_facebook_pages')
+                  ->on('facebook_pages')
                   ->onDelete('set null'); // Si se elimina la página, se establece a null
 
             $table->index('name');
@@ -33,6 +33,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('meta_instagram_business_accounts');
+        Schema::dropIfExists('instagram_business_accounts');
     }
 };

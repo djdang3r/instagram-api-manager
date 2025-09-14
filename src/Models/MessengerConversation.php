@@ -12,7 +12,7 @@ class MessengerConversation extends Model
 {
     use SoftDeletes, GeneratesUlid;
 
-    protected $table = 'meta_messenger_conversations';
+    protected $table = 'messenger_conversations';
 
     protected $keyType = 'string';
 

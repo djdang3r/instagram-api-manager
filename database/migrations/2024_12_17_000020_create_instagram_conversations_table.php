@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('meta_instagram_conversations', function (Blueprint $table) {
+        Schema::create('instagram_conversations', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->string('instagram_business_account_id');
             $table->string('conversation_id');
@@ -27,7 +27,7 @@ return new class extends Migration
 
             $table->foreign('instagram_business_account_id')
                 ->references('instagram_business_account_id')
-                ->on('meta_instagram_business_accounts')
+                ->on('instagram_business_accounts')
                 ->onDelete('cascade');
 
             $table->unique('conversation_id');
@@ -39,6 +39,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('meta_instagram_conversations');
+        Schema::dropIfExists('instagram_conversations');
     }
 };

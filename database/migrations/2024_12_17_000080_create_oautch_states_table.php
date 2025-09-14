@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('meta_oauth_states', function (Blueprint $table) {
+        Schema::create('oauth_states', function (Blueprint $table) {
             $table->id();
             $table->string('state')->unique();
             $table->string('service'); // 'instagram' o 'facebook'
@@ -22,6 +22,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('meta_oauth_states');
+        Schema::dropIfExists('oauth_states');
     }
 };
