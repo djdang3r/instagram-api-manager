@@ -13,7 +13,7 @@ class InstagramModelResolver
      */
     public static function make(string $key, array $attributes = []): \Illuminate\Database\Eloquent\Model
     {
-        $class = config("whatsapp.models.$key");
+        $class = config("instagram.models.$key");
 
         if (!class_exists($class)) {
             throw new InvalidArgumentException("La clase para el modelo [$key] no existe: [$class]");
@@ -27,10 +27,10 @@ class InstagramModelResolver
      */
     public static function __callStatic(string $method, array $arguments)
     {
-        $class = config("whatsapp.models.$method");
+        $class = config("instagram.models.$method");
 
         if (!class_exists($class)) {
-            throw new InvalidArgumentException("No se encontró el modelo para [$method]. Verifica whatsapp.models.$method en tu configuración.");
+            throw new InvalidArgumentException("No se encontró el modelo para [$method]. Verifica instagram.models.$method en tu configuración.");
         }
 
         return $class::query();
@@ -41,7 +41,7 @@ class InstagramModelResolver
      */
     public static function resolve(string $key)
     {
-        $class = config("whatsapp.models.$key");
+        $class = config("instagram.models.$key");
 
         if (!class_exists($class)) {
             throw new InvalidArgumentException("No se encontró el modelo para [$key]");
@@ -55,6 +55,6 @@ class InstagramModelResolver
      */
     public static function fake(string $key, string $class): void
     {
-        config()->set("whatsapp.models.$key", $class);
+        config()->set("instagram.models.$key", $class);
     }
 }
