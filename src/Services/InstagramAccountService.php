@@ -3,18 +3,17 @@
 namespace ScriptDevelop\InstagramApiManager\Services;
 
 use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
-use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
-use ScriptDevelop\InstagramApiManager\Models\InstagramProfile;
-use ScriptDevelop\InstagramApiManager\Models\OauthState;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Exception;
 use Illuminate\Support\Carbon;
+use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 
 class InstagramAccountService
 {
     protected ApiClient $apiClient;
-    protected ?InstagramBusinessAccount $currentAccount = null;
+    protected ?Model $currentAccount = null;
 
     public function __construct()
     {
@@ -28,7 +27,7 @@ class InstagramAccountService
     /**
      * Establecer la cuenta actual para las operaciones
      */
-    public function forAccount(InstagramBusinessAccount $account): self
+    public function forAccount(Model $account): self
     {
         $this->currentAccount = $account;
         return $this;
@@ -39,7 +38,7 @@ class InstagramAccountService
      */
     public function forAccountId(string $accountId): self
     {
-        $account = InstagramBusinessAccount::find($accountId);
+        $account = InstagramModelResolver::instagram_business_account()->find($accountId);
         if ($account) {
             $this->currentAccount = $account;
         }
@@ -144,7 +143,7 @@ class InstagramAccountService
         $state = $state ?? bin2hex(random_bytes(20));
 
         // Guardar el estado en la base de datos para validación posterior
-        OauthState::create([
+        InstagramModelResolver::oauth_state()->create([
             'state' => $state,
             'service' => 'instagram',
             'ip_address' => request()->ip(),
@@ -165,12 +164,12 @@ class InstagramAccountService
         return "https://www.instagram.com/oauth/authorize?" . $params;
     }
 
-    public function handleCallback(string $code, ?string $state = null): ?InstagramBusinessAccount
+    public function handleCallback(string $code, ?string $state = null): ?Model
     {
         // Validar estado OAuth
         if ($state) {
-            $isValidState = OauthState::isValid($state, 'instagram');
-            
+            $isValidState = InstagramModelResolver::oauth_state()->isValid($state, 'instagram');
+
             if (!$isValidState) {
                 Log::error('El estado de OAuth no es válido o ha expirado', [
                     'received' => $state
@@ -179,7 +178,7 @@ class InstagramAccountService
             }
             
             // Eliminar el estado usado
-            OauthState::where('state', $state)->where('service', 'instagram')->delete();
+            InstagramModelResolver::oauth_state()->where('state', $state)->where('service', 'instagram')->delete();
         } else {
             Log::warning('No se recibió estado OAuth en el callback');
         }
@@ -249,7 +248,7 @@ class InstagramAccountService
                 ]
             );
 
-            $account = InstagramBusinessAccount::updateOrCreate(
+            $account = InstagramModelResolver::instagram_business_account()->updateOrCreate(
                 ['instagram_business_account_id' => $userId],
                 [
                     'access_token' => $accessToken,
@@ -262,7 +261,7 @@ class InstagramAccountService
             );
 
             if (!empty($profileData)) {
-                InstagramProfile::updateOrCreate(
+                InstagramModelResolver::instagram_profile()->updateOrCreate(
                     ['instagram_business_account_id' => $userId],
                     [
                         'profile_name' => $profileData['name'] ?? '',
@@ -323,7 +322,7 @@ class InstagramAccountService
     {
         try {
             // Verificar que el token tenga al menos 24 horas de antigüedad
-            $account = InstagramBusinessAccount::where('access_token', $longLivedToken)->first();
+            $account = InstagramModelResolver::instagram_business_account()->where('access_token', $longLivedToken)->first();
             if (!$account || !$account->token_obtained_at) {
                 Log::error('No se puede refrescar token: cuenta no encontrada o sin fecha de obtención');
                 return null;
@@ -368,7 +367,7 @@ class InstagramAccountService
     /**
      * Verificar si un token tiene un permiso específico
      */
-    public function hasPermission(InstagramBusinessAccount $account, string $permission): bool
+    public function hasPermission(Model $account, string $permission): bool
     {
         if (empty($account->permissions)) {
             return false;
@@ -384,7 +383,7 @@ class InstagramAccountService
     public function linkWithFacebookPage(string $instagramAccountId, string $facebookPageId): bool
     {
         try {
-            $account = InstagramBusinessAccount::find($instagramAccountId);
+            $account = InstagramModelResolver::instagram_business_account()->find($instagramAccountId);
             if ($account) {
                 $account->facebook_page_id = $facebookPageId;
                 return $account->save();

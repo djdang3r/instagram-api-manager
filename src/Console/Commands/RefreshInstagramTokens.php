@@ -5,6 +5,7 @@ namespace ScriptDevelop\InstagramApiManager\Console\Commands;
 use Illuminate\Console\Command;
 use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
 use ScriptDevelop\InstagramApiManager\Services\InstagramAccountService;
+use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 
 class RefreshInstagramTokens extends Command
 {
@@ -22,8 +23,8 @@ class RefreshInstagramTokens extends Command
     public function handle()
     {
         $instagramService = app(InstagramAccountService::class);
-        
-        $accounts = InstagramBusinessAccount::all();
+
+        $accounts = InstagramModelResolver::instagram_business_account()->all();
 
         foreach ($accounts as $account) {
             $this->info("Procesando cuenta: {$account->instagram_business_account_id}");

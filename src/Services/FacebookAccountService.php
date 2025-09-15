@@ -3,7 +3,7 @@
 namespace ScriptDevelop\InstagramApiManager\Services;
 
 use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
-use ScriptDevelop\InstagramApiManager\Models\FacebookPage;
+use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -84,7 +84,7 @@ class FacebookAccountService
             }
 
             foreach ($pagesResponse['data'] as $page) {
-                FacebookPage::updateOrCreate(
+                InstagramModelResolver::facebook_page()->updateOrCreate(
                     ['page_id' => $page['id']],
                     [
                         'name' => $page['name'] ?? '',

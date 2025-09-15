@@ -1,6 +1,44 @@
 <?php
 
 return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Modelos Personalizados
+    |--------------------------------------------------------------------------
+    |
+    | Aquí puedes especificar los modelos que el paquete utilizará para las
+    | entidades principales. Puedes sobrescribir estos valores en tu archivo
+    | .env si estás utilizando modelos personalizados.
+    |
+    */
+    'models' => [
+        'facebook_page' => \ScriptDevelop\InstagramApiManager\Models\FacebookPage::class,
+
+        'instagram_business_account' => \ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount::class,
+
+        'instagram_contact' => \ScriptDevelop\InstagramApiManager\Models\InstagramContact::class,
+
+        //Mensajes
+        'message' => \ScriptDevelop\InstagramApiManager\Models\InstagramMessage::class,
+
+        'instagram_profile' => \ScriptDevelop\InstagramApiManager\Models\InstagramProfile::class,
+
+        'instagram_referral' => \ScriptDevelop\InstagramApiManager\Models\InstagramReferral::class,
+
+        'messenger_contact' => \ScriptDevelop\InstagramApiManager\Models\MessengerContact::class,
+
+        'messenger_conversation' => \ScriptDevelop\InstagramApiManager\Models\MessengerConversation::class,
+
+        //Mensajes messenger
+        'messenger_message' => \ScriptDevelop\InstagramApiManager\Models\MessengerMessage::class,
+
+        'meta_app' => \ScriptDevelop\InstagramApiManager\Models\MetaApp::class,
+
+        // Modelo para autenticacion Oauth
+        'oauth_state' => \ScriptDevelop\InstagramApiManager\Models\OauthState::class,
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Instagram API Configuration

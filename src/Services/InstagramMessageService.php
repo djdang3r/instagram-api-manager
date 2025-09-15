@@ -3,6 +3,7 @@
 namespace ScriptDevelop\InstagramApiManager\Services;
 
 use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Exception;
 use ScriptDevelop\InstagramApiManager\Models\InstagramConversation;
@@ -11,6 +12,7 @@ use ScriptDevelop\InstagramApiManager\Models\InstagramContact;
 use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
 use ScriptDevelop\InstagramApiManager\Models\InstagramProfile;
 use ScriptDevelop\InstagramApiManager\Models\InstagramReferral;
+use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 
 class InstagramMessageService
 {
@@ -74,11 +76,11 @@ class InstagramMessageService
     /**
      * Procesar postbacks (botones, quick replies, etc.)
      */
-    protected function processPostback(InstagramConversation $conversation, array $postback, string $senderId, string $recipientId, $timestamp = null): void
+    protected function processPostback(Model $conversation, array $postback, string $senderId, string $recipientId, $timestamp = null): void
     {
         $messageId = $postback['mid'] ?? 'postback_' . uniqid();
 
-        $existingMessage = InstagramMessage::where('message_id', $messageId)->first();
+        $existingMessage = InstagramModelResolver::instagram_message()->where('message_id', $messageId)->first();
         if ($existingMessage) {
             Log::info('Postback duplicado ignorado', ['message_id' => $messageId]);
             return;
@@ -102,8 +104,8 @@ class InstagramMessageService
             'sent_at' => $timestamp ? date('Y-m-d H:i:s', $timestamp / 1000) : now()
         ];
 
-        InstagramMessage::create($messageData);
-        
+        InstagramModelResolver::instagram_message()->create($messageData);
+
         Log::info('Instagram postback processed', [
             'conversation_id' => $conversation->id,
             'postback' => $postback
@@ -115,10 +117,10 @@ class InstagramMessageService
     /**
      * Procesar reacciones a mensajes
      */
-    protected function processReaction(InstagramConversation $conversation, array $reaction, string $senderId, string $recipientId): void
+    protected function processReaction(Model $conversation, array $reaction, string $senderId, string $recipientId): void
     {
-        $reactedMessage = InstagramMessage::where('message_id', $reaction['mid'] ?? '')->first();
-        
+        $reactedMessage = InstagramModelResolver::instagram_message()->where('message_id', $reaction['mid'] ?? '')->first();
+
         if ($reactedMessage) {
             $currentReactions = $reactedMessage->reactions ?? [];
             $currentReactions[] = [
@@ -181,13 +183,13 @@ class InstagramMessageService
         try {
             // BUSCAR LA CUENTA DE NEGOCIO CORRECTAMENTE
             // Primero intentar buscar por instagram_business_account_id
-            $businessAccount = InstagramBusinessAccount::where('instagram_business_account_id', $recipientId)->first();
-            
+            $businessAccount = InstagramModelResolver::instagram_business_account()->where('instagram_business_account_id', $recipientId)->first();
+
             // Si no se encuentra, buscar por user_id a través del perfil
             if (!$businessAccount) {
-                $profile = InstagramProfile::where('user_id', $recipientId)->first();
+                $profile = InstagramModelResolver::instagram_profile()->where('user_id', $recipientId)->first();
                 if ($profile) {
-                    $businessAccount = InstagramBusinessAccount::where('instagram_business_account_id', $profile->instagram_business_account_id)->first();
+                    $businessAccount = InstagramModelResolver::instagram_business_account()->where('instagram_business_account_id', $profile->instagram_business_account_id)->first();
                 }
             }
 
@@ -263,12 +265,12 @@ class InstagramMessageService
     /**
      * Procesar mensajes entrantes de cualquier tipo
      */
-    protected function processIncomingMessage(InstagramConversation $conversation, array $message, string $senderId, string $recipientId): void
+    protected function processIncomingMessage(Model $conversation, array $message, string $senderId, string $recipientId): void
     {
         $messageId = $message['mid'] ?? uniqid();
 
         // Verificar si el mensaje ya existe para evitar duplicados
-        $existingMessage = InstagramMessage::where('message_id', $messageId)->first();
+        $existingMessage = InstagramModelResolver::instagram_message()->where('message_id', $messageId)->first();
         if ($existingMessage) {
             Log::info('Mensaje duplicado ignorado', ['message_id' => $messageId]);
             return;
@@ -312,7 +314,7 @@ class InstagramMessageService
             $messageData['context_message_text'] = $message['postback']['title'] ?? null;
         }
 
-        InstagramMessage::create($messageData);
+        InstagramModelResolver::instagram_message()->create($messageData);
 
         // Procesar adjuntos si existen
         if (isset($message['attachments']) && is_array($message['attachments'])) {
@@ -325,12 +327,12 @@ class InstagramMessageService
             }
         }
 
-        InstagramMessage::create($messageData);
+        InstagramModelResolver::instagram_message()->create($messageData);
         Log::info('Mensaje entrante guardado', ['message_id' => $messageId, 'type' => $messageType]);
     }
     
     // Añadir método para procesar ediciones de mensajes
-    protected function processMessageEdit(InstagramConversation $conversation, array $messageEdit, string $senderId, string $recipientId): void
+    protected function processMessageEdit(Model $conversation, array $messageEdit, string $senderId, string $recipientId): void
     {
         Log::info('Edición de mensaje procesada', [
             'conversation_id' => $conversation->id,
@@ -339,7 +341,7 @@ class InstagramMessageService
         
         // Opcional: puedes implementar lógica para actualizar mensajes editados
     }
-    protected function processOptin(InstagramConversation $conversation, array $optin, string $senderId, string $recipientId): void
+    protected function processOptin(Model $conversation, array $optin, string $senderId, string $recipientId): void
     {
         Log::info('Instagram optin processed', [
             'conversation_id' => $conversation->id,
@@ -347,7 +349,7 @@ class InstagramMessageService
         ]);
     }
 
-    protected function processReferral(InstagramConversation $conversation, array $referral, string $senderId, string $recipientId): void
+    protected function processReferral(Model $conversation, array $referral, string $senderId, string $recipientId): void
     {
         Log::info('Instagram referral processed', [
             'conversation_id' => $conversation->id,
@@ -363,7 +365,7 @@ class InstagramMessageService
     /**
      * Procesar referrals específicos de ig.me
      */
-    protected function processIgMeReferral(InstagramConversation $conversation, array $referral, string $senderId, string $recipientId): void
+    protected function processIgMeReferral(Model $conversation, array $referral, string $senderId, string $recipientId): void
     {
         try {
             $ref = $referral['ref'] ?? null;
@@ -379,7 +381,7 @@ class InstagramMessageService
             ]);
             
             // Crear un registro detallado del referral
-            InstagramReferral::create([
+            InstagramModelResolver::instagram_referral()->create([
                 'conversation_id' => $conversation->id,
                 'instagram_user_id' => $senderId,
                 'instagram_business_account_id' => $recipientId,
@@ -404,10 +406,10 @@ class InstagramMessageService
         }
     }
 
-    protected function processRead(InstagramConversation $conversation, array $read, string $senderId, string $recipientId): void
+    protected function processRead(Model $conversation, array $read, string $senderId, string $recipientId): void
     {
         if (isset($read['watermark'])) {
-            InstagramMessage::where('conversation_id', $conversation->id)
+            InstagramModelResolver::instagram_message()->where('conversation_id', $conversation->id)
                 ->where('created_time', '<=', date('Y-m-d H:i:s', $read['watermark'] / 1000))
                 ->where('status', 'sent')
                 ->update(['status' => 'read', 'read_at' => now()]);
@@ -415,7 +417,7 @@ class InstagramMessageService
         
         // También puedes procesar el mid específico si está disponible
         if (isset($read['mid'])) {
-            InstagramMessage::where('message_id', $read['mid'])
+            InstagramModelResolver::instagram_message()->where('message_id', $read['mid'])
                 ->update(['status' => 'read', 'read_at' => now()]);
         }
         
@@ -457,7 +459,7 @@ class InstagramMessageService
             }
             
             // Crear o actualizar el contacto incluso si no tenemos información completa
-            InstagramContact::updateOrCreate(
+            InstagramModelResolver::instagram_contact()->updateOrCreate(
                 [
                     'instagram_business_account_id' => $businessAccountId,
                     'instagram_user_id' => $instagramUserId
@@ -486,7 +488,7 @@ class InstagramMessageService
     public function markAsRead(string $messageId): bool
     {
         try {
-            $message = InstagramMessage::where('message_id', $messageId)->first();
+            $message = InstagramModelResolver::instagram_message()->where('message_id', $messageId)->first();
             if ($message) {
                 $message->update([
                     'status' => 'read',
@@ -509,7 +511,7 @@ class InstagramMessageService
         $this->validateCredentials();
 
         $conversation = $conversationId ? 
-            InstagramConversation::find($conversationId) :
+            InstagramModelResolver::instagram_conversation()->find($conversationId) :
             $this->findOrCreateConversation($this->instagramUserId, $recipientId);
 
         $messageData = [
@@ -550,7 +552,7 @@ class InstagramMessageService
             ];
         }
 
-        $message = InstagramMessage::create($messageData);
+        $message = InstagramModelResolver::instagram_message()->create($messageData);
 
         try {
             $response = $this->apiClient->request(
@@ -877,9 +879,9 @@ class InstagramMessageService
     /**
      * Obtener o crear una conversación
      */
-    public function findOrCreateConversation(string $instagramAccountId, string $userId): InstagramConversation
+    public function findOrCreateConversation(string $instagramAccountId, string $userId): Model
     {
-        return InstagramConversation::firstOrCreate(
+        return InstagramModelResolver::instagram_conversation()->firstOrCreate(
             [
                 'instagram_business_account_id' => $instagramAccountId,
                 'instagram_user_id' => $userId
@@ -902,7 +904,7 @@ class InstagramMessageService
             $conversations = $this->getConversations();
             
             foreach ($conversations['data'] ?? [] as $conversationData) {
-                $conversation = InstagramConversation::updateOrCreate(
+                $conversation = InstagramModelResolver::instagram_conversation()->updateOrCreate(
                     ['conversation_id' => $conversationData['id']],
                     [
                         'instagram_business_account_id' => $instagramUserId,
@@ -925,13 +927,13 @@ class InstagramMessageService
     /**
      * Sincronizar mensajes de una conversación específica
      */
-    protected function syncConversationMessages(InstagramConversation $conversation, string $accessToken): void
+    protected function syncConversationMessages(Model $conversation, string $accessToken): void
     {
         try {
             $messages = $this->getMessages($conversation->conversation_id);
             
             foreach ($messages['data'] ?? [] as $messageData) {
-                InstagramMessage::updateOrCreate(
+                InstagramModelResolver::instagram_message()->updateOrCreate(
                     ['message_id' => $messageData['id']],
                     [
                         'conversation_id' => $conversation->id,
@@ -998,8 +1000,8 @@ class InstagramMessageService
     protected function getUserProfileViaApi(string $userId, string $businessAccountId): array
     {
         try {
-            $businessAccount = InstagramBusinessAccount::where('instagram_business_account_id', $businessAccountId)->first();
-            
+            $businessAccount = InstagramModelResolver::instagram_business_account()->where('instagram_business_account_id', $businessAccountId)->first();
+
             if (!$businessAccount || !$businessAccount->access_token) {
                 Log::warning('No se puede obtener perfil via API: falta access token o cuenta no encontrada');
                 return [];
@@ -1175,7 +1177,7 @@ class InstagramMessageService
     /**
      * Manejar la lógica genérica de postbacks sin respuestas hardcodeadas
      */
-    protected function handlePostbackPayload(?string $payload, InstagramConversation $conversation, string $senderId, string $recipientId): void
+    protected function handlePostbackPayload(?string $payload, Model $conversation, string $senderId, string $recipientId): void
     {
         if (!$payload) {
             return;
@@ -1211,14 +1213,14 @@ class InstagramMessageService
     /**
      * Registrar la interacción de postback en la base de datos
      */
-    protected function logPostbackInteraction(string $payload, InstagramConversation $conversation, string $senderId, string $recipientId): void
+    protected function logPostbackInteraction(string $payload, Model $conversation, string $senderId, string $recipientId): void
     {
         try {
             // Crear un registro de interacción (puedes crear una tabla específica para esto)
             // Por ahora, usaremos la tabla de mensajes existente
             $messageId = 'postback_interaction_' . uniqid();
-            
-            InstagramMessage::create([
+
+            InstagramModelResolver::instagram_message()->create([
                 'conversation_id' => $conversation->id,
                 'message_id' => $messageId,
                 'message_method' => 'incoming',

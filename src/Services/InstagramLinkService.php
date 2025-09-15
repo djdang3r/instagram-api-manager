@@ -2,8 +2,8 @@
 
 namespace ScriptDevelop\InstagramApiManager\Services;
 
-use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
-use ScriptDevelop\InstagramApiManager\Models\InstagramReferral;
+use Illuminate\Database\Eloquent\Model;
+use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 use Illuminate\Support\Facades\Log;
 use Exception;
 
@@ -12,7 +12,7 @@ class InstagramLinkService
     /**
      * Generar un enlace ig.me para una cuenta de negocio
      */
-    public function generateIgMeLink(InstagramBusinessAccount $account, string $ref = null): string
+    public function generateIgMeLink(Model $account, string $ref = null): string
     {
         return $account->getIgMeLink($ref);
     }
@@ -20,7 +20,7 @@ class InstagramLinkService
     /**
      * Generar un código QR para un enlace ig.me
      */
-    public function generateIgMeQrCode(InstagramBusinessAccount $account, string $ref = null, int $size = 300): string
+    public function generateIgMeQrCode(Model $account, string $ref = null, int $size = 300): string
     {
         $url = $this->generateIgMeLink($account, $ref);
         $encodedUrl = urlencode($url);
@@ -42,8 +42,8 @@ class InstagramLinkService
      */
     public function getReferralStats(string $instagramBusinessAccountId, string $ref = null): array
     {
-        $query = InstagramReferral::where('instagram_business_account_id', $instagramBusinessAccountId);
-        
+        $query = InstagramModelResolver::instagram_referral()->where('instagram_business_account_id', $instagramBusinessAccountId);
+
         if ($ref) {
             $query->where('ref_parameter', $ref);
         }

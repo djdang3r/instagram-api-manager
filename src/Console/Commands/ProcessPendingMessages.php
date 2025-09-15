@@ -3,8 +3,8 @@
 namespace ScriptDevelop\InstagramApiManager\Console\Commands;
 
 use Illuminate\Console\Command;
-use ScriptDevelop\InstagramApiManager\Models\InstagramMessage;
 use ScriptDevelop\InstagramApiManager\Services\InstagramMessageService;
+use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 
 class ProcessPendingMessages extends Command
 {
@@ -13,7 +13,7 @@ class ProcessPendingMessages extends Command
 
     public function handle()
     {
-        $pendingMessages = InstagramMessage::where('status', 'pending')
+        $pendingMessages = InstagramModelResolver::instagram_message()->where('status', 'pending')
             ->where('message_method', 'outgoing')
             ->with('conversation.instagramBusinessAccount')
             ->get();

@@ -3,8 +3,8 @@
 namespace ScriptDevelop\InstagramApiManager\Console\Commands;
 
 use Illuminate\Console\Command;
-use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
 use ScriptDevelop\InstagramApiManager\Services\InstagramMessageService;
+use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 
 class SyncInstagramConversations extends Command
 {
@@ -13,8 +13,8 @@ class SyncInstagramConversations extends Command
 
     public function handle()
     {
-        $accounts = InstagramBusinessAccount::whereNotNull('access_token')->get();
-        
+        $accounts = InstagramModelResolver::instagram_business_account()->whereNotNull('access_token')->get();
+
         foreach ($accounts as $account) {
             $this->info("Syncing conversations for account: {$account->instagram_business_account_id}");
             
