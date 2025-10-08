@@ -33,11 +33,11 @@ class ApiClient
         array $query = [],
         array $headers = [],
         bool $isFullUrl = false,
-        string $customBaseUrl = null
+        ?string $customBaseUrl = null
     ): mixed {
         try {
             $baseUrl = $customBaseUrl ?: $this->baseUrl;
-            $url = $this->buildUrl($endpoint, $params, $query, $isFullUrl, $baseUrl);
+            $url = $this->buildUrl($endpoint, $params, $isFullUrl, $baseUrl);
 
             $options = [
                 'headers' => array_merge([
@@ -115,23 +115,24 @@ class ApiClient
     /**
      * Construye la URL correctamente
      */
-    protected function buildUrl(string $endpoint, array $params, array $query = [], bool $isFullUrl = false, string $baseUrl = null): string
+    protected function buildUrl(string $endpoint, array $params, bool $isFullUrl = false, ?string $baseUrl = null): string
     {
         $baseUrl = $baseUrl ?: $this->baseUrl;
-        
+
         if ($isFullUrl) {
             $url = $endpoint;
         } else {
             // Reemplazar placeholders
             $processedEndpoint = str_replace(
-                array_map(fn($k) => '{' . $k . '}', array_keys($params)),
+                array_map(fn($k) => "{${k}}", array_keys($params)),
                 array_values($params),
                 $endpoint
             );
-            
+
             // Construir URL con versión si está definida
-            $url = $this->version ? $baseUrl . '/' . $this->version . '/' . $processedEndpoint 
-                                  : $baseUrl . '/' . $processedEndpoint;
+            $url = $this->version
+                ? "{$baseUrl}/{$this->version}/{$processedEndpoint}"
+                : "{$baseUrl}/{$processedEndpoint}";
         }
 
         Log::channel('instagram')->debug('URL construida:', ['url' => $url]);
