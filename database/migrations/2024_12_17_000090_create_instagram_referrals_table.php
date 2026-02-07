@@ -23,6 +23,7 @@ return new class extends Migration
             $table->foreign('conversation_id')->references('id')->on('instagram_conversations')->onDelete('cascade');
             $table->foreign('instagram_business_account_id')->references('instagram_business_account_id')->on('instagram_business_accounts')->onDelete('cascade');
             
+            $table->index('ref_parameter', null, null, 255); // Index with 255 char prefix for ref_parameter
             $table->index('source');
             $table->index('processed_at');
         });
