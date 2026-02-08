@@ -788,4 +788,81 @@ Para dudas o soporte, abre un Issue en el repositorio oficial o contáctanos ví
 
 ---
 
+## 📱 Sistema de Recepción de Mensajes de Instagram (v1.0.60+)
+
+### ✨ Nuevo: Webhook Mejorado con Logging Detallado
+
+A partir de la versión 1.0.60, el sistema de recepción de mensajes de Instagram tiene un logging mejorado que te permite ver claramente:
+
+✅ Cuándo llega un mensaje
+✅ Cómo se procesa
+✅ Dónde se almacena en BD
+✅ Cualquier error que ocurra
+
+### 🚀 Cómo Usar
+
+#### 1. Ver Logs en Vivo
+```powershell
+Get-Content -Path "storage/logs/instagram.log" -Wait
+```
+
+#### 2. Testear el Webhook
+```bash
+php artisan instagram:test-webhook --type=message
+php artisan instagram:test-webhook --type=postback
+php artisan instagram:test-webhook --type=image
+```
+
+#### 3. Ver Mensajes en BD
+```bash
+php artisan tinker
+>>> DB::table('instagram_messages')->count()
+>>> DB::table('instagram_messages')->latest()->first()
+```
+
+### 📊 Flujo de Recepción
+
+```
+Usuario envía mensaje en Instagram
+           ↓
+Instagram envía POST al webhook
+           ↓
+Sistema recibe y valida
+           ↓
+Busca cuenta de negocio en BD
+           ↓
+Busca o crea conversación
+           ↓
+Procesa según tipo (texto, imagen, postback, etc)
+           ↓
+Almacena en tabla: instagram_messages
+           ↓
+Logea confirmación con ID del registro
+```
+
+### 📚 Documentación Completa
+
+- **[DOCUMENTACION_INDEX.md](DOCUMENTACION_INDEX.md)** - Índice de toda la documentación
+- **[IMPLEMENTACION_COMPLETADA.md](IMPLEMENTACION_COMPLETADA.md)** - Resumen de cambios
+- **[WEBHOOK_FLOW.md](WEBHOOK_FLOW.md)** - Flujo técnico detallado
+- **[WEBHOOK_IMPLEMENTATION.md](WEBHOOK_IMPLEMENTATION.md)** - Guía práctica de uso
+- **[FLUJO_VISUAL.txt](FLUJO_VISUAL.txt)** - Diagrama visual ASCII
+
+### 🧪 Tests Incluidos
+
+```bash
+# Ejecutar todos los tests del webhook
+php artisan test --filter="InstagramWebhookMessagesTest"
+```
+
+### 💡 Tips
+
+- Los logs usan **emojis** para identificar rápidamente eventos
+- El comando `instagram:test-webhook` es perfecto para debugging
+- Todos los mensajes tienen **ID único** en BD
+- Las **conversaciones** se crean automáticamente
+- Los **duplicados** se descartan automáticamente
+
+---
+
 Gracias por usar **Instagram API Manager for Laravel**.
