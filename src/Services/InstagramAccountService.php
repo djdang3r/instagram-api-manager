@@ -168,7 +168,8 @@ class InstagramAccountService
     {
         // Validar estado OAuth
         if ($state) {
-            $isValidState = InstagramModelResolver::oauth_state()->isValid($state, 'instagram');
+            $oauthStateClass = InstagramModelResolver::oauth_state();
+            $isValidState = $oauthStateClass::isValid($state, 'instagram');
 
             if (!$isValidState) {
                 Log::error('El estado de OAuth no es válido o ha expirado', [
@@ -178,7 +179,7 @@ class InstagramAccountService
             }
             
             // Eliminar el estado usado
-            InstagramModelResolver::oauth_state()->where('state', $state)->where('service', 'instagram')->delete();
+            $oauthStateClass::where('state', $state)->where('service', 'instagram')->delete();
         } else {
             Log::warning('No se recibió estado OAuth en el callback');
         }
