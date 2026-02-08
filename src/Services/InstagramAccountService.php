@@ -51,7 +51,7 @@ class InstagramAccountService
     public function getProfileInfo(?string $accessToken = null): ?array
     {
         $accessToken = $accessToken ?? $this->currentAccount?->access_token;
-        
+
         if (!$accessToken) {
             throw new \Exception('Access token is required');
         }
@@ -80,7 +80,7 @@ class InstagramAccountService
     {
         $userId = $userId ?? $this->currentAccount?->instagram_business_account_id;
         $accessToken = $accessToken ?? $this->currentAccount?->access_token;
-        
+
         if (!$userId || !$accessToken) {
             throw new \Exception('User ID and access token are required');
         }
@@ -108,7 +108,7 @@ class InstagramAccountService
     public function getMediaDetails(string $mediaId, ?string $accessToken = null): ?array
     {
         $accessToken = $accessToken ?? $this->currentAccount?->access_token;
-        
+
         if (!$accessToken) {
             throw new \Exception('Access token is required');
         }
@@ -130,13 +130,16 @@ class InstagramAccountService
         }
     }
 
-    public function getAuthorizationUrl(array $scopes = [
-        'instagram_business_basic',
-        'instagram_business_manage_messages',
-        'instagram_business_manage_comments',
-        'instagram_business_content_publish',
-        'instagram_business_manage_insights'
-    ], ?string $state = null): string {
+    public function getAuthorizationUrl(
+        array $scopes = [
+            'instagram_business_basic',
+            'instagram_business_manage_messages',
+            'instagram_business_manage_comments',
+            'instagram_business_content_publish',
+            'instagram_business_manage_insights'
+        ],
+        ?string $state = null
+    ): string {
         $clientId = config('instagram.client_id');
         $redirectUri = config('instagram.redirect_uri') ?: route('instagram.auth.callback');
         $scope = implode(',', $scopes);
@@ -168,8 +171,7 @@ class InstagramAccountService
     {
         // Validar estado OAuth
         if ($state) {
-            $oauthStateClass = InstagramModelResolver::oauth_state();
-            $isValidState = $oauthStateClass::isValid($state, 'instagram');
+            $isValidState = InstagramModelResolver::oauth_state()->isValid($state, 'instagram')->exists();
 
             if (!$isValidState) {
                 Log::error('El estado de OAuth no es válido o ha expirado', [
@@ -177,9 +179,9 @@ class InstagramAccountService
                 ]);
                 return null;
             }
-            
+
             // Eliminar el estado usado
-            $oauthStateClass::where('state', $state)->where('service', 'instagram')->delete();
+            InstagramModelResolver::oauth_state()->where('state', $state)->where('service', 'instagram')->delete();
         } else {
             Log::warning('No se recibió estado OAuth en el callback');
         }
@@ -220,10 +222,10 @@ class InstagramAccountService
                 // Formato nuevo: {"access_token": "...", "user_id": "...", "permissions": [...]}
                 $accessToken = $response['access_token'];
                 $userId = $response['user_id'] ?? null;
-                
+
                 // Convertir array de permisos a string separado por comas
-                $permissions = is_array($response['permissions'] ?? null) 
-                    ? implode(',', $response['permissions']) 
+                $permissions = is_array($response['permissions'] ?? null)
+                    ? implode(',', $response['permissions'])
                     : ($response['permissions'] ?? null);
             } else {
                 Log::error('Instagram OAuth: Formato de respuesta inesperado', ['response' => $response]);
@@ -328,13 +330,13 @@ class InstagramAccountService
                 Log::error('No se puede refrescar token: cuenta no encontrada o sin fecha de obtención');
                 return null;
             }
-            
+
             $tokenAge = now()->diffInHours($account->token_obtained_at);
             if ($tokenAge < 24) {
                 Log::error('No se puede refrescar token: debe tener al menos 24 horas de antigüedad');
                 return null;
             }
-            
+
             // Verificar permiso instagram_business_basic
             if (!$this->hasPermission($account, 'instagram_business_basic')) {
                 Log::error('No se puede refrescar token: falta permiso instagram_business_basic');

@@ -3,7 +3,6 @@
 namespace ScriptDevelop\InstagramApiManager\Console\Commands;
 
 use Illuminate\Console\Command;
-use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
 use ScriptDevelop\InstagramApiManager\Services\InstagramAccountService;
 use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 
