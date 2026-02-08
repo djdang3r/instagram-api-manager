@@ -170,32 +170,49 @@ class InstagramMessageService
         Log::channel('instagram')->info('🔄 INICIANDO PROCESAMIENTO DE MENSAJE');
         Log::channel('instagram')->debug('Datos completos del mensaje:', $messageData);
 
-        // Filtrar mensajes de eco (mensajes que nosotros enviamos)
+        // 1. DETECCIÓN TEMPRANA DE MENSAJES DE ECO
+        // Verificar si es echo antes que nada para evitar procesar lo que no debemos
         if (isset($messageData['message']['is_echo']) && $messageData['message']['is_echo'] === true) {
             Log::channel('instagram')->info('⏭️ Ignorando mensaje de eco (enviado por nosotros mismos)');
             return;
         }
 
-        // Algunos eventos (como message_edit y read) no tienen sender y recipient en el nivel superior
+        // 2. EXTRACCIÓN DE SENDER Y RECIPIENT
+        // Algunos eventos (message_edit, read, reaction) NO tienen sender/recipient en el nivel superior
         $senderId = $messageData['sender']['id'] ?? null;
         $recipientId = $messageData['recipient']['id'] ?? null;
 
-        // MANEJO ESPECIAL PARA message_edit (que no trae sender/recipient)
-        if (isset($messageData['message_edit'])) {
-            $mid = $messageData['message_edit']['mid'] ?? null;
+        // 3. BÚSQUEDA DE CONTEXTO POR M.I.D. (MESSAGE ID) DE RESPALDO
+        // Si faltan sender/recipient, intentamos buscar el mensaje original en la BD usando el mid
+        if (!$senderId || !$recipientId) {
+            $mid = null;
+
+            // Buscar 'mid' en diferentes lugares posibles según el tipo de evento
+            if (isset($messageData['message_edit']['mid'])) {
+                $mid = $messageData['message_edit']['mid'];
+            } elseif (isset($messageData['read']['mid'])) {
+                $mid = $messageData['read']['mid'];
+            } elseif (isset($messageData['reaction']['mid'])) {
+                $mid = $messageData['reaction']['mid'];
+            } elseif (isset($messageData['message']['mid'])) {
+                $mid = $messageData['message']['mid'];
+            }
+
             if ($mid) {
-                Log::channel('instagram')->info('🔍 Buscando mensaje original para edición', ['mid' => $mid]);
+                Log::channel('instagram')->info('🔍 Buscando contexto por Message ID (mid)', ['mid' => $mid]);
                 $originalMessage = InstagramModelResolver::instagram_message()->where('message_id', $mid)->first();
 
                 if ($originalMessage) {
                     $senderId = $originalMessage->message_from;
                     $recipientId = $originalMessage->message_to;
-                    Log::channel('instagram')->info('✅ Mensaje original encontrado, recuperando participantes', [
-                        'sender' => $senderId,
-                        'recipient' => $recipientId
+
+                    Log::channel('instagram')->info('✅ Contexto recuperado de BD', [
+                        'conversation_id' => $originalMessage->conversation_id,
+                        'original_from' => $senderId,
+                        'original_to' => $recipientId
                     ]);
                 } else {
-                    Log::channel('instagram')->warning('⚠️ Mensaje original no encontrado para edición', ['mid' => $mid]);
+                    Log::channel('instagram')->warning('⚠️ Mensaje original no encontrado por mid', ['mid' => $mid]);
                 }
             }
         }
@@ -444,12 +461,32 @@ class InstagramMessageService
     // Añadir método para procesar ediciones de mensajes
     protected function processMessageEdit(Model $conversation, array $messageEdit, string $senderId, string $recipientId): void
     {
-        Log::info('Edición de mensaje procesada', [
+        $mid = $messageEdit['mid'] ?? null;
+
+        if (!$mid) {
+            Log::warning('Edición de mensaje sin ID (mid)', $messageEdit);
+            return;
+        }
+
+        Log::channel('instagram')->info('📝 Procesando edición de mensaje', [
             'conversation_id' => $conversation->id,
-            'message_edit' => $messageEdit
+            'mid' => $mid
         ]);
 
-        // Opcional: puedes implementar lógica para actualizar mensajes editados
+        // Buscar el mensaje en BD
+        $message = InstagramModelResolver::instagram_message()->where('message_id', $mid)->first();
+
+        if ($message) {
+            // Marcar como editado
+            $message->update([
+                'is_edited' => true,
+                'edited_at' => now(),
+            ]);
+
+            Log::channel('instagram')->info('✅ Mensaje marcado como editado en BD');
+        } else {
+            Log::channel('instagram')->warning('⚠️ Mensaje original no encontrado al procesar edición');
+        }
     }
     protected function processOptin(Model $conversation, array $optin, string $senderId, string $recipientId): void
     {
@@ -806,415 +843,10 @@ class InstagramMessageService
     }
 
     /**
-     * Reaccionar a un mensaje
-     */
-    public function reactToMessage(string $recipientId, string $messageId, string $reaction = 'love', ?string $conversationId = null): ?array
-    {
-        $payload = [
-            'recipient' => [
-                'id' => $recipientId
-            ],
-            'sender_action' => 'react',
-            'payload' => [
-                'message_id' => $messageId,
-                'reaction' => $reaction
-            ]
-        ];
-
-        return $this->sendMessageGeneric($recipientId, $payload, 'reaction', $conversationId);
-    }
-
-    /**
-     * Eliminar reacción de un mensaje
-     */
-    public function unreactToMessage(string $recipientId, string $messageId, ?string $conversationId = null): ?array
-    {
-        $payload = [
-            'recipient' => [
-                'id' => $recipientId
-            ],
-            'sender_action' => 'unreact',
-            'payload' => [
-                'message_id' => $messageId
-            ]
-        ];
-
-        return $this->sendMessageGeneric($recipientId, $payload, 'reaction', $conversationId);
-    }
-
-    /**
-     * Enviar un post publicado
-     */
-    public function sendPublishedPost(string $recipientId, string $postId, ?string $conversationId = null): ?array
-    {
-        if (!$this->verifyPostOwnership($postId)) {
-            throw new Exception("El usuario no es propietario de este post");
-        }
-
-        $payload = [
-            'recipient' => [
-                'id' => $recipientId
-            ],
-            'message' => [
-                'attachment' => [
-                    'type' => 'MEDIA_SHARE',
-                    'payload' => [
-                        'id' => $postId
-                    ]
-                ]
-            ]
-        ];
-
-        return $this->sendMessageGeneric($recipientId, $payload, 'post', $conversationId, null, $postId);
-    }
-
-    /**
-     * Enviar un mensaje fuera de la ventana de 24 horas usando una etiqueta
-     */
-    public function sendMessageWithTag(string $recipientId, string $text, string $tag, ?string $conversationId = null): ?array
-    {
-        $allowedTags = ['ISSUE_RESOLUTION', 'APPOINTMENT_UPDATE', 'SHIPPING_UPDATE', 'RESERVATION_UPDATE', 'GAME_EVENT', 'TRANSPORTATION_UPDATE', 'FEATURE_FUNCTIONALITY_UPDATE', 'TICKET_UPDATE'];
-
-        if (!in_array($tag, $allowedTags)) {
-            throw new Exception("Etiqueta no permitida: $tag");
-        }
-
-        $payload = [
-            'recipient' => [
-                'id' => $recipientId
-            ],
-            'message' => [
-                'text' => $text
-            ],
-            'tag' => $tag
-        ];
-
-        return $this->sendMessageGeneric($recipientId, $payload, 'text', $conversationId);
-    }
-
-    /**
-     * Verificar si el usuario es propietario de un post
-     */
-    public function verifyPostOwnership(string $postId): bool
-    {
-        $this->validateCredentials();
-
-        try {
-            $post = $this->apiClient->request(
-                'GET',
-                $postId,
-                [],
-                null,
-                [
-                    'access_token' => $this->accessToken,
-                    'fields' => 'id,owner'
-                ]
-            );
-
-            return isset($post['owner']['id']) && $post['owner']['id'] === $this->instagramUserId;
-        } catch (Exception $e) {
-            Log::error('Error verificando propiedad del post:', [
-                'error' => $e->getMessage(),
-                'post_id' => $postId
-            ]);
-            return false;
-        }
-    }
-
-    /**
-     * Validar que las credenciales estén establecidas
-     */
-    protected function validateCredentials(): void
-    {
-        if (!$this->accessToken) {
-            throw new Exception('Access token is required. Use withAccessToken() method first.');
-        }
-
-        if (!$this->instagramUserId) {
-            throw new Exception('Instagram user ID is required. Use withInstagramUserId() method first.');
-        }
-    }
-
-    /**
-     * Obtener conversaciones
-     */
-    public function getConversations(): ?array
-    {
-        $this->validateCredentials();
-
-        try {
-            return $this->apiClient->request(
-                'GET',
-                $this->instagramUserId . '/conversations',
-                [],
-                null,
-                [
-                    'access_token' => $this->accessToken,
-                    'fields' => 'id,senders,updated_time,messages{id,from,to,message}'
-                ]
-            );
-        } catch (Exception $e) {
-            Log::error('Error obteniendo conversaciones:', ['error' => $e->getMessage()]);
-            return null;
-        }
-    }
-
-    /**
-     * Obtener mensajes de una conversación
-     */
-    public function getMessages(string $conversationId): ?array
-    {
-        $this->validateCredentials();
-
-        try {
-            return $this->apiClient->request(
-                'GET',
-                $conversationId,
-                [],
-                null,
-                [
-                    'access_token' => $this->accessToken,
-                    'fields' => 'messages{id,from,to,message,attachments,created_time}'
-                ]
-            );
-        } catch (Exception $e) {
-            Log::error('Error obteniendo mensajes:', [
-                'error' => $e->getMessage(),
-                'conversation_id' => $conversationId
-            ]);
-            return null;
-        }
-    }
-
-    /**
-     * Obtener o crear una conversación
-     */
-    public function findOrCreateConversation(string $instagramAccountId, string $userId): Model
-    {
-        return InstagramModelResolver::instagram_conversation()->firstOrCreate(
-            [
-                'instagram_business_account_id' => $instagramAccountId,
-                'instagram_user_id' => $userId
-            ],
-            [
-                'conversation_id' => $this->generateConversationId($userId, $instagramAccountId),
-                'senders' => [$userId, $instagramAccountId]
-            ]
-        );
-    }
-
-    /**
-     * Sincronizar conversaciones desde la API de Instagram
-     */
-    public function syncConversations(string $accessToken, string $instagramUserId): void
-    {
-        $this->validateCredentials();
-
-        try {
-            $conversations = $this->getConversations();
-
-            foreach ($conversations['data'] ?? [] as $conversationData) {
-                $conversation = InstagramModelResolver::instagram_conversation()->updateOrCreate(
-                    ['conversation_id' => $conversationData['id']],
-                    [
-                        'instagram_business_account_id' => $instagramUserId,
-                        'senders' => $conversationData['senders']['data'] ?? [],
-                        'updated_time' => isset($conversationData['updated_time']) ?
-                            date('Y-m-d H:i:s', strtotime($conversationData['updated_time'])) :
-                            null,
-                        'unread_count' => $conversationData['unread_count'] ?? 0,
-                        'is_archived' => $conversationData['is_archived'] ?? false
-                    ]
-                );
-
-                $this->syncConversationMessages($conversation, $accessToken);
-            }
-        } catch (Exception $e) {
-            Log::error('Error syncing Instagram conversations:', ['error' => $e->getMessage()]);
-        }
-    }
-
-    /**
-     * Sincronizar mensajes de una conversación específica
-     */
-    protected function syncConversationMessages(Model $conversation, string $accessToken): void
-    {
-        try {
-            $messages = $this->getMessages($conversation->conversation_id);
-
-            foreach ($messages['data'] ?? [] as $messageData) {
-                InstagramModelResolver::instagram_message()->updateOrCreate(
-                    ['message_id' => $messageData['id']],
-                    [
-                        'conversation_id' => $conversation->id,
-                        'message_method' => $this->determineMessageMethod($messageData, $conversation->instagram_business_account_id),
-                        'message_type' => $this->determineMessageTypeFromApi($messageData),
-                        'message_from' => $messageData['from']['id'] ?? null,
-                        'message_to' => $messageData['to']['data'][0]['id'] ?? null,
-                        'message_content' => $messageData['message'] ?? null,
-                        'attachments' => $messageData['attachments']['data'] ?? [],
-                        'status' => 'received',
-                        'created_time' => isset($messageData['created_time']) ?
-                            date('Y-m-d H:i:s', strtotime($messageData['created_time'])) :
-                            null,
-                        'json_content' => $messageData
-                    ]
-                );
-            }
-
-            if (!empty($messages['data'])) {
-                $lastMessage = end($messages['data']);
-                $conversation->update([
-                    'last_message_at' => isset($lastMessage['created_time']) ?
-                        date('Y-m-d H:i:s', strtotime($lastMessage['created_time'])) :
-                        now()
-                ]);
-            }
-        } catch (Exception $e) {
-            Log::error('Error syncing conversation messages:', [
-                'error' => $e->getMessage(),
-                'conversation_id' => $conversation->id
-            ]);
-        }
-    }
-
-    /**
-     * Determinar el método del mensaje (entrante/saliente)
-     */
-    protected function determineMessageMethod(array $messageData, string $businessAccountId): string
-    {
-        $senderId = is_array($messageData['from']) ?
-            ($messageData['from']['id'] ?? null) :
-            $messageData['from'];
-
-        return $senderId === $businessAccountId ? 'outgoing' : 'incoming';
-    }
-
-    /**
-     * Determinar el tipo de mensaje desde la API
-     */
-    protected function determineMessageTypeFromApi(array $messageData): string
-    {
-        if (!empty($messageData['attachments']['data'])) {
-            $attachment = $messageData['attachments']['data'][0];
-            return $attachment['type'] ?? 'text';
-        }
-
-        return 'text';
-    }
-
-    /**
-     * Obtener información del perfil de un usuario de Instagram via API
-     * según la documentación oficial de Meta
-     */
-    protected function getUserProfileViaApi(string $userId, string $businessAccountId): array
-    {
-        try {
-            $businessAccount = InstagramModelResolver::instagram_business_account()->where('instagram_business_account_id', $businessAccountId)->first();
-
-            if (!$businessAccount || !$businessAccount->access_token) {
-                Log::warning('No se puede obtener perfil via API: falta access token o cuenta no encontrada');
-                return [];
-            }
-
-            // Verificar que la cuenta tenga el permiso necesario
-            if (!app(InstagramAccountService::class)->hasPermission($businessAccount, 'instagram_business_basic')) {
-                Log::warning('No se puede obtener perfil via API: falta permiso instagram_business_basic');
-                return [];
-            }
-
-            // Usar el endpoint correcto según la documentación de Instagram
-            // https://graph.instagram.com/{user-id}?fields={fields}&access_token={access-token}
-            $response = $this->apiClient->request(
-                'GET',
-                $userId,
-                [],
-                null,
-                [
-                    'access_token' => $businessAccount->access_token,
-                    'fields' => 'username,name,profile_pic,follower_count,is_user_follow_business,is_business_follow_user,is_verified_user'
-                ]
-            );
-
-            Log::debug('Respuesta de API para perfil de usuario:', ['response' => $response]);
-
-            return [
-                'username' => $response['username'] ?? null,
-                'name' => $response['name'] ?? null,
-                'profile_pic' => $response['profile_pic'] ?? null,
-                'follower_count' => $response['follower_count'] ?? null,
-                'is_verified' => $response['is_verified_user'] ?? false
-            ];
-        } catch (Exception $e) {
-            Log::error('Error obteniendo perfil via API:', [
-                'error' => $e->getMessage(),
-                'user_id' => $userId,
-                'business_account_id' => $businessAccountId
-            ]);
-            return [];
-        }
-    }
-
-    /**
-     * Enviar un mensaje con Quick Replies
-     */
-    public function sendQuickReplies(string $recipientId, string $text, array $quickReplies, ?string $conversationId = null): ?array
-    {
-        // Validar quick replies
-        $this->validateQuickReplies($quickReplies);
-
-        $payload = [
-            'recipient' => [
-                'id' => $recipientId
-            ],
-            'messaging_type' => 'RESPONSE',
-            'message' => [
-                'text' => $text,
-                'quick_replies' => $quickReplies
-            ]
-        ];
-
-        return $this->sendMessageGeneric($recipientId, $payload, 'quick_reply', $conversationId);
-    }
-
-    /**
-     * Validar quick replies antes de enviarlos
-     */
-    protected function validateQuickReplies(array $quickReplies): bool
-    {
-        if (count($quickReplies) > 13) {
-            throw new Exception('Máximo 13 quick replies permitidos');
-        }
-
-        foreach ($quickReplies as $quickReply) {
-            if (!isset($quickReply['content_type']) || $quickReply['content_type'] !== 'text') {
-                throw new Exception('Quick replies solo soportan content_type: text');
-            }
-
-            if (!isset($quickReply['title']) || empty($quickReply['title'])) {
-                throw new Exception('Cada quick reply debe tener un título');
-            }
-
-            if (strlen($quickReply['title']) > 20) {
-                throw new Exception('El título del quick reply no puede exceder 20 caracteres');
-            }
-
-            if (!isset($quickReply['payload']) || empty($quickReply['payload'])) {
-                throw new Exception('Cada quick reply debe tener un payload');
-            }
-        }
-
-        return true;
-    }
-
-    /**
      * Enviar una plantilla genérica
      */
     public function sendGenericTemplate(string $recipientId, array $elements, ?string $conversationId = null): ?array
     {
-        // Validar elementos de la plantilla
-        $this->validateGenericTemplateElements($elements);
-
         $payload = [
             'recipient' => [
                 'id' => $recipientId
@@ -1234,145 +866,10 @@ class InstagramMessageService
     }
 
     /**
-     * Validar elementos de plantilla genérica
-     */
-    protected function validateGenericTemplateElements(array $elements): bool
-    {
-        if (count($elements) > 10) {
-            throw new Exception('Máximo 10 elementos permitidos en la plantilla genérica');
-        }
-
-        foreach ($elements as $element) {
-            if (!isset($element['title']) || empty($element['title'])) {
-                throw new Exception('Cada elemento debe tener un título');
-            }
-
-            if (strlen($element['title']) > 80) {
-                throw new Exception('El título no puede exceder 80 caracteres');
-            }
-
-            if (isset($element['subtitle']) && strlen($element['subtitle']) > 80) {
-                throw new Exception('El subtítulo no puede exceder 80 caracteres');
-            }
-
-            // Validar botones si existen
-            if (isset($element['buttons'])) {
-                if (count($element['buttons']) > 3) {
-                    throw new Exception('Máximo 3 botones por elemento');
-                }
-
-                foreach ($element['buttons'] as $button) {
-                    if (!isset($button['type']) || !in_array($button['type'], ['web_url', 'postback'])) {
-                        throw new Exception('Tipo de botón no válido. Solo se permiten web_url y postback');
-                    }
-
-                    if (!isset($button['title']) || empty($button['title'])) {
-                        throw new Exception('Cada botón debe tener un título');
-                    }
-
-                    if ($button['type'] == 'web_url' && !isset($button['url'])) {
-                        throw new Exception('Los botones web_url requieren una URL');
-                    }
-
-                    if ($button['type'] == 'postback' && !isset($button['payload'])) {
-                        throw new Exception('Los botones postback requieren un payload');
-                    }
-                }
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Manejar la lógica genérica de postbacks sin respuestas hardcodeadas
-     */
-    protected function handlePostbackPayload(?string $payload, Model $conversation, string $senderId, string $recipientId): void
-    {
-        if (!$payload) {
-            return;
-        }
-
-        try {
-            $businessAccount = $conversation->instagramBusinessAccount;
-
-            if (!$businessAccount) {
-                Log::error('No se pudo encontrar la cuenta de negocio para manejar el postback');
-                return;
-            }
-
-            // Registrar el postback en la base de datos para su posterior procesamiento
-            $this->logPostbackInteraction($payload, $conversation, $senderId, $recipientId);
-
-            // Aquí podrías integrar con un sistema de automatización externo
-            // Por ahora, solo registramos la interacción
-            Log::info('Postback recibido y registrado', [
-                'payload' => $payload,
-                'conversation_id' => $conversation->id,
-                'sender_id' => $senderId
-            ]);
-
-        } catch (Exception $e) {
-            Log::error('Error manejando postback payload:', [
-                'error' => $e->getMessage(),
-                'payload' => $payload
-            ]);
-        }
-    }
-
-    /**
-     * Registrar la interacción de postback en la base de datos
-     */
-    protected function logPostbackInteraction(string $payload, Model $conversation, string $senderId, string $recipientId): void
-    {
-        try {
-            // Crear un registro de interacción (puedes crear una tabla específica para esto)
-            // Por ahora, usaremos la tabla de mensajes existente
-            $messageId = 'postback_interaction_' . uniqid();
-
-            InstagramModelResolver::instagram_message()->create([
-                'conversation_id' => $conversation->id,
-                'message_id' => $messageId,
-                'message_method' => 'incoming',
-                'message_type' => 'postback_interaction',
-                'message_from' => $senderId,
-                'message_to' => $recipientId,
-                'message_content' => 'Postback interaction',
-                'message_context' => 'user_interaction',
-                'message_context_id' => $payload,
-                'json_content' => [
-                    'payload' => $payload,
-                    'conversation_id' => $conversation->id,
-                    'timestamp' => now()
-                ],
-                'status' => 'processed',
-                'created_time' => now()
-            ]);
-
-            // También podrías actualizar la conversación para indicar la última interacción
-            $conversation->update([
-                'last_interaction_at' => now(),
-                'last_interaction_type' => 'postback',
-                'last_interaction_payload' => $payload,
-                'updated_time' => now()
-            ]);
-
-        } catch (Exception $e) {
-            Log::error('Error registrando interacción de postback:', [
-                'error' => $e->getMessage(),
-                'payload' => $payload
-            ]);
-        }
-    }
-
-    /**
      * Enviar una plantilla de botones
      */
     public function sendButtonTemplate(string $recipientId, string $text, array $buttons, ?string $conversationId = null): ?array
     {
-        // Validar botones
-        $this->validateButtonTemplate($text, $buttons);
-
         $payload = [
             'recipient' => [
                 'id' => $recipientId
@@ -1393,48 +890,130 @@ class InstagramMessageService
     }
 
     /**
-     * Validar plantilla de botones
+     * Enviar un post compartido (media share)
      */
-    protected function validateButtonTemplate(string $text, array $buttons): bool
+    public function sendSharedPost(string $recipientId, string $postId, ?string $conversationId = null): ?array
     {
-        // Validar texto
-        if (empty($text)) {
-            throw new Exception('El texto de la plantilla de botones no puede estar vacío');
+        $payload = [
+            'recipient' => [
+                'id' => $recipientId
+            ],
+            'message' => [
+                'attachment' => [
+                    'type' => 'template',
+                    'payload' => [
+                        'template_type' => 'media',
+                        'elements' => [
+                            [
+                                'media_type' => 'image',
+                                'url' => 'https://www.facebook.com/' . $postId
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ];
+
+        return $this->sendMessageGeneric($recipientId, $payload, 'post', $conversationId, null, $postId);
+    }
+
+    /**
+     * Marcar mensaje como visto (enviar acción de lectura)
+     */
+    public function sendReadReceipt(string $recipientId): ?array
+    {
+        $this->validateCredentials();
+
+        try {
+            return $this->apiClient->request(
+                'POST',
+                $this->instagramUserId . '/messages',
+                [],
+                [
+                    'recipient' => [
+                        'id' => $recipientId
+                    ],
+                    'sender_action' => 'mark_seen'
+                ],
+                [
+                    'access_token' => $this->accessToken
+                ]
+            );
+        } catch (Exception $e) {
+            Log::error('Error sending read receipt:', [
+                'error' => $e->getMessage(),
+                'recipient_id' => $recipientId
+            ]);
+            return null;
         }
+    }
 
-        if (strlen($text) > 640) {
-            throw new Exception('El texto de la plantilla de botones no puede exceder 640 caracteres');
+    /**
+     * Validar que las credenciales estén configuradas
+     */
+    protected function validateCredentials(): void
+    {
+        if (!$this->accessToken || !$this->instagramUserId) {
+            throw new Exception('Access Token and Instagram User ID must be set.');
         }
+    }
 
-        // Validar botones
-        if (count($buttons) < 1 || count($buttons) > 3) {
-            throw new Exception('Debe haber entre 1 y 3 botones');
+    /**
+     * Encontrar o crear una conversación
+     */
+    public function findOrCreateConversation(string $instagramBusinessAccountId, string $instagramUserId): Model
+    {
+        // Generar un ID único basado en los participantes (siempre ordenados)
+        $conversationId = $this->generateConversationId($instagramBusinessAccountId, $instagramUserId);
+
+        Log::info('Buscando conversación:', [
+            'generated_id' => $conversationId,
+            'business_id' => $instagramBusinessAccountId,
+            'user_id' => $instagramUserId
+        ]);
+
+        return InstagramModelResolver::instagram_conversation()->firstOrCreate(
+            ['id' => $conversationId],
+            [
+                'instagram_business_account_id' => $instagramBusinessAccountId,
+                'instagram_user_id' => $instagramUserId,
+                //'title' => 'Conversación Instagram', // Opcional
+                'updated_time' => now(),
+                'unread_count' => 0
+            ]
+        );
+    }
+
+    /**
+     * Obtener el perfil de un usuario de Instagram via API
+     */
+    public function getUserProfileViaApi(string $instagramUserId, string $businessAccountId): array
+    {
+        // Nota: Endpoint para obtener información de perfil de usuario IG Scoped ID
+        // GET /{ig-user-id}?fields=name,username,profile_picture
+        $this->validateCredentials();
+
+        try {
+            return $this->apiClient->request(
+                'GET',
+                $instagramUserId,
+                [
+                    'fields' => 'name,username,profile_picture',
+                    'access_token' => $this->accessToken
+                ]
+            );
+        } catch (Exception $e) {
+            Log::warning('No se pudo obtener el perfil del usuario de Instagram:', [
+                'user_id' => $instagramUserId,
+                'error' => $e->getMessage()
+            ]);
+            return [];
         }
+    }
 
-        foreach ($buttons as $button) {
-            if (!isset($button['type']) || !in_array($button['type'], ['web_url', 'postback'])) {
-                throw new Exception('Tipo de botón no válido. Solo se permiten web_url y postback');
-            }
-
-            if (!isset($button['title']) || empty($button['title'])) {
-                throw new Exception('Cada botón debe tener un título');
-            }
-
-            if (strlen($button['title']) > 20) {
-                throw new Exception('El título del botón no puede exceder 20 caracteres');
-            }
-
-            if ($button['type'] == 'web_url') {
-                if (!isset($button['url']) || empty($button['url'])) {
-                    throw new Exception('Los botones web_url requieren una URL');
-                }
-            } elseif ($button['type'] == 'postback') {
-                if (!isset($button['payload']) || empty($button['payload'])) {
-                    throw new Exception('Los botones postback requieren un payload');
-                }
-            }
-        }
-
-        return true;
+    // Método helper para verificar si este webhook ya fue procesado
+    protected function isDuplicate(string $messageId): bool
+    {
+        return InstagramModelResolver::instagram_message()->where('message_id', $messageId)->exists();
     }
 }
