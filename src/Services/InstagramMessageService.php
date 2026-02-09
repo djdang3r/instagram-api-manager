@@ -246,15 +246,51 @@ class InstagramMessageService
             ]);
 
             // BUSCAR LA CUENTA DE NEGOCIO CORRECTAMENTE
-            // Primero intentar buscar por instagram_business_account_id
-            $businessAccount = InstagramModelResolver::instagram_business_account()->where('instagram_business_account_id', $recipientId)->first();
+            // Los webhooks usan Instagram-Scoped ID (IGSID), buscar primero por ese campo
+            $profile = InstagramModelResolver::instagram_profile()
+                ->where('instagram_scoped_id', $recipientId)
+                ->first();
 
-            // Si no se encuentra, buscar por user_id a través del perfil
-            if (!$businessAccount) {
-                Log::channel('instagram')->info('Buscando por perfil...');
-                $profile = InstagramModelResolver::instagram_profile()->where('user_id', $recipientId)->first();
-                if ($profile) {
-                    $businessAccount = InstagramModelResolver::instagram_business_account()->where('instagram_business_account_id', $profile->instagram_business_account_id)->first();
+            if ($profile) {
+                Log::channel('instagram')->info('✅ Perfil encontrado por Instagram-Scoped ID');
+                $businessAccount = InstagramModelResolver::instagram_business_account()
+                    ->where('instagram_business_account_id', $profile->instagram_business_account_id)
+                    ->first();
+            } else {
+                // Primera vez: buscar por Business Account ID
+                Log::channel('instagram')->info('⚠️ No encontrado por IGSID, buscando por Business Account ID');
+                $businessAccount = InstagramModelResolver::instagram_business_account()
+                    ->where('instagram_business_account_id', $recipientId)
+                    ->first();
+
+                if ($businessAccount) {
+                    // Obtener el perfil y GUARDAR el IGSID para futuros webhooks
+                    $profile = InstagramModelResolver::instagram_profile()
+                        ->where('instagram_business_account_id', $businessAccount->instagram_business_account_id)
+                        ->first();
+
+                    if ($profile && !$profile->instagram_scoped_id) {
+                        $profile->update(['instagram_scoped_id' => $recipientId]);
+                        Log::channel('instagram')->info('✅ IGSID guardado para futuros webhooks', [
+                            'igsid' => $recipientId,
+                            'business_account_id' => $businessAccount->instagram_business_account_id
+                        ]);
+                    }
+                } else {
+                    // Fallback: buscar por user_id a través del perfil
+                    Log::channel('instagram')->info('Buscando por perfil...');
+                    $profile = InstagramModelResolver::instagram_profile()->where('user_id', $recipientId)->first();
+                    if ($profile) {
+                        $businessAccount = InstagramModelResolver::instagram_business_account()
+                            ->where('instagram_business_account_id', $profile->instagram_business_account_id)
+                            ->first();
+
+                        // Guardar IGSID si no existe
+                        if ($businessAccount && !$profile->instagram_scoped_id) {
+                            $profile->update(['instagram_scoped_id' => $recipientId]);
+                            Log::channel('instagram')->info('✅ IGSID guardado para futuros webhooks');
+                        }
+                    }
                 }
             }
 

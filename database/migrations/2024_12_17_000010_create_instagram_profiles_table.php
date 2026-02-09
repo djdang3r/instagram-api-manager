@@ -4,32 +4,32 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     public function up(): void
     {
         Schema::create('instagram_profiles', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->string('instagram_business_account_id');
-            
+            $table->string('instagram_scoped_id')->nullable()->comment('Instagram-Scoped ID usado en webhooks');
+
             // Información básica del perfil
             $table->string('profile_name');
             $table->string('user_id');
             $table->string('username')->nullable();
             $table->text('profile_picture')->nullable();
             $table->text('bio')->nullable();
-            
+
             // Nuevos campos según la documentación de la API
             $table->string('account_type')->nullable()->comment('Business o Media_Creator');
             $table->unsignedBigInteger('followers_count')->nullable();
             $table->unsignedBigInteger('follows_count')->nullable();
             $table->unsignedBigInteger('media_count')->nullable();
-            
+
             // Campos adicionales que podrían ser útiles
             $table->string('website')->nullable();
             $table->string('category_name')->nullable();
             $table->boolean('is_verified')->default(false);
-            
+
             // Metadata
             $table->timestamp('last_synced_at')->nullable();
             $table->json('raw_api_response')->nullable()->comment('Respuesta completa de la API para referencia');
@@ -39,11 +39,12 @@ return new class extends Migration
 
             // Clave foránea
             $table->foreign('instagram_business_account_id')
-                  ->references('instagram_business_account_id')
-                  ->on('instagram_business_accounts')
-                  ->onDelete('cascade');
+                ->references('instagram_business_account_id')
+                ->on('instagram_business_accounts')
+                ->onDelete('cascade');
 
             // Índices
+            $table->index('instagram_scoped_id');
             $table->index('profile_name');
             $table->index('username');
             $table->index('account_type');

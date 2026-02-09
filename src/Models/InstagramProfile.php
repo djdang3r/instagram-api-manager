@@ -20,25 +20,26 @@ class InstagramProfile extends Model
     protected $fillable = [
         'id',
         'instagram_business_account_id',
-        
+        'instagram_scoped_id', // ← Instagram-Scoped ID (usado en webhooks)
+
         // Información básica
         'profile_name',
         'user_id',
         'username',
         'profile_picture',
         'bio',
-        
+
         // Nuevos campos de la API
         'account_type',
         'followers_count',
         'follows_count',
         'media_count',
-        
+
         // Campos adicionales
         'website',
         'category_name',
         'is_verified',
-        
+
         // Metadata
         'last_synced_at',
         'raw_api_response',
@@ -66,8 +67,8 @@ class InstagramProfile extends Model
     public function instagramBusinessAccount(): BelongsTo
     {
         return $this->belongsTo(
-            InstagramBusinessAccount::class, 
-            'instagram_business_account_id', 
+            InstagramBusinessAccount::class,
+            'instagram_business_account_id',
             'instagram_business_account_id'
         );
     }
