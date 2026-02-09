@@ -128,12 +128,11 @@ class InstagramMessageService
 
         InstagramModelResolver::instagram_message()->create($messageData);
 
+
         Log::info('Instagram postback processed', [
             'conversation_id' => $conversation->id,
             'postback' => $postback
         ]);
-
-        $this->handlePostbackPayload($postback['payload'] ?? null, $conversation, $senderId, $recipientId);
     }
 
     /**
