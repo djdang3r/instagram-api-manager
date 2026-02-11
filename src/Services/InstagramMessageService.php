@@ -169,11 +169,11 @@ class InstagramMessageService
         Log::channel('instagram')->info('🔄 INICIANDO PROCESAMIENTO DE MENSAJE');
         Log::channel('instagram')->debug('Datos completos del mensaje:', $messageData);
 
-        // 1. DETECCIÓN TEMPRANA DE MENSAJES DE ECO
-        // Verificar si es echo antes que nada para evitar procesar lo que no debemos
-        if (isset($messageData['message']['is_echo']) && $messageData['message']['is_echo'] === true) {
-            Log::channel('instagram')->info('⏭️ Ignorando mensaje de eco (enviado por nosotros mismos)');
-            return;
+        // 1. DETECCIÓN DE MENSAJES DE ECO
+        // En echo: sender = business (quien envió), recipient = usuario/contacto (quien recibió)
+        $isEcho = isset($messageData['message']['is_echo']) && $messageData['message']['is_echo'] === true;
+        if ($isEcho) {
+            Log::channel('instagram')->info('📤 Mensaje de eco detectado (enviado por nosotros). Se actualizará el contacto del destinatario.');
         }
 
         // 2. EXTRACCIÓN DE SENDER Y RECIPIENT
@@ -240,54 +240,54 @@ class InstagramMessageService
         $recipientId = (string) $recipientId;
 
         try {
+            // Para echo: business = sender, contacto = recipient
+            // Para mensaje normal: business = recipient, contacto = sender
+            $businessIdToSearch = $isEcho ? $senderId : $recipientId;
+            $contactUserId = $isEcho ? $recipientId : $senderId;
+
             Log::channel('instagram')->info('🔎 BUSCANDO CUENTA DE NEGOCIO EN BD', [
-                'recipient_id' => $recipientId,
-                'sender_id' => $senderId
+                'business_id_to_search' => $businessIdToSearch,
+                'contact_user_id' => $contactUserId,
+                'is_echo' => $isEcho
             ]);
 
-            // BUSCAR LA CUENTA DE NEGOCIO CORRECTAMENTE
-            // Los webhooks usan Instagram-Scoped ID (IGSID), buscar primero por ese campo
+            // BUSCAR LA CUENTA DE NEGOCIO
+            // Los webhooks de Instagram envían entry.id, recipient.id y sender.id que corresponden
+            // al user_id de instagram_profile. Buscar por ese campo en primer lugar.
             $profile = InstagramModelResolver::instagram_profile()
-                ->where('instagram_scoped_id', $recipientId)
+                ->where('user_id', $businessIdToSearch)
                 ->first();
 
             if ($profile) {
-                Log::channel('instagram')->info('✅ Perfil encontrado por Instagram-Scoped ID');
+                Log::channel('instagram')->info('✅ Perfil encontrado por user_id (instagram_profile)');
                 $businessAccount = InstagramModelResolver::instagram_business_account()
                     ->where('instagram_business_account_id', $profile->instagram_business_account_id)
                     ->first();
             } else {
-                // Primera vez: buscar por Business Account ID
-                Log::channel('instagram')->info('⚠️ No encontrado por IGSID, buscando por Business Account ID');
-                $businessAccount = InstagramModelResolver::instagram_business_account()
-                    ->where('instagram_business_account_id', $recipientId)
+                // Fallback: buscar por instagram_scoped_id
+                $profile = InstagramModelResolver::instagram_profile()
+                    ->where('instagram_scoped_id', $businessIdToSearch)
                     ->first();
 
-                if ($businessAccount) {
-                    // Obtener el perfil y GUARDAR el IGSID para futuros webhooks
-                    $profile = InstagramModelResolver::instagram_profile()
-                        ->where('instagram_business_account_id', $businessAccount->instagram_business_account_id)
+                if ($profile) {
+                    Log::channel('instagram')->info('✅ Perfil encontrado por instagram_scoped_id');
+                    $businessAccount = InstagramModelResolver::instagram_business_account()
+                        ->where('instagram_business_account_id', $profile->instagram_business_account_id)
+                        ->first();
+                } else {
+                    // Fallback: buscar por instagram_business_account_id directamente
+                    Log::channel('instagram')->info('Buscando por instagram_business_account_id...');
+                    $businessAccount = InstagramModelResolver::instagram_business_account()
+                        ->where('instagram_business_account_id', $businessIdToSearch)
                         ->first();
 
-                    if ($profile && !$profile->instagram_scoped_id) {
-                        $profile->update(['instagram_scoped_id' => $recipientId]);
-                        Log::channel('instagram')->info('✅ IGSID guardado para futuros webhooks', [
-                            'igsid' => $recipientId,
-                            'business_account_id' => $businessAccount->instagram_business_account_id
-                        ]);
-                    }
-                } else {
-                    // Fallback: buscar por user_id a través del perfil
-                    Log::channel('instagram')->info('Buscando por perfil...');
-                    $profile = InstagramModelResolver::instagram_profile()->where('user_id', $recipientId)->first();
-                    if ($profile) {
-                        $businessAccount = InstagramModelResolver::instagram_business_account()
-                            ->where('instagram_business_account_id', $profile->instagram_business_account_id)
+                    if ($businessAccount) {
+                        $profile = InstagramModelResolver::instagram_profile()
+                            ->where('instagram_business_account_id', $businessAccount->instagram_business_account_id)
                             ->first();
 
-                        // Guardar IGSID si no existe
-                        if ($businessAccount && !$profile->instagram_scoped_id) {
-                            $profile->update(['instagram_scoped_id' => $recipientId]);
+                        if ($profile && !$profile->instagram_scoped_id) {
+                            $profile->update(['instagram_scoped_id' => $businessIdToSearch]);
                             Log::channel('instagram')->info('✅ IGSID guardado para futuros webhooks');
                         }
                     }
@@ -296,8 +296,8 @@ class InstagramMessageService
 
             if (!$businessAccount) {
                 Log::channel('instagram')->error('❌ LA CUENTA DE INSTAGRAM BUSINESS NO EXISTE EN BD', [
-                    'recipient_id' => $recipientId,
-                    'sender_id' => $senderId,
+                    'business_id_to_search' => $businessIdToSearch,
+                    'contact_user_id' => $contactUserId,
                     'hint' => 'Necesitas conectar la cuenta de Instagram primero'
                 ]);
                 return;
@@ -308,71 +308,75 @@ class InstagramMessageService
                 'instagram_business_account_id' => $businessAccount->instagram_business_account_id
             ]);
 
-            // BUSCAR O CREAR LA CONVERSACIÓN
+            // Establecer token de acceso para obtener perfiles vía API
+            $this->withAccessToken($businessAccount->access_token)
+                 ->withInstagramUserId($businessAccount->instagram_business_account_id);
+
+            // BUSCAR O CREAR LA CONVERSACIÓN (siempre entre business y el usuario/contacto)
             Log::channel('instagram')->info('🔄 Buscando o creando conversación...');
-            $conversation = $this->findOrCreateConversation($businessAccount->instagram_business_account_id, $senderId);
+            $conversation = $this->findOrCreateConversation($businessAccount->instagram_business_account_id, $contactUserId);
             Log::channel('instagram')->info('✅ Conversación lista', [
                 'conversation_id' => $conversation->id,
                 'participant_id' => $senderId
             ]);
 
-            // ACTUALIZAR CONVERSACIÓN
+            // ACTUALIZAR CONVERSACIÓN (no incrementar unread para ecos - es nuestro mensaje)
             Log::channel('instagram')->info('⏰ Actualizando datos de conversación...');
             $conversation->update([
                 'last_message_at' => now(),
                 'updated_time' => now(),
-                'unread_count' => $conversation->unread_count + 1
+                'unread_count' => $isEcho ? $conversation->unread_count : $conversation->unread_count + 1
             ]);
             Log::channel('instagram')->info('✅ Conversación actualizada');
 
             // PROCESAR DIFERENTES TIPOS DE EVENTOS
             Log::channel('instagram')->info('📋 Determinando tipo de evento...');
             if (isset($messageData['message'])) {
-                Log::channel('instagram')->info('→ Es un MENSAJE TEXT/MEDIA');
-                $this->processIncomingMessage($conversation, $messageData['message'], $senderId, $businessAccount->instagram_business_account_id);
-
-                // Verificar si es una default action de plantilla genérica
-                if (isset($messageData['message']['quick_reply'])) {
-                    // Es un quick reply, ya se procesa en processIncomingMessage
-                }
-
-                // SOLO actualizar contacto para mensajes entrantes (no ecos)
-                if (!isset($messageData['message']['is_echo']) || $messageData['message']['is_echo'] !== true) {
-                    $this->updateContact($senderId, $businessAccount->instagram_business_account_id, $messageData);
+                if ($isEcho) {
+                    // Mensaje de eco: no guardar el mensaje (es nuestro), pero SÍ actualizar el contacto del destinatario
+                    Log::channel('instagram')->info('→ Mensaje ECO: actualizando contacto del destinatario');
+                    $this->updateContact($contactUserId, $businessAccount->instagram_business_account_id, $messageData);
+                } else {
+                    Log::channel('instagram')->info('→ Es un MENSAJE TEXT/MEDIA entrante');
+                    $this->processIncomingMessage($conversation, $messageData['message'], $contactUserId, $businessAccount->instagram_business_account_id);
+                    if (isset($messageData['message']['quick_reply'])) {
+                        // Es un quick reply, ya se procesa en processIncomingMessage
+                    }
+                    $this->updateContact($contactUserId, $businessAccount->instagram_business_account_id, $messageData);
                 }
             } elseif (isset($messageData['postback'])) {
                 Log::channel('instagram')->info('→ Es un POSTBACK (botón/acción)');
                 $this->processPostback(
                     $conversation,
                     $messageData['postback'],
-                    $senderId,
+                    $contactUserId,
                     $businessAccount->instagram_business_account_id,
                     $messageData['timestamp'] ?? null // Pasar el timestamp
                 );
-                $this->updateContact($senderId, $businessAccount->instagram_business_account_id, $messageData);
+                $this->updateContact($contactUserId, $businessAccount->instagram_business_account_id, $messageData);
             } elseif (isset($messageData['reaction'])) {
                 Log::channel('instagram')->info('→ Es una REACCIÓN (emoji)');
-                $this->processReaction($conversation, $messageData['reaction'], $senderId, $businessAccount->instagram_business_account_id);
+                $this->processReaction($conversation, $messageData['reaction'], $contactUserId, $businessAccount->instagram_business_account_id);
             } elseif (isset($messageData['optin'])) {
                 Log::channel('instagram')->info('→ Es un OPT-IN');
-                $this->processOptin($conversation, $messageData['optin'], $senderId, $businessAccount->instagram_business_account_id);
-                $this->updateContact($senderId, $businessAccount->instagram_business_account_id, $messageData);
+                $this->processOptin($conversation, $messageData['optin'], $contactUserId, $businessAccount->instagram_business_account_id);
+                $this->updateContact($contactUserId, $businessAccount->instagram_business_account_id, $messageData);
             } elseif (isset($messageData['referral'])) {
                 Log::channel('instagram')->info('→ Es una REFERENCIA');
-                $this->processReferral($conversation, $messageData['referral'], $senderId, $businessAccount->instagram_business_account_id);
-                $this->updateContact($senderId, $businessAccount->instagram_business_account_id, $messageData);
+                $this->processReferral($conversation, $messageData['referral'], $contactUserId, $businessAccount->instagram_business_account_id);
+                $this->updateContact($contactUserId, $businessAccount->instagram_business_account_id, $messageData);
             } elseif (isset($messageData['read'])) {
                 Log::channel('instagram')->info('→ Es un EVENTO DE LECTURA');
-                $this->processRead($conversation, $messageData['read'], $senderId, $businessAccount->instagram_business_account_id);
+                $this->processRead($conversation, $messageData['read'], $contactUserId, $businessAccount->instagram_business_account_id);
                 // NO llamar a updateContact para eventos de lectura
             } elseif (isset($messageData['message_edit'])) {
                 Log::channel('instagram')->info('→ Es una EDICIÓN DE MENSAJE');
-                $this->processMessageEdit($conversation, $messageData['message_edit'], $senderId, $businessAccount->instagram_business_account_id);
+                $this->processMessageEdit($conversation, $messageData['message_edit'], $contactUserId, $businessAccount->instagram_business_account_id);
                 // NO llamar a updateContact para eventos de edición
             } elseif (isset($messageData['referral'])) {
                 Log::channel('instagram')->info('→ Es una REFERENCIA (2)');
-                $this->processReferral($conversation, $messageData['referral'], $senderId, $businessAccount->instagram_business_account_id);
-                $this->updateContact($senderId, $businessAccount->instagram_business_account_id, $messageData);
+                $this->processReferral($conversation, $messageData['referral'], $contactUserId, $businessAccount->instagram_business_account_id);
+                $this->updateContact($contactUserId, $businessAccount->instagram_business_account_id, $messageData);
             } else {
                 Log::channel('instagram')->warning('⚠️ TIPO DE EVENTO DESCONOCIDO', $messageData);
             }
@@ -628,19 +632,19 @@ class InstagramMessageService
         try {
             $profile = $messageData['sender']['profile'] ?? [];
 
-            Log::debug('Intentando actualizar contacto', [
+            Log::channel('instagram')->debug('Actualizando contacto', [
                 'user_id' => $instagramUserId,
                 'business_account_id' => $businessAccountId,
-                'has_profile_data' => !empty($profile)
+                'has_profile_in_webhook' => !empty($profile)
             ]);
 
-            // Si no hay información de perfil en el webhook, intentar obtenerla via API
+            // El webhook no incluye perfil; obtenerlo vía API: GET graph.instagram.com/{ig_scoped_id}
             if (empty($profile)) {
-                Log::info('No hay información de perfil en el webhook, intentando obtener via API');
+                Log::channel('instagram')->info('Obteniendo perfil del contacto vía API de Instagram');
                 $profile = $this->getUserProfileViaApi($instagramUserId, $businessAccountId);
             }
 
-            // Crear o actualizar el contacto incluso si no tenemos información completa
+            // Crear o actualizar el contacto con datos de perfil
             InstagramModelResolver::instagram_contact()->updateOrCreate(
                 [
                     'instagram_business_account_id' => $businessAccountId,
@@ -648,18 +652,23 @@ class InstagramMessageService
                 ],
                 [
                     'username' => $profile['username'] ?? null,
-                    'profile_picture' => $profile['profile_pic'] ?? null,
                     'name' => $profile['name'] ?? null,
-                    'last_interaction' => now(),
+                    'profile_picture' => $profile['profile_pic'] ?? null,
+                    'last_interaction_at' => now(),
+                    'is_verified_user' => $profile['is_verified_user'] ?? null,
+                    'follower_count' => $profile['follower_count'] ?? null,
+                    'is_user_follow_business' => $profile['is_user_follow_business'] ?? null,
+                    'is_business_follow_user' => $profile['is_business_follow_user'] ?? null,
+                    'profile_synced_at' => !empty($profile) ? now() : null,
                 ]
             );
 
-            Log::info('Contacto actualizado/creado exitosamente', [
+            Log::channel('instagram')->info('Contacto actualizado/creado exitosamente', [
                 'user_id' => $instagramUserId,
                 'business_account_id' => $businessAccountId
             ]);
         } catch (Exception $e) {
-            Log::error('Error updating Instagram contact:', [
+            Log::channel('instagram')->error('Error actualizando contacto de Instagram:', [
                 'error' => $e->getMessage(),
                 'user_id' => $instagramUserId,
                 'business_account_id' => $businessAccountId
@@ -1020,23 +1029,27 @@ class InstagramMessageService
     }
 
     /**
-     * Obtener el perfil de un usuario de Instagram via API
+     * Obtener el perfil de un usuario de Instagram via API.
+     * Endpoint: GET https://graph.instagram.com/{api_version}/{ig_scoped_id}
+     * Requiere que el usuario haya dado consentimiento (enviado mensaje, click en icebreaker, etc.)
      */
     public function getUserProfileViaApi(string $instagramUserId, string $businessAccountId): array
     {
-        // Nota: Endpoint para obtener información de perfil de usuario IG Scoped ID
-        // GET /{ig-user-id}?fields=name,username,profile_picture
         $this->validateCredentials();
 
         try {
-            return $this->apiClient->request(
+            $response = $this->apiClient->request(
                 'GET',
                 $instagramUserId,
+                [],
+                null,
                 [
-                    'fields' => 'name,username,profile_picture',
+                    'fields' => 'name,username,profile_pic,is_verified_user,follower_count,is_user_follow_business,is_business_follow_user',
                     'access_token' => $this->accessToken
                 ]
             );
+
+            return is_array($response) ? $response : [];
         } catch (Exception $e) {
             Log::warning('No se pudo obtener el perfil del usuario de Instagram:', [
                 'user_id' => $instagramUserId,

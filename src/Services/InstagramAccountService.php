@@ -239,6 +239,17 @@ class InstagramAccountService
                 return null;
             }
 
+            // Intercambiar token de corta duración por token de larga duración
+            $longLivedResponse = $this->exchangeForLongLivedToken($accessToken);
+            if (!$longLivedResponse || empty($longLivedResponse['access_token'])) {
+                Log::error('Instagram OAuth: Error intercambiando token por token de larga duración');
+                DB::rollBack();
+                return null;
+            }
+
+            $accessToken = $longLivedResponse['access_token'];
+            $tokenExpiresIn = $longLivedResponse['expires_in'] ?? null;
+
             // Obtener información del perfil usando Graph API
             $profileData = $this->apiClient->request(
                 'GET',
@@ -250,16 +261,19 @@ class InstagramAccountService
                     'access_token' => $accessToken
                 ]
             );
-
+            
+            LOG::debug('Información del perfil obtenida después de OAuth', ['profile_data' => $profileData]);
+            
             $account = InstagramModelResolver::instagram_business_account()->updateOrCreate(
                 ['instagram_business_account_id' => $userId],
                 [
                     'access_token' => $accessToken,
+                    'token_expires_in' => $tokenExpiresIn,
+                    'token_obtained_at' => now(),
                     'tasks' => null,
                     'name' => $profileData['name'] ?? '',
                     'facebook_page_id' => null,
                     'permissions' => $permissions,
-                    'token_obtained_at' => now(),
                 ]
             );
 
@@ -321,19 +335,34 @@ class InstagramAccountService
         }
     }
 
-    public function refreshLongLivedToken(string $longLivedToken): ?array
+    /**
+     * Refrescar token de larga duración.
+     * Acepta Model $account para evitar búsqueda por token (que está cifrado en BD).
+     *
+     * @param Model $account Cuenta de Instagram con el token actual
+     * @return array|null Respuesta con access_token y expires_in, o null si falla
+     */
+    public function refreshLongLivedToken(Model $account): ?array
     {
         try {
-            // Verificar que el token tenga al menos 24 horas de antigüedad
-            $account = InstagramModelResolver::instagram_business_account()->where('access_token', $longLivedToken)->first();
-            if (!$account || !$account->token_obtained_at) {
-                Log::error('No se puede refrescar token: cuenta no encontrada o sin fecha de obtención');
+            $longLivedToken = $account->access_token ?? null;
+            if (!$longLivedToken) {
+                Log::error('No se puede refrescar token: la cuenta no tiene access_token');
                 return null;
             }
 
+            if (!$account->token_obtained_at) {
+                Log::error('No se puede refrescar token: sin fecha de obtención (token_obtained_at)');
+                return null;
+            }
+
+            // Verificar que el token tenga al menos 24 horas de antigüedad (requisito de Instagram)
             $tokenAge = now()->diffInHours($account->token_obtained_at);
             if ($tokenAge < 24) {
-                Log::error('No se puede refrescar token: debe tener al menos 24 horas de antigüedad');
+                Log::error('No se puede refrescar token: debe tener al menos 24 horas de antigüedad', [
+                    'account_id' => $account->instagram_business_account_id,
+                    'token_age_hours' => $tokenAge,
+                ]);
                 return null;
             }
 
@@ -365,6 +394,25 @@ class InstagramAccountService
             Log::error('Error refrescando token:', ['error' => $e->getMessage()]);
             return null;
         }
+    }
+
+    /**
+     * Refrescar token de larga duración y persistir en la base de datos.
+     *
+     * @param Model $account Cuenta de Instagram
+     * @return bool True si se refrescó y guardó correctamente
+     */
+    public function refreshAndStoreLongLivedToken(Model $account): bool
+    {
+        $response = $this->refreshLongLivedToken($account);
+        if (!$response || empty($response['access_token'])) {
+            return false;
+        }
+
+        $account->access_token = $response['access_token'];
+        $account->token_expires_in = $response['expires_in'] ?? null;
+        $account->token_obtained_at = now();
+        return $account->save();
     }
 
     /**

@@ -29,12 +29,7 @@ class RefreshInstagramTokens extends Command
             $this->info("Procesando cuenta: {$account->instagram_business_account_id}");
 
             if ($account->access_token) {
-                $response = $this->instagramService->refreshLongLivedToken($account->access_token);
-                if ($response && isset($response['access_token'])) {
-                    $account->access_token = $response['access_token'];
-                    $account->token_expires_in = $response['expires_in'] ?? null;
-                    $account->save();
-
+                if ($this->instagramService->refreshAndStoreLongLivedToken($account)) {
                     $this->info("Token actualizado para cuenta {$account->instagram_business_account_id}");
                 } else {
                     $this->error("Error refrescando token para cuenta {$account->instagram_business_account_id}");
