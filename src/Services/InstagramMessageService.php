@@ -92,7 +92,7 @@ class InstagramMessageService
     {
         $ids = [$senderId, $recipientId];
         sort($ids);
-        return 'instagram_conversation_' . md5(implode('_', $ids));
+        return md5(implode('_', $ids));
     }
 
     /**
@@ -310,7 +310,7 @@ class InstagramMessageService
 
             // Establecer token de acceso para obtener perfiles vía API
             $this->withAccessToken($businessAccount->access_token)
-                 ->withInstagramUserId($businessAccount->instagram_business_account_id);
+                ->withInstagramUserId($businessAccount->instagram_business_account_id);
 
             // BUSCAR O CREAR LA CONVERSACIÓN (siempre entre business y el usuario/contacto)
             Log::channel('instagram')->info('🔄 Buscando o creando conversación...');
