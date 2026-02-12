@@ -1007,25 +1007,45 @@ class InstagramMessageService
      */
     public function findOrCreateConversation(string $instagramBusinessAccountId, string $instagramUserId): Model
     {
-        // Generar un ID único basado en los participantes (siempre ordenados)
-        $conversationId = $this->generateConversationId($instagramBusinessAccountId, $instagramUserId);
+        // // Generar un ID único basado en los participantes (siempre ordenados)
+        // $conversationId = $this->generateConversationId($instagramBusinessAccountId, $instagramUserId);
 
-        Log::info('Buscando conversación:', [
-            'generated_id' => $conversationId,
-            'business_id' => $instagramBusinessAccountId,
-            'user_id' => $instagramUserId
+        // Log::info('Buscando conversación:', [
+        //     'generated_id' => $conversationId,
+        //     'business_id' => $instagramBusinessAccountId,
+        //     'user_id' => $instagramUserId
+        // ]);
+
+        // return InstagramModelResolver::instagram_conversation()->firstOrCreate(
+        //     ['id' => $conversationId],
+        //     [
+        //         'instagram_business_account_id' => $instagramBusinessAccountId,
+        //         'instagram_user_id' => $instagramUserId,
+        //         //'title' => 'Conversación Instagram', // Opcional
+        //         'updated_time' => now(),
+        //         'unread_count' => 0
+        //     ]
+        // );
+
+
+        // Buscar una conversación activa (no eliminada)
+        $conversation = InstagramModelResolver::instagram_conversation()
+            ->where('instagram_business_account_id', $instagramBusinessAccountId)
+            ->where('instagram_user_id', $instagramUserId)
+            ->whereNull('deleted_at') // asumiendo SoftDeletes
+            ->first();
+
+        if ($conversation) {
+            return $conversation;
+        }
+
+        // Si no hay activa, crea una nueva
+        return InstagramModelResolver::instagram_conversation()->create([
+            'instagram_business_account_id' => $instagramBusinessAccountId,
+            'instagram_user_id' => $instagramUserId,
+            'updated_time' => now(),
+            'unread_count' => 0,
         ]);
-
-        return InstagramModelResolver::instagram_conversation()->firstOrCreate(
-            ['id' => $conversationId],
-            [
-                'instagram_business_account_id' => $instagramBusinessAccountId,
-                'instagram_user_id' => $instagramUserId,
-                //'title' => 'Conversación Instagram', // Opcional
-                'updated_time' => now(),
-                'unread_count' => 0
-            ]
-        );
     }
 
     /**
