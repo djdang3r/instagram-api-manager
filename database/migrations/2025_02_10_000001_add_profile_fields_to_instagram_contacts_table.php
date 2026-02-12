@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     public function up(): void
     {
         Schema::table('instagram_contacts', function (Blueprint $table) {
@@ -16,6 +15,13 @@ return new class extends Migration
             $table->boolean('is_user_follow_business')->nullable()->after('follower_count');
             $table->boolean('is_business_follow_user')->nullable()->after('is_user_follow_business');
             $table->timestamp('profile_synced_at')->nullable()->after('is_business_follow_user');
+        });
+
+        Schema::table('instagram_conversations', function (Blueprint $table) {
+            // Si la columna existe y es NOT NULL, la hacemos nullable
+            if (Schema::hasColumn('instagram_conversations', 'conversation_id')) {
+                $table->string('conversation_id')->nullable()->change();
+            }
         });
     }
 
@@ -31,6 +37,12 @@ return new class extends Migration
                 'is_business_follow_user',
                 'profile_synced_at',
             ]);
+        });
+
+        Schema::table('instagram_conversations', function (Blueprint $table) {
+            if (Schema::hasColumn('instagram_conversations', 'conversation_id')) {
+                $table->string('conversation_id')->nullable(false)->change();
+            }
         });
     }
 };

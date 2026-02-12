@@ -275,20 +275,44 @@ class InstagramMessageService
                         ->where('instagram_business_account_id', $profile->instagram_business_account_id)
                         ->first();
                 } else {
-                    // Fallback: buscar por instagram_business_account_id directamente
-                    Log::channel('instagram')->info('Buscando por instagram_business_account_id...');
+                    // Fallback: intentar localizar la cuenta de negocio por su ID largo
+                    Log::channel('instagram')->info('Buscando cuenta por instagram_business_account_id...');
                     $businessAccount = InstagramModelResolver::instagram_business_account()
                         ->where('instagram_business_account_id', $businessIdToSearch)
                         ->first();
 
                     if ($businessAccount) {
+                        // La cuenta existe, pero no tenemos su perfil con el IGID correcto.
+                        // Buscamos si ya hay un perfil asociado a esta cuenta.
                         $profile = InstagramModelResolver::instagram_profile()
                             ->where('instagram_business_account_id', $businessAccount->instagram_business_account_id)
                             ->first();
 
-                        if ($profile && !$profile->instagram_scoped_id) {
-                            $profile->update(['instagram_scoped_id' => $businessIdToSearch]);
-                            Log::channel('instagram')->info('✅ IGSID guardado para futuros webhooks');
+                        if (!$profile) {
+                            // No existe perfil: lo creamos con el IGID que acabamos de recibir
+                            $profile = InstagramModelResolver::instagram_profile()->create([
+                                'instagram_business_account_id' => $businessAccount->instagram_business_account_id,
+                                'user_id' => $businessIdToSearch,      // ← IGID de la cuenta de negocio
+                                'instagram_scoped_id' => $businessIdToSearch, // opcional
+                                // Puedes dejar el resto de campos null, se llenarán después con la API
+                            ]);
+                            Log::channel('instagram')->info('✅ Perfil de negocio creado automáticamente desde webhook', [
+                                'user_id' => $businessIdToSearch,
+                                'instagram_business_account_id' => $businessAccount->instagram_business_account_id
+                            ]);
+                        } else {
+                            // El perfil ya existe: nos aseguramos de que tenga el user_id correcto
+                            if (empty($profile->user_id)) {
+                                $profile->update(['user_id' => $businessIdToSearch]);
+                                Log::channel('instagram')->info('✅ user_id actualizado en perfil existente');
+                            } elseif ($profile->user_id !== $businessIdToSearch) {
+                                // Caso raro: el IGID ha cambiado (reconexión, etc.)
+                                $profile->update(['user_id' => $businessIdToSearch]);
+                                Log::channel('instagram')->warning('⚠️ user_id del perfil actualizado (difería)', [
+                                    'old' => $profile->user_id,
+                                    'new' => $businessIdToSearch
+                                ]);
+                            }
                         }
                     }
                 }
