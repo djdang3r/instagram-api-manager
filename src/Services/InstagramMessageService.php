@@ -489,67 +489,74 @@ class InstagramMessageService
      */
     protected function fetchContactProfile(string $instagramUserId, Model $businessAccount): array
     {
-        try {
-            $token = $businessAccount->access_token;
-            if (empty($token)) {
-                Log::channel('instagram')->warning('🚫 Token vacío para la cuenta', [
-                    'account_id' => $businessAccount->instagram_business_account_id
-                ]);
-                return [];
-            }
+        $maxAttempts = 2;
+        $attempt = 0;
 
-            $baseUrl = config('instagram.graph_base_url', 'https://graph.instagram.com');
-            $version = config('instagram.api_version', 'v19.0');
+        while ($attempt < $maxAttempts) {
+            $attempt++;
+            try {
+                $token = $businessAccount->access_token;
+                if (empty($token)) {
+                    Log::channel('instagram')->warning('🚫 Token vacío para la cuenta', [
+                        'account_id' => $businessAccount->instagram_business_account_id
+                    ]);
+                    return [];
+                }
 
-            $basicClient = new ApiClient(
-                $baseUrl,
-                $version,
-                (int) config('instagram.timeout', 30)
-            );
+                $baseUrl = config('instagram.graph_base_url', 'https://graph.instagram.com');
+                $version = config('instagram.api_version', 'v19.0');
 
-            $fields = 'id,username,name,profile_pic,follower_count,is_verified_user,is_user_follow_business,is_business_follow_user';
-            $query = [
-                'fields' => $fields,
-                'access_token' => $token,
-            ];
+                $basicClient = new ApiClient(
+                    $baseUrl,
+                    $version,
+                    (int) config('instagram.timeout', 30)
+                );
 
-            $fullUrl = "{$baseUrl}/{$version}/{$instagramUserId}?" . http_build_query($query);
+                $fields = 'id,username,name,profile_pic,follower_count,is_verified_user,is_user_follow_business,is_business_follow_user';
+                $query = [
+                    'fields' => $fields,
+                    'access_token' => $token,
+                ];
 
-            Log::channel('instagram')->info('🔍 FETCH CONTACT PROFILE - Detalles completos', [
-                'user_id' => $instagramUserId,
-                'business_account_id' => $businessAccount->instagram_business_account_id,
-                'base_url' => $baseUrl,
-                'version' => $version,
-                'fields' => $fields,
-                'token_preview' => substr($token, 0, 30) . '...',
-                'full_url' => $fullUrl,
-            ]);
+                $fullUrl = "{$baseUrl}/{$version}/{$instagramUserId}?" . http_build_query($query);
 
-            if (app()->environment('local')) {
-                Log::channel('instagram')->debug('🔐 Token completo (solo local)', ['access_token' => $token]);
-            }
-
-            $response = $basicClient->request(
-                'GET',
-                $instagramUserId,
-                [],
-                null,
-                $query
-            );
-
-            Log::channel('instagram')->info('📥 RESPUESTA CRUDA DE API', [
-                'response' => $response
-            ]);
-
-            if (is_array($response) && !isset($response['error'])) {
-                Log::channel('instagram')->info('✅ Perfil obtenido correctamente', [
+                Log::channel('instagram')->info('🔍 FETCH CONTACT PROFILE - Detalles completos', [
                     'user_id' => $instagramUserId,
-                    'username' => $response['username'] ?? null,
-                    'name' => $response['name'] ?? null,
+                    'business_account_id' => $businessAccount->instagram_business_account_id,
+                    'base_url' => $baseUrl,
+                    'version' => $version,
+                    'fields' => $fields,
+                    'token_preview' => substr($token, 0, 30) . '...',
+                    'full_url' => $fullUrl,
+                    'attempt' => $attempt
                 ]);
-                return $response;
-            } else {
-                // La API devolvió un error (ej. token inválido)
+
+                if (app()->environment('local')) {
+                    Log::channel('instagram')->debug('🔐 Token completo (solo local)', ['access_token' => $token]);
+                }
+
+                $response = $basicClient->request(
+                    'GET',
+                    $instagramUserId,
+                    [],
+                    null,
+                    $query
+                );
+
+                Log::channel('instagram')->info('📥 RESPUESTA CRUDA DE API', [
+                    'response' => $response
+                ]);
+
+                if (is_array($response) && !isset($response['error'])) {
+                    Log::channel('instagram')->info('✅ Perfil obtenido correctamente', [
+                        'user_id' => $instagramUserId,
+                        'username' => $response['username'] ?? null,
+                        'name' => $response['name'] ?? null,
+                    ]);
+                    return $response;
+                }
+
+                // La API devolvió un error en el cuerpo de la respuesta
                 $errorMsg = $response['error']['message'] ?? 'Error desconocido';
                 $errorCode = $response['error']['code'] ?? 0;
                 Log::channel('instagram')->error('❌ Error en respuesta de API (código ' . $errorCode . ')', [
@@ -557,28 +564,75 @@ class InstagramMessageService
                     'response' => $response
                 ]);
 
-                // Si es error de token (código 190), podrías tomar acciones especiales
-                if ($errorCode == 190) {
-                    Log::channel('instagram')->error('🔐 Token inválido o expirado para la cuenta', [
+                if ($errorCode == 190 && $attempt < $maxAttempts) {
+                    Log::channel('instagram')->warning('🔄 Token inválido, intentando refrescar...', [
                         'business_account_id' => $businessAccount->instagram_business_account_id
                     ]);
-                    // Aquí podrías marcar la cuenta como token inválido
+                    $refreshed = $this->accountService->refreshAndStoreLongLivedToken($businessAccount);
+                    if ($refreshed) {
+                        Log::channel('instagram')->info('✅ Token refrescado exitosamente, reintentando obtención de perfil');
+                        $businessAccount->refresh();
+                        continue;
+                    }
+                    Log::channel('instagram')->error('❌ No se pudo refrescar el token');
+                    return [];
                 }
 
                 return [];
-            }
 
-        } catch (\Exception $e) {
-            Log::channel('instagram')->error('❌ Excepción en fetchContactProfile', [
-                'user_id' => $instagramUserId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            } catch (Exception $e) {
+                // Capturamos cualquier excepción, incluyendo ApiException
+                $httpCode = null;
+                $internalErrorCode = null;
+                $errorMsg = $e->getMessage();
+                $details = [];
 
-            // Si la excepción es por cliente HTTP, podríamos extraer más detalles
-            if (method_exists($e, 'getResponse') && $e->getResponse()) {
-                $body = $e->getResponse()->getBody()->getContents();
-                Log::channel('instagram')->error('Detalles de la respuesta HTTP', ['body' => $body]);
+                // Si es una ApiException, podemos obtener más detalles
+                if ($e instanceof ApiException) {
+                    $httpCode = $e->getCode();
+                    $details = $e->getDetails();
+                    $internalErrorCode = $details['error']['code'] ?? null;
+                    $errorMsg = $details['error']['message'] ?? $errorMsg;
+                } elseif (method_exists($e, 'getResponse') && $e->getResponse()) {
+                    // Intentar extraer información de la respuesta HTTP directamente
+                    try {
+                        $responseBody = $e->getResponse()->getBody()->getContents();
+                        $responseData = json_decode($responseBody, true);
+                        $internalErrorCode = $responseData['error']['code'] ?? null;
+                        $errorMsg = $responseData['error']['message'] ?? $errorMsg;
+                        $details = $responseData;
+                    } catch (\Exception $ex) {
+                        // Ignorar errores al leer la respuesta
+                    }
+                }
+
+                Log::channel('instagram')->error('❌ Excepción en fetchContactProfile', [
+                    'user_id' => $instagramUserId,
+                    'exception_type' => get_class($e),
+                    'http_code' => $httpCode,
+                    'internal_code' => $internalErrorCode,
+                    'error' => $errorMsg,
+                    'details' => $details,
+                    'trace' => $e->getTraceAsString(),
+                    'attempt' => $attempt
+                ]);
+
+                // Si es error interno 190 (token inválido) y es el primer intento, reintentar
+                if ($internalErrorCode == 190 && $attempt < $maxAttempts) {
+                    Log::channel('instagram')->warning('🔄 Token inválido detectado en excepción, intentando refrescar...', [
+                        'business_account_id' => $businessAccount->instagram_business_account_id
+                    ]);
+                    $refreshed = $this->accountService->refreshAndStoreLongLivedToken($businessAccount);
+                    if ($refreshed) {
+                        Log::channel('instagram')->info('✅ Token refrescado exitosamente, reintentando obtención de perfil');
+                        $businessAccount->refresh();
+                        continue;
+                    }
+                    Log::channel('instagram')->error('❌ No se pudo refrescar el token');
+                    return [];
+                }
+
+                return [];
             }
         }
 
