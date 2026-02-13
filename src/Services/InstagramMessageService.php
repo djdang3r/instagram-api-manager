@@ -7,14 +7,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Exception;
 use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
+use ScriptDevelop\InstagramApiManager\InstagramApi\Exceptions\ApiException;
+use ScriptDevelop\InstagramApiManager\Services\InstagramAccountService; // Asegúrate de importar la clase
 
 class InstagramMessageService
 {
     protected ApiClient $apiClient;
     protected ?string $accessToken = null;
     protected ?string $instagramUserId = null;
+    protected InstagramAccountService $accountService; // <-- DECLARACIÓN DE LA PROPIEDAD
 
-    public function __construct()
+    public function __construct(?InstagramAccountService $accountService = null)
     {
         // Cliente principal para mensajería (Graph API de Facebook)
         $this->apiClient = new ApiClient(
@@ -22,6 +25,9 @@ class InstagramMessageService
             config('instagram.api_version', 'v23.0'),
             (int) config('instagram.timeout', 30)
         );
+
+        // Inyectamos el servicio de cuentas para refrescar tokens
+        $this->accountService = $accountService ?? app(InstagramAccountService::class);
     }
 
     // ------------------------------------------------------------------------
@@ -80,19 +86,19 @@ class InstagramMessageService
         }
 
         $businessIdToSearch = $isEcho ? $senderId : $recipientId;
-        $contactUserId = $isEcho ? $recipientId : $senderId;
+        $contactUserId      = $isEcho ? $recipientId : $senderId;
 
         Log::channel('instagram')->info('🔎 BUSCANDO CUENTA DE NEGOCIO', [
             'business_id' => $businessIdToSearch,
-            'contact_id' => $contactUserId,
-            'is_echo' => $isEcho
+            'contact_id'  => $contactUserId,
+            'is_echo'     => $isEcho
         ]);
 
         $businessAccount = $this->findBusinessAccount($businessIdToSearch);
         if (!$businessAccount) {
             Log::channel('instagram')->error('❌ CUENTA DE NEGOCIO NO ENCONTRADA', [
                 'business_id' => $businessIdToSearch,
-                'hint' => 'Conecta la cuenta primero'
+                'hint'        => 'Conecta la cuenta primero'
             ]);
             return;
         }
@@ -102,7 +108,7 @@ class InstagramMessageService
         ]);
 
         $this->withAccessToken($businessAccount->access_token)
-            ->withInstagramUserId($businessAccount->instagram_business_account_id);
+             ->withInstagramUserId($businessAccount->instagram_business_account_id);
 
         $conversation = $this->findOrCreateConversation(
             $businessAccount->instagram_business_account_id,
@@ -128,7 +134,7 @@ class InstagramMessageService
     {
         $isEcho = isset($messageData['message']['is_echo']) && $messageData['message']['is_echo'] === true;
 
-        $senderId = $messageData['sender']['id'] ?? null;
+        $senderId   = $messageData['sender']['id'] ?? null;
         $recipientId = $messageData['recipient']['id'] ?? null;
 
         if (!$senderId || !$recipientId) {
@@ -139,18 +145,18 @@ class InstagramMessageService
                     ->first();
 
                 if ($originalMessage) {
-                    $senderId = $originalMessage->message_from;
+                    $senderId   = $originalMessage->message_from;
                     $recipientId = $originalMessage->message_to;
                     Log::channel('instagram')->info('✅ Contexto recuperado por MID', [
-                        'mid' => $mid,
-                        'sender' => $senderId,
-                        'recipient' => $recipientId
+                        'mid'      => $mid,
+                        'sender'   => $senderId,
+                        'recipient'=> $recipientId
                     ]);
                 }
             }
         }
 
-        $senderId = is_array($senderId) ? ($senderId['id'] ?? (string) $senderId) : (string) $senderId;
+        $senderId   = is_array($senderId)   ? ($senderId['id'] ?? (string) $senderId)   : (string) $senderId;
         $recipientId = is_array($recipientId) ? ($recipientId['id'] ?? (string) $recipientId) : (string) $recipientId;
 
         return [$senderId, $recipientId, $isEcho];
@@ -213,13 +219,12 @@ class InstagramMessageService
 
         if (!$profile) {
             $igId = $this->fetchIgId($businessAccount);
-            if (!$igId)
-                $igId = $businessId;
+            if (!$igId) $igId = $businessId;
 
             InstagramModelResolver::instagram_profile()->create([
                 'instagram_business_account_id' => $businessAccount->instagram_business_account_id,
-                'user_id' => $igId,
-                'instagram_scoped_id' => $igId,
+                'user_id'                      => $igId,
+                'instagram_scoped_id'          => $igId,
             ]);
             Log::channel('instagram')->info('✅ Perfil de negocio creado automáticamente', ['ig_id' => $igId]);
         } elseif (empty($profile->user_id)) {
@@ -246,7 +251,7 @@ class InstagramMessageService
         } catch (Exception $e) {
             Log::channel('instagram')->warning('No se pudo obtener ig_id', [
                 'account' => $businessAccount->instagram_business_account_id,
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage()
             ]);
             return null;
         }
@@ -269,9 +274,9 @@ class InstagramMessageService
 
         return InstagramModelResolver::instagram_conversation()->create([
             'instagram_business_account_id' => $instagramBusinessAccountId,
-            'instagram_user_id' => $instagramUserId,
-            'updated_time' => now(),
-            'unread_count' => 0,
+            'instagram_user_id'            => $instagramUserId,
+            'updated_time'                => now(),
+            'unread_count'               => 0,
         ]);
     }
 
@@ -282,8 +287,8 @@ class InstagramMessageService
     {
         $conversation->update([
             'last_message_at' => now(),
-            'updated_time' => now(),
-            'unread_count' => $isEcho ? $conversation->unread_count : $conversation->unread_count + 1
+            'updated_time'    => now(),
+            'unread_count'    => $isEcho ? $conversation->unread_count : $conversation->unread_count + 1
         ]);
         Log::channel('instagram')->info('✅ Conversación actualizada');
     }
@@ -360,34 +365,34 @@ class InstagramMessageService
 
         $messageData = [
             'conversation_id' => $conversation->id,
-            'message_id' => $messageId,
-            'message_method' => 'incoming',
-            'message_type' => $messageType,
-            'message_from' => $senderId,
-            'message_to' => $recipientId,
+            'message_id'      => $messageId,
+            'message_method'  => 'incoming',
+            'message_type'    => $messageType,
+            'message_from'    => $senderId,
+            'message_to'      => $recipientId,
             'message_content' => $message['text'] ?? null,
-            'attachments' => $message['attachments'] ?? null,
-            'json_content' => $message,
-            'json' => $message,
-            'status' => 'received',
-            'created_time' => now(),
-            'sent_at' => isset($message['timestamp']) ? date('Y-m-d H:i:s', $message['timestamp'] / 1000) : now()
+            'attachments'     => $message['attachments'] ?? null,
+            'json_content'    => $message,
+            'json'            => $message,
+            'status'          => 'received',
+            'created_time'    => now(),
+            'sent_at'         => isset($message['timestamp']) ? date('Y-m-d H:i:s', $message['timestamp'] / 1000) : now()
         ];
 
         if (isset($message['quick_reply'])) {
-            $messageData['message_type'] = 'quick_reply';
-            $messageData['message_context'] = 'quick_reply_response';
-            $messageData['message_context_id'] = $message['quick_reply']['payload'] ?? null;
+            $messageData['message_type']        = 'quick_reply';
+            $messageData['message_context']     = 'quick_reply_response';
+            $messageData['message_context_id']  = $message['quick_reply']['payload'] ?? null;
             $messageData['quick_reply_payload'] = $message['quick_reply']['payload'] ?? null;
             $messageData['context_message_text'] = $message['text'] ?? null;
         }
 
         $savedMessage = InstagramModelResolver::instagram_message()->create($messageData);
         Log::channel('instagram')->info('✅ Mensaje guardado en BD', [
-            'id' => $savedMessage->id,
+            'id'         => $savedMessage->id,
             'message_id' => $savedMessage->message_id,
-            'type' => $savedMessage->message_type,
-            'from' => $savedMessage->message_from
+            'type'       => $savedMessage->message_type,
+            'from'       => $savedMessage->message_from
         ]);
 
         $this->processAttachments($message, $savedMessage);
@@ -404,7 +409,7 @@ class InstagramMessageService
                 $savedMessage->update(['media_url' => $attachment['payload']['url']]);
                 Log::channel('instagram')->info('📎 Adjunto procesado', [
                     'type' => $attachment['type'],
-                    'url' => $attachment['payload']['url']
+                    'url'  => $attachment['payload']['url']
                 ]);
                 break;
             }
@@ -424,7 +429,7 @@ class InstagramMessageService
     }
 
     // ------------------------------------------------------------------------
-    // 7. Contacto: obtener perfil y guardar (con manejo robusto de errores)
+    // 7. Contacto: obtener perfil y guardar (con reintento y refresco de token)
     // ------------------------------------------------------------------------
     protected function shouldUpdateContact(array $messageData): bool
     {
@@ -439,25 +444,24 @@ class InstagramMessageService
 
         $data = [
             'instagram_business_account_id' => $businessAccount->instagram_business_account_id,
-            'instagram_user_id' => $instagramUserId,
-            'last_interaction_at' => now(),
+            'instagram_user_id'            => $instagramUserId,
+            'last_interaction_at'         => now(),
         ];
 
         $synced = false;
         if (!empty($profileData)) {
             $synced = true;
             $data = array_merge($data, [
-                'username' => $profileData['username'] ?? null,
-                'name' => $profileData['name'] ?? null,
-                'profile_picture' => $profileData['profile_pic'] ?? null,
-                'follows_count' => $profileData['follower_count'] ?? null,
-                'is_verified' => $profileData['is_verified_user'] ?? false,
+                'username'                => $profileData['username'] ?? null,
+                'name'                   => $profileData['name'] ?? null,
+                'profile_picture'        => $profileData['profile_pic'] ?? null,
+                'follows_count'          => $profileData['follower_count'] ?? null,
+                'is_verified'           => $profileData['is_verified_user'] ?? false,
                 'is_user_follow_business' => $profileData['is_user_follow_business'] ?? false,
                 'is_business_follow_user' => $profileData['is_business_follow_user'] ?? false,
-                'profile_synced_at' => now(),
+                'profile_synced_at'      => now(),
             ]);
         } else {
-            // Si no se pudo obtener el perfil, registramos una advertencia pero guardamos el contacto igual
             Log::channel('instagram')->warning('⚠️ Contacto guardado sin datos de perfil (sync falló)', [
                 'user_id' => $instagramUserId,
                 'business_account_id' => $businessAccount->instagram_business_account_id
@@ -467,25 +471,22 @@ class InstagramMessageService
         $contact = InstagramModelResolver::instagram_contact()->updateOrCreate(
             [
                 'instagram_business_account_id' => $businessAccount->instagram_business_account_id,
-                'instagram_user_id' => $instagramUserId,
+                'instagram_user_id'            => $instagramUserId,
             ],
             $data
         );
 
         Log::channel('instagram')->info('✅ Contacto actualizado/creado', [
             'user_id' => $instagramUserId,
-            'synced' => $synced
+            'synced'  => $synced
         ]);
-
-        // Opcional: Si el error fue por token inválido, podrías marcar la cuenta para revisión
-        // if (isset($profileData['error_code']) && $profileData['error_code'] == 190) { ... }
 
         return $contact;
     }
 
     /**
      * Obtiene perfil del contacto usando Instagram Basic Display API.
-     * Mejorado con manejo detallado de errores.
+     * Si ocurre error 190 (token inválido), intenta refrescar el token y reintenta una vez.
      */
     protected function fetchContactProfile(string $instagramUserId, Model $businessAccount): array
     {
@@ -581,29 +582,38 @@ class InstagramMessageService
                 return [];
 
             } catch (Exception $e) {
-                // Capturamos cualquier excepción, incluyendo ApiException
                 $httpCode = null;
                 $internalErrorCode = null;
                 $errorMsg = $e->getMessage();
-                $details = [];
 
-                // Si es una ApiException, podemos obtener más detalles
-                if ($e instanceof ApiException) {
+                // Obtener código HTTP si está disponible
+                if (method_exists($e, 'getCode')) {
                     $httpCode = $e->getCode();
+                }
+
+                // Si es una ApiException, intentar obtener detalles
+                if ($e instanceof ApiException) {
                     $details = $e->getDetails();
                     $internalErrorCode = $details['error']['code'] ?? null;
                     $errorMsg = $details['error']['message'] ?? $errorMsg;
-                } elseif (method_exists($e, 'getResponse') && $e->getResponse()) {
-                    // Intentar extraer información de la respuesta HTTP directamente
+                }
+
+                // Si aún no tenemos código interno, intentar extraer de la respuesta si es una excepción de Guzzle
+                if (!$internalErrorCode && $e instanceof \GuzzleHttp\Exception\RequestException && $e->hasResponse()) {
                     try {
                         $responseBody = $e->getResponse()->getBody()->getContents();
                         $responseData = json_decode($responseBody, true);
                         $internalErrorCode = $responseData['error']['code'] ?? null;
                         $errorMsg = $responseData['error']['message'] ?? $errorMsg;
-                        $details = $responseData;
                     } catch (\Exception $ex) {
-                        // Ignorar errores al leer la respuesta
+                        // Ignorar errores de lectura
                     }
+                }
+
+                // Fallback: si el mensaje contiene la frase característica, asumimos código 190
+                if (!$internalErrorCode && str_contains($errorMsg, 'Error validating access token')) {
+                    $internalErrorCode = 190;
+                    Log::channel('instagram')->warning('⚠️ Detectado error de token por mensaje, asumiendo código 190');
                 }
 
                 Log::channel('instagram')->error('❌ Excepción en fetchContactProfile', [
@@ -612,14 +622,12 @@ class InstagramMessageService
                     'http_code' => $httpCode,
                     'internal_code' => $internalErrorCode,
                     'error' => $errorMsg,
-                    'details' => $details,
-                    'trace' => $e->getTraceAsString(),
                     'attempt' => $attempt
                 ]);
 
-                // Si es error interno 190 (token inválido) y es el primer intento, reintentar
+                // Reintentar si es error 190 y estamos en el primer intento
                 if ($internalErrorCode == 190 && $attempt < $maxAttempts) {
-                    Log::channel('instagram')->warning('🔄 Token inválido detectado en excepción, intentando refrescar...', [
+                    Log::channel('instagram')->warning('🔄 Token inválido detectado, intentando refrescar...', [
                         'business_account_id' => $businessAccount->instagram_business_account_id
                     ]);
                     $refreshed = $this->accountService->refreshAndStoreLongLivedToken($businessAccount);
@@ -652,20 +660,20 @@ class InstagramMessageService
 
         $messageData = [
             'conversation_id' => $conversation->id,
-            'message_id' => $messageId,
-            'message_method' => 'incoming',
-            'message_type' => 'postback',
-            'message_from' => $senderId,
-            'message_to' => $recipientId,
+            'message_id'      => $messageId,
+            'message_method'  => 'incoming',
+            'message_type'    => 'postback',
+            'message_from'    => $senderId,
+            'message_to'      => $recipientId,
             'message_content' => $postback['title'] ?? $postback['payload'] ?? null,
             'message_context' => 'button_postback',
             'message_context_id' => $postback['payload'] ?? null,
-            'postback_payload' => $postback['payload'] ?? null,
+            'postback_payload'   => $postback['payload'] ?? null,
             'context_message_text' => $postback['title'] ?? null,
-            'json_content' => $postback,
-            'status' => 'received',
-            'created_time' => now(),
-            'sent_at' => $timestamp ? date('Y-m-d H:i:s', $timestamp / 1000) : now()
+            'json_content'    => $postback,
+            'status'          => 'received',
+            'created_time'    => now(),
+            'sent_at'         => $timestamp ? date('Y-m-d H:i:s', $timestamp / 1000) : now()
         ];
 
         InstagramModelResolver::instagram_message()->create($messageData);
@@ -681,10 +689,10 @@ class InstagramMessageService
         if ($reactedMessage) {
             $currentReactions = $reactedMessage->reactions ?? [];
             $currentReactions[] = [
-                'user_id' => $senderId,
-                'reaction' => $reaction['reaction'] ?? 'like',
-                'emoji' => $reaction['emoji'] ?? '❤️',
-                'action' => $reaction['action'] ?? 'react',
+                'user_id'   => $senderId,
+                'reaction'  => $reaction['reaction'] ?? 'like',
+                'emoji'     => $reaction['emoji'] ?? '❤️',
+                'action'    => $reaction['action'] ?? 'react',
                 'timestamp' => now()
             ];
             $reactedMessage->update(['reactions' => $currentReactions]);
@@ -714,20 +722,20 @@ class InstagramMessageService
             $type = $referral['type'] ?? null;
 
             $conversation->update([
-                'last_referral' => $ref,
-                'referral_source' => $source,
-                'referral_type' => $type,
+                'last_referral'      => $ref,
+                'referral_source'    => $source,
+                'referral_type'      => $type,
                 'referral_timestamp' => now()
             ]);
 
             InstagramModelResolver::instagram_referral()->create([
-                'conversation_id' => $conversation->id,
-                'instagram_user_id' => $senderId,
-                'instagram_business_account_id' => $recipientId,
-                'ref_parameter' => $ref,
-                'source' => $source,
-                'type' => $type,
-                'processed_at' => now()
+                'conversation_id'                 => $conversation->id,
+                'instagram_user_id'               => $senderId,
+                'instagram_business_account_id'   => $recipientId,
+                'ref_parameter'                  => $ref,
+                'source'                         => $source,
+                'type'                           => $type,
+                'processed_at'                   => now()
             ]);
 
             Log::info('ig.me referral processed', [
@@ -801,15 +809,15 @@ class InstagramMessageService
 
         $messageData = [
             'conversation_id' => $conversation->id,
-            'message_id' => 'temp_' . uniqid(),
-            'message_method' => 'outgoing',
-            'message_type' => $messageType,
-            'message_from' => $this->instagramUserId,
-            'message_to' => $recipientId,
-            'json_content' => $payload,
-            'json' => $payload,
-            'status' => 'pending',
-            'created_time' => now(),
+            'message_id'      => 'temp_' . uniqid(),
+            'message_method'  => 'outgoing',
+            'message_type'    => $messageType,
+            'message_from'    => $this->instagramUserId,
+            'message_to'      => $recipientId,
+            'json_content'    => $payload,
+            'json'            => $payload,
+            'status'          => 'pending',
+            'created_time'    => now(),
         ];
 
         if ($messageType === 'text') {
@@ -847,9 +855,9 @@ class InstagramMessageService
             );
 
             $message->update([
-                'message_id' => $response['message_id'] ?? $response['id'] ?? uniqid(),
-                'status' => 'sent',
-                'sent_at' => now(),
+                'message_id'   => $response['message_id'] ?? $response['id'] ?? uniqid(),
+                'status'       => 'sent',
+                'sent_at'      => now(),
                 'json_content' => $response
             ]);
 
@@ -858,8 +866,8 @@ class InstagramMessageService
             return $response;
         } catch (Exception $e) {
             $message->update([
-                'status' => 'failed',
-                'failed_at' => now(),
+                'status'        => 'failed',
+                'failed_at'     => now(),
                 'message_error' => $e->getMessage()
             ]);
             Log::error("Error enviando mensaje de {$messageType}:", ['error' => $e->getMessage(), 'recipient_id' => $recipientId]);
