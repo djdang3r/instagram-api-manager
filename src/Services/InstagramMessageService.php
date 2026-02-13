@@ -509,30 +509,55 @@ class InstagramMessageService
     protected function fetchContactProfile(string $instagramUserId, Model $businessAccount): array
     {
         try {
-            $this->withAccessToken($businessAccount->access_token);
+            $token = $businessAccount->access_token;
+            if (empty($token)) {
+                Log::channel('instagram')->warning('🚫 Token vacío', [
+                    'account_id' => $businessAccount->instagram_business_account_id
+                ]);
+                return [];
+            }
 
-            $response = $this->apiClient->request(
-                'GET',
-                $instagramUserId,  // ID scoped del usuario
-                [],
-                null,
-                [
-                    'fields' => 'id,username,name,profile_pic,follower_count,is_verified_user,is_user_follow_business,is_business_follow_user',
-                    'access_token' => $this->accessToken
-                ]
+            $baseUrl = config('instagram.graph_base_url', 'https://graph.instagram.com');
+            $version = config('instagram.api_version', 'v19.0');
+
+            $basicClient = new ApiClient(
+                $baseUrl,
+                $version,
+                (int) config('instagram.timeout', 30)
             );
 
-            if (is_array($response)) {
-                Log::channel('instagram')->info('📥 Perfil obtenido desde Graph API', [
+            $query = [
+                'fields' => 'id,username,name,profile_pic,follower_count,is_verified_user,is_user_follow_business,is_business_follow_user',
+                'access_token' => $token,
+            ];
+
+            // 🔍 LOG PARA COMPARAR CON POSTMAN
+            $fullUrl = "{$baseUrl}/{$version}/{$instagramUserId}?" . http_build_query($query);
+            Log::channel('instagram')->debug('📡 BASIC DISPLAY URL', ['url' => $fullUrl]);
+
+            $response = $basicClient->request(
+                'GET',
+                $instagramUserId, // endpoint simple
+                [],              // sin placeholders
+                null,           // sin cuerpo
+                $query         // QUERY STRING
+            );
+
+            if (is_array($response) && !isset($response['error'])) {
+                Log::channel('instagram')->info('✅ Perfil obtenido', [
                     'user_id' => $instagramUserId,
-                    'username' => $response['username'] ?? null
+                    'username' => $response['username'] ?? null,
                 ]);
                 return $response;
             }
-        } catch (Exception $e) {
-            Log::channel('instagram')->warning('No se pudo obtener perfil del contacto', [
+
+            Log::channel('instagram')->warning('⚠️ Respuesta inesperada', ['response' => $response]);
+
+        } catch (\Exception $e) {
+            Log::channel('instagram')->error('❌ Error en fetchContactProfile', [
                 'user_id' => $instagramUserId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
         }
 
