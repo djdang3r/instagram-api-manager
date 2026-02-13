@@ -511,7 +511,7 @@ class InstagramMessageService
         try {
             $token = $businessAccount->access_token;
             if (empty($token)) {
-                Log::channel('instagram')->warning('🚫 Token vacío', [
+                Log::channel('instagram')->warning('🚫 Token vacío para la cuenta', [
                     'account_id' => $businessAccount->instagram_business_account_id
                 ]);
                 return [];
@@ -526,35 +526,62 @@ class InstagramMessageService
                 (int) config('instagram.timeout', 30)
             );
 
+            $fields = 'id,username,name,profile_pic,follower_count,is_verified_user,is_user_follow_business,is_business_follow_user';
             $query = [
-                'fields' => 'id,username,name,profile_pic,follower_count,is_verified_user,is_user_follow_business,is_business_follow_user',
+                'fields' => $fields,
                 'access_token' => $token,
             ];
 
-            // 🔍 LOG PARA COMPARAR CON POSTMAN
+            // Construir URL completa para debug
             $fullUrl = "{$baseUrl}/{$version}/{$instagramUserId}?" . http_build_query($query);
-            Log::channel('instagram')->debug('📡 BASIC DISPLAY URL', ['url' => $fullUrl]);
+
+            Log::channel('instagram')->info('🔍 FETCH CONTACT PROFILE - Detalles completos', [
+                'user_id' => $instagramUserId,
+                'business_account_id' => $businessAccount->instagram_business_account_id,
+                'base_url' => $baseUrl,
+                'version' => $version,
+                'fields' => $fields,
+                'token_preview' => substr($token, 0, 30) . '...',
+                'token' => $token,
+                'full_url' => $fullUrl, // <--- COPIA ESTA URL PARA POSTMAN
+            ]);
+
+            // Registrar token completo solo en local (¡nunca en producción!)
+            if (app()->environment('local')) {
+                Log::channel('instagram')->debug('🔐 Token completo (solo local)', ['access_token' => $token]);
+            }
 
             $response = $basicClient->request(
                 'GET',
-                $instagramUserId, // endpoint simple
-                [],              // sin placeholders
-                null,           // sin cuerpo
-                $query         // QUERY STRING
+                $instagramUserId,
+                [],
+                null,
+                $query
             );
 
+            // Registrar la respuesta cruda
+            Log::channel('instagram')->info('📥 RESPUESTA CRUDA DE API', [
+                'response' => $response
+            ]);
+
             if (is_array($response) && !isset($response['error'])) {
-                Log::channel('instagram')->info('✅ Perfil obtenido', [
+                Log::channel('instagram')->info('✅ Perfil obtenido correctamente', [
                     'user_id' => $instagramUserId,
                     'username' => $response['username'] ?? null,
+                    'name' => $response['name'] ?? null,
+                    'profile_pic' => isset($response['profile_pic']) ? substr($response['profile_pic'], 0, 100) . '...' : null,
+                    'follower_count' => $response['follower_count'] ?? null,
+                    'is_verified' => $response['is_verified_user'] ?? null,
                 ]);
                 return $response;
+            } else {
+                Log::channel('instagram')->error('❌ Error en respuesta de API', [
+                    'response' => $response
+                ]);
             }
 
-            Log::channel('instagram')->warning('⚠️ Respuesta inesperada', ['response' => $response]);
-
         } catch (\Exception $e) {
-            Log::channel('instagram')->error('❌ Error en fetchContactProfile', [
+            Log::channel('instagram')->error('❌ Excepción en fetchContactProfile', [
                 'user_id' => $instagramUserId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
