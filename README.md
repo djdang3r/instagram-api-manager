@@ -29,6 +29,9 @@ Desde la automatización de respuestas en Direct Message (DM) hasta la gestión 
 > **Aviso de marca y protección de marca (METAS):**
 > Este es un paquete de **CÓDIGO ABIERTO NO OFICIAL**. No está afiliado, asociado, autorizado, respaldado ni conectado oficialmente con Meta Platforms, Inc., Instagram, ni ninguna de sus subsidiarias o afiliadas. Las marcas comerciales "Instagram", "Meta" y "Facebook", así como los nombres, marcas, emblemas e imágenes relacionados, son marcas registradas de sus respectivos propietarios. El uso de este paquete debe cumplir plenamente con las [Políticas de la Plataforma de Meta](https://developers.facebook.com/terms/).
 
+> [!IMPORTANT]
+> **Estado del Proyecto:** Este paquete se encuentra actualmente en **Fase ALFA**. Está en desarrollo activo y aún no ha alcanzado la versión Beta ni una versión estable. **No se recomienda su uso en entornos de producción.** Puedes probarlo y usarlo bajo tu propia responsabilidad.
+
 ### 📖 Documentación
 | Sección | Descripción |
 | :--- | :--- |
@@ -59,6 +62,9 @@ From automating Direct Message (DM) responses to managing commercial profiles an
 > [!CAUTION]
 > **Trademark Notice & Protection (METAS):**
 > This is an **UNOFFICIAL OPEN SOURCE** package. It is not affiliated, associated, authorized, endorsed by, or in any way officially connected with Meta Platforms, Inc., Instagram, or any of its subsidiaries or affiliates. The trademarks "Instagram", "Meta", and "Facebook", as well as related names, marks, emblems, and images, are registered trademarks of their respective owners. Use of this package must fully comply with [Meta Platform Policies](https://developers.facebook.com/terms/).
+
+> [!IMPORTANT]
+> **Project Status:** This package is currently in **ALPHA Phase**. It is under active development and has not yet reached Beta or a stable version. **Use in production environments is not recommended.** You may test and use it at your own risk.
 
 ### 📖 Documentation
 | Section | Description |
