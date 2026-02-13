@@ -250,6 +250,26 @@ class InstagramAccountService
             $accessToken = $longLivedResponse['access_token'];
             $tokenExpiresIn = $longLivedResponse['expires_in'] ?? null;
 
+            $igId = null;
+            try {
+                $igResponse = $this->apiClient->request(
+                    'GET',
+                    $userId,  // ← el ID largo de la cuenta de negocio
+                    [],
+                    null,
+                    [
+                        'fields' => 'ig_id',
+                        'access_token' => $accessToken
+                    ]
+                );
+                $igId = $igResponse['ig_id'] ?? null;
+            } catch (Exception $e) {
+                Log::warning('No se pudo obtener ig_id durante la conexión', [
+                    'account_id' => $userId,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
             // Obtener información del perfil usando Graph API
             $profileData = $this->apiClient->request(
                 'GET',
@@ -261,9 +281,9 @@ class InstagramAccountService
                     'access_token' => $accessToken
                 ]
             );
-            
+
             LOG::debug('Información del perfil obtenida después de OAuth', ['profile_data' => $profileData]);
-            
+
             $account = InstagramModelResolver::instagram_business_account()->updateOrCreate(
                 ['instagram_business_account_id' => $userId],
                 [
@@ -283,6 +303,7 @@ class InstagramAccountService
                     [
                         'profile_name' => $profileData['name'] ?? '',
                         'user_id' => $profileData['user_id'] ?? null,
+                        'instagram_scoped_id' => $igId,
                         'username' => $profileData['username'] ?? null,
                         'profile_picture' => $profileData['profile_picture_url'] ?? null,
                         'bio' => $profileData['biography'] ?? null,
