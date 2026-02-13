@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft-04/schema#",
     "title": "Composer Package",
     "name": "scriptdevelop/instagram-api-manager",
-    "version": "1.0.70",
+    "version": "1.0.71",
     "description": "Paquete Laravel 12, para administrar y manejar múltiples cuentas de Instagram a través de su API oficial.",
     "keywords": [
         "instagram",
