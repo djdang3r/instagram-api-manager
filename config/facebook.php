@@ -13,6 +13,15 @@ return [
         'retry_attempts' => env('FACEBOOK_API_RETRY_ATTEMPTS', 3),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Configuración del Webhook
+    |--------------------------------------------------------------------------
+    |
+    | Configuración para el webhook de Facebook. Incluye el token de verificación
+    | que se utiliza para validar las solicitudes entrantes desde Meta.
+    |
+    */
     'webhook' => [
         'verify_token' => env('FACEBOOK_WEBHOOK_VERIFY_TOKEN', 'default_token'),
     ],

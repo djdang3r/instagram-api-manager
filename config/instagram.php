@@ -54,6 +54,15 @@ return [
         'retry_attempts' => env('INSTAGRAM_API_RETRY_ATTEMPTS', 3),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Configuración del Webhook
+    |--------------------------------------------------------------------------
+    |
+    | Configuración para el webhook de Instagram. Incluye el token de verificación
+    | que se utiliza para validar las solicitudes entrantes desde Meta.
+    |
+    */
     'webhook' => [
         'verify_token' => env('INSTAGRAM_WEBHOOK_VERIFY_TOKEN', 'default_token'),
     ],
