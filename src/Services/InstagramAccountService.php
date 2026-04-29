@@ -19,8 +19,8 @@ class InstagramAccountService
     {
         $this->apiClient = new ApiClient(
             config('instagram.graph_base_url', 'https://graph.instagram.com'),
-            config('instagram.api.version', 'v19.0'),
-            (int) config('instagram.api.timeout', 30)
+            config('instagram.api_version', 'v19.0'),
+            (int) config('instagram.timeout', 30)
         );
     }
 
@@ -130,15 +130,18 @@ class InstagramAccountService
         }
     }
 
-    public function getAuthorizationUrl(array $scopes = [
-        'instagram_business_basic',
-        'instagram_business_manage_messages',
-        'instagram_business_manage_comments',
-        'instagram_business_content_publish',
-        'instagram_business_manage_insights'
-    ], ?string $state = null): string {
-        $clientId = config('instagram.meta_auth.client_id');
-        $redirectUri = config('instagram.meta_auth.redirect_uri') ?: route('instagram.auth.callback');
+    public function getAuthorizationUrl(
+        array $scopes = [
+            'instagram_business_basic',
+            'instagram_business_manage_messages',
+            'instagram_business_manage_comments',
+            'instagram_business_content_publish',
+            'instagram_business_manage_insights'
+        ],
+        ?string $state = null
+    ): string {
+        $clientId = config('instagram.client_id');
+        $redirectUri = config('instagram.redirect_uri') ?: route('instagram.auth.callback');
         $scope = implode(',', $scopes);
         $state = $state ?? bin2hex(random_bytes(20));
 
@@ -168,7 +171,7 @@ class InstagramAccountService
     {
         // Validar estado OAuth
         if ($state) {
-            $isValidState = InstagramModelResolver::oauth_state()->isValid($state, 'instagram');
+            $isValidState = InstagramModelResolver::oauth_state()->isValid($state, 'instagram')->exists();
 
             if (!$isValidState) {
                 Log::error('El estado de OAuth no es válido o ha expirado', [
@@ -188,9 +191,9 @@ class InstagramAccountService
         try {
             // Crear cliente temporal para OAuth de Instagram (sin versión)
             $oauthClient = new ApiClient(
-                config('instagram.api.oauth_base_url', 'https://api.instagram.com'),
+                config('instagram.oauth_base_url', 'https://api.instagram.com'),
                 '', // Sin versión para endpoints de OAuth
-                (int) config('instagram.api.timeout', 30)
+                (int) config('instagram.timeout', 30)
             );
 
             // Intercambiar código por token de acceso - USAR form_params (x-www-form-urlencoded)
@@ -200,10 +203,10 @@ class InstagramAccountService
                 [], // Sin parámetros en la URL
                 [ // Datos en el cuerpo como form_params (x-www-form-urlencoded)
                     'form_params' => [
-                        'client_id' => config('instagram.meta_auth.client_id'),
-                        'client_secret' => config('instagram.meta_auth.client_secret'),
+                        'client_id' => config('instagram.client_id'),
+                        'client_secret' => config('instagram.client_secret'),
                         'grant_type' => 'authorization_code',
-                        'redirect_uri' => config('instagram.meta_auth.redirect_uri') ?: route('instagram.auth.callback'),
+                        'redirect_uri' => config('instagram.redirect_uri') ?: route('instagram.auth.callback'),
                         'code' => $code,
                     ]
                 ]
@@ -236,6 +239,37 @@ class InstagramAccountService
                 return null;
             }
 
+            // Intercambiar token de corta duración por token de larga duración
+            $longLivedResponse = $this->exchangeForLongLivedToken($accessToken);
+            if (!$longLivedResponse || empty($longLivedResponse['access_token'])) {
+                Log::error('Instagram OAuth: Error intercambiando token por token de larga duración');
+                DB::rollBack();
+                return null;
+            }
+
+            $accessToken = $longLivedResponse['access_token'];
+            $tokenExpiresIn = $longLivedResponse['expires_in'] ?? null;
+
+            $igId = null;
+            try {
+                $igResponse = $this->apiClient->request(
+                    'GET',
+                    $userId,  // ← el ID largo de la cuenta de negocio
+                    [],
+                    null,
+                    [
+                        'fields' => 'ig_id',
+                        'access_token' => $accessToken
+                    ]
+                );
+                $igId = $igResponse['ig_id'] ?? null;
+            } catch (Exception $e) {
+                Log::warning('No se pudo obtener ig_id durante la conexión', [
+                    'account_id' => $userId,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
             // Obtener información del perfil usando Graph API
             $profileData = $this->apiClient->request(
                 'GET',
@@ -248,15 +282,18 @@ class InstagramAccountService
                 ]
             );
 
+            LOG::debug('Información del perfil obtenida después de OAuth', ['profile_data' => $profileData]);
+
             $account = InstagramModelResolver::instagram_business_account()->updateOrCreate(
                 ['instagram_business_account_id' => $userId],
                 [
                     'access_token' => $accessToken,
+                    'token_expires_in' => $tokenExpiresIn,
+                    'token_obtained_at' => now(),
                     'tasks' => null,
                     'name' => $profileData['name'] ?? '',
                     'facebook_page_id' => null,
                     'permissions' => $permissions,
-                    'token_obtained_at' => now(),
                 ]
             );
 
@@ -266,6 +303,7 @@ class InstagramAccountService
                     [
                         'profile_name' => $profileData['name'] ?? '',
                         'user_id' => $profileData['user_id'] ?? null,
+                        'instagram_scoped_id' => $igId,
                         'username' => $profileData['username'] ?? null,
                         'profile_picture' => $profileData['profile_picture_url'] ?? null,
                         'bio' => $profileData['biography'] ?? null,
@@ -297,7 +335,7 @@ class InstagramAccountService
             $exchangeClient = new ApiClient(
                 config('instagram.graph_base_url', 'https://graph.instagram.com'),
                 '', // Sin versión para este endpoint
-                (int) config('instagram.api.timeout', 30)
+                (int) config('instagram.timeout', 30)
             );
 
             return $exchangeClient->request(
@@ -307,7 +345,7 @@ class InstagramAccountService
                 null,
                 [
                     'grant_type' => 'ig_exchange_token',
-                    'client_secret' => config('instagram.meta_auth.client_secret'),
+                    'client_secret' => config('instagram.client_secret'),
                     'access_token' => $shortLivedToken,
                 ]
             );
@@ -318,19 +356,34 @@ class InstagramAccountService
         }
     }
 
-    public function refreshLongLivedToken(string $longLivedToken): ?array
+    /**
+     * Refrescar token de larga duración.
+     * Acepta Model $account para evitar búsqueda por token (que está cifrado en BD).
+     *
+     * @param Model $account Cuenta de Instagram con el token actual
+     * @return array|null Respuesta con access_token y expires_in, o null si falla
+     */
+    public function refreshLongLivedToken(Model $account): ?array
     {
         try {
-            // Verificar que el token tenga al menos 24 horas de antigüedad
-            $account = InstagramModelResolver::instagram_business_account()->where('access_token', $longLivedToken)->first();
-            if (!$account || !$account->token_obtained_at) {
-                Log::error('No se puede refrescar token: cuenta no encontrada o sin fecha de obtención');
+            $longLivedToken = $account->access_token ?? null;
+            if (!$longLivedToken) {
+                Log::error('No se puede refrescar token: la cuenta no tiene access_token');
                 return null;
             }
 
+            if (!$account->token_obtained_at) {
+                Log::error('No se puede refrescar token: sin fecha de obtención (token_obtained_at)');
+                return null;
+            }
+
+            // Verificar que el token tenga al menos 24 horas de antigüedad (requisito de Instagram)
             $tokenAge = now()->diffInHours($account->token_obtained_at);
             if ($tokenAge < 24) {
-                Log::error('No se puede refrescar token: debe tener al menos 24 horas de antigüedad');
+                Log::error('No se puede refrescar token: debe tener al menos 24 horas de antigüedad', [
+                    'account_id' => $account->instagram_business_account_id,
+                    'token_age_hours' => $tokenAge,
+                ]);
                 return null;
             }
 
@@ -344,7 +397,7 @@ class InstagramAccountService
             $refreshClient = new ApiClient(
                 config('instagram.graph_base_url', 'https://graph.instagram.com'),
                 '', // Sin versión para este endpoint
-                (int) config('instagram.api.timeout', 30)
+                (int) config('instagram.timeout', 30)
             );
 
             return $refreshClient->request(
@@ -362,6 +415,25 @@ class InstagramAccountService
             Log::error('Error refrescando token:', ['error' => $e->getMessage()]);
             return null;
         }
+    }
+
+    /**
+     * Refrescar token de larga duración y persistir en la base de datos.
+     *
+     * @param Model $account Cuenta de Instagram
+     * @return bool True si se refrescó y guardó correctamente
+     */
+    public function refreshAndStoreLongLivedToken(Model $account): bool
+    {
+        $response = $this->refreshLongLivedToken($account);
+        if (!$response || empty($response['access_token'])) {
+            return false;
+        }
+
+        $account->access_token = $response['access_token'];
+        $account->token_expires_in = $response['expires_in'] ?? null;
+        $account->token_obtained_at = now();
+        return $account->save();
     }
 
     /**

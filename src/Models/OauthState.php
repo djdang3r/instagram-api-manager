@@ -21,14 +21,13 @@ class OauthState extends Model
     ];
 
     /**
-     * Verificar si un estado es válido
+     * Scope para verificar si un estado es válido
      */
-    public static function isValid(string $state, string $service): bool
+    public function scopeIsValid($query, string $state, string $service)
     {
-        return self::where('state', $state)
+        return $query->where('state', $state)
             ->where('service', $service)
-            ->where('expires_at', '>', Carbon::now())
-            ->exists();
+            ->where('expires_at', '>', Carbon::now());
     }
 
     /**
