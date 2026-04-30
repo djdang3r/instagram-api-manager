@@ -46,7 +46,7 @@ return [
     */
     'api' => [
         // URLs base para diferentes tipos de endpoints
-        'oauth_base_url' => env('INSTAGRAM_OAUTH_BASE_URL', 'https://graph.facebook.com'),
+        'oauth_base_url' => env('INSTAGRAM_OAUTH_BASE_URL', 'https://api.instagram.com'),
         'graph_base_url' => env('INSTAGRAM_GRAPH_BASE_URL', 'https://graph.instagram.com'),
 
         'version' => env('INSTAGRAM_API_VERSION', 'v19.0'),
