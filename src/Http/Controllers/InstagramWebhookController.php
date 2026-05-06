@@ -39,11 +39,11 @@ class InstagramWebhookController extends Controller
         $expectedToken = config('instagram.webhook.verify_token');
 
         if ($verifyToken === $expectedToken && $challenge) {
-            Log::info('Instagram webhook verified successfully');
+            Log::channel('instagram')->info('Instagram webhook verified successfully');
             return response($challenge, 200);
         }
 
-        Log::warning('Instagram webhook verification failed', [
+        Log::channel('instagram')->warning('Instagram webhook verification failed', [
             'expected_token' => $expectedToken,
             'received_token' => $verifyToken
         ]);

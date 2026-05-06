@@ -46,13 +46,13 @@ class InstagramBusinessAccount extends Model
     {
         try {
             $this->attributes['access_token'] = $value ? encrypt($value) : null;
-            
+
             // Actualizar la fecha de obtención del token cuando se establece
             if ($value && empty($this->token_obtained_at)) {
                 $this->attributes['token_obtained_at'] = now();
             }
         } catch (\Exception $e) {
-            Log::error('Error encrypting access token', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error encrypting access token', ['error' => $e->getMessage()]);
             $this->attributes['access_token'] = null;
         }
     }
@@ -62,7 +62,7 @@ class InstagramBusinessAccount extends Model
         try {
             return $value ? decrypt($value) : null;
         } catch (\Exception $e) {
-            Log::error('Error decrypting access token', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error decrypting access token', ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -128,10 +128,10 @@ class InstagramBusinessAccount extends Model
         try {
             // Calcular la fecha de expiración del token
             $expirationDate = Carbon::parse($this->token_obtained_at)->addSeconds($this->token_expires_in);
-            
+
             // Verificar si el token ha expirado
             if (now()->greaterThanOrEqualTo($expirationDate)) {
-                Log::warning('Token de Instagram ha expirado', [
+                Log::channel('instagram')->warning('Token de Instagram ha expirado', [
                     'account_id' => $this->instagram_business_account_id,
                     'obtained_at' => $this->token_obtained_at,
                     'expires_in' => $this->token_expires_in,
@@ -139,20 +139,20 @@ class InstagramBusinessAccount extends Model
                 ]);
                 return false;
             }
-            
+
             // Verificar si el token está próximo a expirar (menos de 7 días)
             if (now()->addDays(7)->greaterThanOrEqualTo($expirationDate)) {
-                Log::info('Token de Instagram próximo a expirar', [
+                Log::channel('instagram')->info('Token de Instagram próximo a expirar', [
                     'account_id' => $this->instagram_business_account_id,
                     'expires_in' => $this->token_expires_in,
                     'expiration_date' => $expirationDate
                 ]);
             }
-            
+
             return true;
-            
+
         } catch (\Exception $e) {
-            Log::error('Error verificando validez del token', [
+            Log::channel('instagram')->error('Error verificando validez del token', [
                 'error' => $e->getMessage(),
                 'account_id' => $this->instagram_business_account_id
             ]);
@@ -173,7 +173,7 @@ class InstagramBusinessAccount extends Model
             $expirationDate = Carbon::parse($this->token_obtained_at)->addSeconds($this->token_expires_in);
             return now()->addDays(7)->greaterThanOrEqualTo($expirationDate);
         } catch (\Exception $e) {
-            Log::error('Error verificando expiración próxima del token', [
+            Log::channel('instagram')->error('Error verificando expiración próxima del token', [
                 'error' => $e->getMessage(),
                 'account_id' => $this->instagram_business_account_id
             ]);
@@ -193,7 +193,7 @@ class InstagramBusinessAccount extends Model
         try {
             return Carbon::parse($this->token_obtained_at)->addSeconds($this->token_expires_in);
         } catch (\Exception $e) {
-            Log::error('Error calculando fecha de expiración del token', [
+            Log::channel('instagram')->error('Error calculando fecha de expiración del token', [
                 'error' => $e->getMessage(),
                 'account_id' => $this->instagram_business_account_id
             ]);
@@ -207,7 +207,7 @@ class InstagramBusinessAccount extends Model
     public function getDaysUntilExpiration(): ?int
     {
         $expirationDate = $this->getTokenExpirationDate();
-        
+
         if (!$expirationDate) {
             return null;
         }
@@ -221,16 +221,16 @@ class InstagramBusinessAccount extends Model
     public function getIgMeLink(string $ref = null): string
     {
         $username = $this->profile->username ?? null;
-        
+
         if (!$username) {
             throw new \Exception('Username not found for this Instagram business account');
         }
-        
+
         // Limpiar el username de caracteres no permitidos en URLs
         $cleanUsername = preg_replace('/[^a-zA-Z0-9._]/', '', $username);
-        
+
         $url = "https://ig.me/{$cleanUsername}";
-        
+
         if ($ref) {
             // Validar y limpiar el parámetro ref
             $cleanRef = preg_replace('/[^a-zA-Z0-9_=\-]/', '', $ref);
@@ -239,7 +239,7 @@ class InstagramBusinessAccount extends Model
             }
             $url .= "?ref=" . urlencode($cleanRef);
         }
-        
+
         return $url;
     }
 

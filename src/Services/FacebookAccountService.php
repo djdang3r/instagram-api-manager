@@ -58,7 +58,7 @@ class FacebookAccountService
             );
 
             if (!isset($tokenResponse['access_token'])) {
-                Log::error('Facebook OAuth: Falta access_token', ['response' => $tokenResponse]);
+                Log::channel('facebook')->error('Facebook OAuth: Falta access_token', ['response' => $tokenResponse]);
                 DB::rollBack();
                 return false;
             }
@@ -78,7 +78,7 @@ class FacebookAccountService
             );
 
             if (empty($pagesResponse['data'])) {
-                Log::warning('No se obtuvieron páginas de Facebook');
+                Log::channel('facebook')->warning('No se obtuvieron páginas de Facebook');
                 DB::rollBack();
                 return false;
             }
@@ -99,7 +99,7 @@ class FacebookAccountService
             return true;
 
         } catch (Exception $e) {
-            Log::error('Error en OAuth Facebook:', ['error' => $e->getMessage()]);
+            Log::channel('facebook')->error('Error en OAuth Facebook:', ['error' => $e->getMessage()]);
             DB::rollBack();
             return false;
         }

@@ -654,7 +654,7 @@ class InstagramMessageService
     {
         $messageId = $postback['mid'] ?? 'postback_' . uniqid();
         if (InstagramModelResolver::instagram_message()->where('message_id', $messageId)->exists()) {
-            Log::info('Postback duplicado ignorado', ['message_id' => $messageId]);
+            Log::channel('instagram')->info('Postback duplicado ignorado', ['message_id' => $messageId]);
             return;
         }
 
@@ -677,7 +677,7 @@ class InstagramMessageService
         ];
 
         InstagramModelResolver::instagram_message()->create($messageData);
-        Log::info('Instagram postback processed', ['conversation_id' => $conversation->id, 'postback' => $postback]);
+        Log::channel('instagram')->info('Instagram postback processed', ['conversation_id' => $conversation->id, 'postback' => $postback]);
     }
 
     protected function processReaction(Model $conversation, array $reaction, string $senderId, string $recipientId): void
@@ -698,17 +698,17 @@ class InstagramMessageService
             $reactedMessage->update(['reactions' => $currentReactions]);
         }
 
-        Log::info('Instagram reaction processed', ['conversation_id' => $conversation->id, 'reaction' => $reaction]);
+        Log::channel('instagram')->info('Instagram reaction processed', ['conversation_id' => $conversation->id, 'reaction' => $reaction]);
     }
 
     protected function processOptin(Model $conversation, array $optin, string $senderId, string $recipientId): void
     {
-        Log::info('Instagram optin processed', ['conversation_id' => $conversation->id, 'optin' => $optin]);
+        Log::channel('instagram')->info('Instagram optin processed', ['conversation_id' => $conversation->id, 'optin' => $optin]);
     }
 
     protected function processReferral(Model $conversation, array $referral, string $senderId, string $recipientId): void
     {
-        Log::info('Instagram referral processed', ['conversation_id' => $conversation->id, 'referral' => $referral]);
+        Log::channel('instagram')->info('Instagram referral processed', ['conversation_id' => $conversation->id, 'referral' => $referral]);
         if (isset($referral['source']) && $referral['source'] === 'SHORTLINKS') {
             $this->processIgMeReferral($conversation, $referral, $senderId, $recipientId);
         }
@@ -738,14 +738,14 @@ class InstagramMessageService
                 'processed_at'                   => now()
             ]);
 
-            Log::info('ig.me referral processed', [
+            Log::channel('instagram')->info('ig.me referral processed', [
                 'conversation_id' => $conversation->id,
                 'ref' => $ref,
                 'source' => $source,
                 'type' => $type
             ]);
         } catch (Exception $e) {
-            Log::error('Error processing ig.me referral:', ['error' => $e->getMessage(), 'referral' => $referral]);
+            Log::channel('instagram')->error('Error processing ig.me referral:', ['error' => $e->getMessage(), 'referral' => $referral]);
         }
     }
 
@@ -763,14 +763,14 @@ class InstagramMessageService
                 ->where('message_id', $read['mid'])
                 ->update(['status' => 'read', 'read_at' => now()]);
         }
-        Log::info('Instagram read receipt processed', ['conversation_id' => $conversation->id, 'read' => $read]);
+        Log::channel('instagram')->info('Instagram read receipt processed', ['conversation_id' => $conversation->id, 'read' => $read]);
     }
 
     protected function processMessageEdit(Model $conversation, array $messageEdit, string $senderId, string $recipientId): void
     {
         $mid = $messageEdit['mid'] ?? null;
         if (!$mid) {
-            Log::warning('Edición de mensaje sin ID (mid)', $messageEdit);
+            Log::channel('instagram')->warning('Edición de mensaje sin ID (mid)', $messageEdit);
             return;
         }
         $message = InstagramModelResolver::instagram_message()->where('message_id', $mid)->first();
@@ -795,7 +795,7 @@ class InstagramMessageService
             }
             return false;
         } catch (Exception $e) {
-            Log::error('Error marking message as read:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error marking message as read:', ['error' => $e->getMessage()]);
             return false;
         }
     }
@@ -870,7 +870,7 @@ class InstagramMessageService
                 'failed_at'     => now(),
                 'message_error' => $e->getMessage()
             ]);
-            Log::error("Error enviando mensaje de {$messageType}:", ['error' => $e->getMessage(), 'recipient_id' => $recipientId]);
+            Log::channel('instagram')->error("Error enviando mensaje de {$messageType}:", ['error' => $e->getMessage(), 'recipient_id' => $recipientId]);
             return null;
         }
     }
@@ -934,7 +934,7 @@ class InstagramMessageService
                 ['access_token' => $this->accessToken]
             );
         } catch (Exception $e) {
-            Log::error('Error sending read receipt:', ['error' => $e->getMessage(), 'recipient_id' => $recipientId]);
+            Log::channel('instagram')->error('Error sending read receipt:', ['error' => $e->getMessage(), 'recipient_id' => $recipientId]);
             return null;
         }
     }

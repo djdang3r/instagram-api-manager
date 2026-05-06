@@ -20,12 +20,12 @@ class FacebookAuthController extends Controller
         $errorDescription = $request->get('error_description');
 
         if ($error) {
-            Log::error('Error de autorización Facebook:', [
+            Log::channel('facebook')->error('Error de autorización Facebook:', [
                 'error' => $error,
                 'reason' => $errorReason,
                 'description' => $errorDescription
             ]);
-            
+
             return redirect('/')->with('error', "Error de autorización: $errorDescription");
         }
 
@@ -44,7 +44,7 @@ class FacebookAuthController extends Controller
             return redirect('/')->with('success', 'Autenticación completada y páginas obtenidas');
 
         } catch (\Exception $e) {
-            Log::error('Excepción en callback Facebook:', ['error' => $e->getMessage()]);
+            Log::channel('facebook')->error('Excepción en callback Facebook:', ['error' => $e->getMessage()]);
             return redirect('/')->with('error', 'Error interno del servidor');
         }
     }

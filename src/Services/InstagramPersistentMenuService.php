@@ -79,10 +79,10 @@ class InstagramPersistentMenuService
                 ]
             );
 
-            Log::info('Persistent menu set successfully', ['response' => $response]);
+            Log::channel('instagram')->info('Persistent menu set successfully', ['response' => $response]);
             return $response;
         } catch (Exception $e) {
-            Log::error('Error setting persistent menu:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error setting persistent menu:', ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -107,10 +107,10 @@ class InstagramPersistentMenuService
                 ]
             );
 
-            Log::info('Persistent menu retrieved successfully', ['response' => $response]);
+            Log::channel('instagram')->info('Persistent menu retrieved successfully', ['response' => $response]);
             return $response;
         } catch (Exception $e) {
-            Log::error('Error getting persistent menu:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error getting persistent menu:', ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -135,10 +135,10 @@ class InstagramPersistentMenuService
                 ]
             );
 
-            Log::info('Persistent menu deleted successfully', ['response' => $response]);
+            Log::channel('instagram')->info('Persistent menu deleted successfully', ['response' => $response]);
             return $response;
         } catch (Exception $e) {
-            Log::error('Error deleting persistent menu:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error deleting persistent menu:', ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -263,10 +263,10 @@ class InstagramPersistentMenuService
                 ]
             );
 
-            Log::info('Ice breakers set successfully', ['response' => $response]);
+            Log::channel('instagram')->info('Ice breakers set successfully', ['response' => $response]);
             return $response;
         } catch (Exception $e) {
-            Log::error('Error setting ice breakers:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error setting ice breakers:', ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -291,10 +291,10 @@ class InstagramPersistentMenuService
                 ]
             );
 
-            Log::info('Ice breakers retrieved successfully', ['response' => $response]);
+            Log::channel('instagram')->info('Ice breakers retrieved successfully', ['response' => $response]);
             return $response;
         } catch (Exception $e) {
-            Log::error('Error getting ice breakers:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error getting ice breakers:', ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -321,10 +321,10 @@ class InstagramPersistentMenuService
                 ]
             );
 
-            Log::info('Ice breakers deleted successfully', ['response' => $response]);
+            Log::channel('instagram')->info('Ice breakers deleted successfully', ['response' => $response]);
             return $response;
         } catch (Exception $e) {
-            Log::error('Error deleting ice breakers:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error deleting ice breakers:', ['error' => $e->getMessage()]);
             return null;
         }
     }

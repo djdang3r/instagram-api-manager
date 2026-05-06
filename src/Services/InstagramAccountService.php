@@ -68,7 +68,7 @@ class InstagramAccountService
                 ]
             );
         } catch (Exception $e) {
-            Log::error('Error obteniendo información del perfil:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error obteniendo información del perfil:', ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -97,7 +97,7 @@ class InstagramAccountService
                 ]
             );
         } catch (Exception $e) {
-            Log::error('Error obteniendo medios del usuario:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error obteniendo medios del usuario:', ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -125,7 +125,7 @@ class InstagramAccountService
                 ]
             );
         } catch (Exception $e) {
-            Log::error('Error obteniendo detalles del medio:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error obteniendo detalles del medio:', ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -153,7 +153,7 @@ class InstagramAccountService
             'expires_at' => Carbon::now()->addMinutes(10)
         ]);
 
-        Log::debug('Estado OAuth guardado en base de datos: ' . $state);
+        Log::channel('instagram')->debug('Estado OAuth guardado en base de datos: ' . $state);
 
         $params = http_build_query([
             'client_id' => $clientId,
@@ -174,7 +174,7 @@ class InstagramAccountService
             $isValidState = InstagramModelResolver::oauth_state()->isValid($state, 'instagram')->exists();
 
             if (!$isValidState) {
-                Log::error('El estado de OAuth no es válido o ha expirado', [
+                Log::channel('instagram')->error('El estado de OAuth no es válido o ha expirado', [
                     'received' => $state
                 ]);
                 return null;
@@ -183,7 +183,7 @@ class InstagramAccountService
             // Eliminar el estado usado
             InstagramModelResolver::oauth_state()->where('state', $state)->where('service', 'instagram')->delete();
         } else {
-            Log::warning('No se recibió estado OAuth en el callback');
+            Log::channel('instagram')->warning('No se recibió estado OAuth en el callback');
         }
 
         DB::beginTransaction();
@@ -228,13 +228,13 @@ class InstagramAccountService
                     ? implode(',', $response['permissions'])
                     : ($response['permissions'] ?? null);
             } else {
-                Log::error('Instagram OAuth: Formato de respuesta inesperado', ['response' => $response]);
+                Log::channel('instagram')->error('Instagram OAuth: Formato de respuesta inesperado', ['response' => $response]);
                 DB::rollBack();
                 return null;
             }
 
             if (empty($accessToken) || empty($userId)) {
-                Log::error('Instagram OAuth: Falta access_token o user_id', ['response' => $response]);
+                Log::channel('instagram')->error('Instagram OAuth: Falta access_token o user_id', ['response' => $response]);
                 DB::rollBack();
                 return null;
             }
@@ -242,7 +242,7 @@ class InstagramAccountService
             // Intercambiar token de corta duración por token de larga duración
             $longLivedResponse = $this->exchangeForLongLivedToken($accessToken);
             if (!$longLivedResponse || empty($longLivedResponse['access_token'])) {
-                Log::error('Instagram OAuth: Error intercambiando token por token de larga duración');
+                Log::channel('instagram')->error('Instagram OAuth: Error intercambiando token por token de larga duración');
                 DB::rollBack();
                 return null;
             }
@@ -264,7 +264,7 @@ class InstagramAccountService
                 );
                 $igId = $igResponse['ig_id'] ?? null;
             } catch (Exception $e) {
-                Log::warning('No se pudo obtener ig_id durante la conexión', [
+                Log::channel('instagram')->warning('No se pudo obtener ig_id durante la conexión', [
                     'account_id' => $userId,
                     'error' => $e->getMessage()
                 ]);
@@ -282,7 +282,7 @@ class InstagramAccountService
                 ]
             );
 
-            LOG::debug('Información del perfil obtenida después de OAuth', ['profile_data' => $profileData]);
+            Log::channel('instagram')->debug('Información del perfil obtenida después de OAuth', ['profile_data' => $profileData]);
 
             $account = InstagramModelResolver::instagram_business_account()->updateOrCreate(
                 ['instagram_business_account_id' => $userId],
@@ -322,7 +322,7 @@ class InstagramAccountService
             return $account;
 
         } catch (Exception $e) {
-            Log::error('Error en OAuth Instagram:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error en OAuth Instagram:', ['error' => $e->getMessage()]);
             DB::rollBack();
             return null;
         }
@@ -351,7 +351,7 @@ class InstagramAccountService
             );
 
         } catch (Exception $e) {
-            Log::error('Error intercambiando token:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error intercambiando token:', ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -368,19 +368,19 @@ class InstagramAccountService
         try {
             $longLivedToken = $account->access_token ?? null;
             if (!$longLivedToken) {
-                Log::error('No se puede refrescar token: la cuenta no tiene access_token');
+                Log::channel('instagram')->error('No se puede refrescar token: la cuenta no tiene access_token');
                 return null;
             }
 
             if (!$account->token_obtained_at) {
-                Log::error('No se puede refrescar token: sin fecha de obtención (token_obtained_at)');
+                Log::channel('instagram')->error('No se puede refrescar token: sin fecha de obtención (token_obtained_at)');
                 return null;
             }
 
             // Verificar que el token tenga al menos 24 horas de antigüedad (requisito de Instagram)
             $tokenAge = now()->diffInHours($account->token_obtained_at);
             if ($tokenAge < 24) {
-                Log::error('No se puede refrescar token: debe tener al menos 24 horas de antigüedad', [
+                Log::channel('instagram')->error('No se puede refrescar token: debe tener al menos 24 horas de antigüedad', [
                     'account_id' => $account->instagram_business_account_id,
                     'token_age_hours' => $tokenAge,
                 ]);
@@ -389,7 +389,7 @@ class InstagramAccountService
 
             // Verificar permiso instagram_business_basic
             if (!$this->hasPermission($account, 'instagram_business_basic')) {
-                Log::error('No se puede refrescar token: falta permiso instagram_business_basic');
+                Log::channel('instagram')->error('No se puede refrescar token: falta permiso instagram_business_basic');
                 return null;
             }
 
@@ -412,7 +412,7 @@ class InstagramAccountService
             );
 
         } catch (Exception $e) {
-            Log::error('Error refrescando token:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error refrescando token:', ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -462,7 +462,7 @@ class InstagramAccountService
             }
             return false;
         } catch (Exception $e) {
-            Log::error('Error vinculando cuenta con página de Facebook:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error vinculando cuenta con página de Facebook:', ['error' => $e->getMessage()]);
             return false;
         }
     }
