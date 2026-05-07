@@ -3,12 +3,14 @@
 namespace ScriptDevelop\InstagramApiManager\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use ScriptDevelop\InstagramApiManager\Contracts\WebhookProcessorInterface;
 use ScriptDevelop\InstagramApiManager\Services\InstagramAccountService;
 use ScriptDevelop\InstagramApiManager\Services\InstagramMessageService;
 use ScriptDevelop\InstagramApiManager\Services\FacebookAccountService;
 use ScriptDevelop\InstagramApiManager\Services\FacebookMessageService;
 use ScriptDevelop\InstagramApiManager\Services\InstagramPersistentMenuService;
 use ScriptDevelop\InstagramApiManager\Services\InstagramLinkService;
+use ScriptDevelop\InstagramApiManager\Services\WebhookProcessors\BaseWebhookProcessor;
 
 class InstagramServiceProvider extends ServiceProvider
 {
@@ -77,6 +79,23 @@ class InstagramServiceProvider extends ServiceProvider
         });
 
         // También puedes registrar otras configuraciones o bindings si es necesario
+
+        // Registrar el procesador de webhook con valor por defecto
+        $this->app->bind(
+            WebhookProcessorInterface::class,
+            function ($app) {
+                $processorClass = config(
+                    'instagram.webhook.processor',
+                    BaseWebhookProcessor::class
+                );
+
+                if (class_exists($processorClass)) {
+                    return $app->make($processorClass);
+                }
+
+                return $app->make(BaseWebhookProcessor::class);
+            }
+        );
     }
 
     /**
@@ -114,6 +133,16 @@ class InstagramServiceProvider extends ServiceProvider
             __DIR__ . '/../../routes/instagram_callback.php' => base_path('routes/instagram_callback.php'),
         ], 'instagram-callback-routes');
 
+        // Cargar rutas de canales de broadcast (Reverb) si custom_channels está desactivado
+        if (!config('instagram.broadcast.custom_channels', false)) {
+            $this->loadRoutesFrom(__DIR__ . '/../../routes/channels.php');
+        }
+
+        // Publicar rutas de canales de broadcast (tag: instagram-channels)
+        $this->publishes([
+            __DIR__ . '/../../routes/channels.php' => base_path('routes/channels.php'),
+        ], 'instagram-channels');
+
         // Publicar configuración para logging personalizado (tag: instagram-logging)
         $this->publishes([
             __DIR__ . '/../../config/logging-additions.php' => config_path('logging-additions.php'),
@@ -125,6 +154,7 @@ class InstagramServiceProvider extends ServiceProvider
             __DIR__ . '/../../config/instagram.php' => config_path('instagram.php'),
             __DIR__ . '/../../config/facebook.php' => config_path('facebook.php'),
             __DIR__ . '/../../routes/instagram_webhook.php' => base_path('routes/instagram_webhook.php'),
+            __DIR__ . '/../../routes/channels.php' => base_path('routes/channels.php'),
             __DIR__ . '/../../config/logging-additions.php' => config_path('logging-additions.php'),
         ], 'instagram-api-manager');
 

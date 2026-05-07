@@ -16,6 +16,7 @@ Bienvenido a la documentación oficial de **Instagram API Manager**. Sigue los p
 
 ### 📡 Comunicación en Tiempo Real
 - [7. Webhooks y Eventos](07-webhooks.md)
+- [8. Eventos en Tiempo Real (Laravel Reverb)](08-eventos-tiempo-real.md)
 
 ---
 [◄◄ Regresar al README](../../README.md)

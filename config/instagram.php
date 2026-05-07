@@ -65,6 +65,43 @@ return [
     */
     'webhook' => [
         'verify_token' => env('INSTAGRAM_WEBHOOK_VERIFY_TOKEN', 'default_token'),
+
+        // Procesador personalizado para webhooks (valor por defecto)
+        'processor' => env('INSTAGRAM_WEBHOOK_PROCESSOR', \ScriptDevelop\InstagramApiManager\Services\WebhookProcessors\BaseWebhookProcessor::class),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Configuración de Broadcast (Laravel Reverb)
+    |--------------------------------------------------------------------------
+    |
+    | Configuración para el sistema de broadcasting de eventos en tiempo real.
+    | Permite transmitir eventos de webhooks de Instagram a través de Laravel
+    | Reverb, Pusher u otros drivers de broadcasting compatibles.
+    |
+    */
+    'broadcast' => [
+        'channel_type' => env('INSTAGRAM_BROADCAST_CHANNEL_TYPE', 'public'), // 'public' o 'private'
+        'custom_channels' => env('INSTAGRAM_CUSTOM_CHANNELS', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Eventos Personalizados
+    |--------------------------------------------------------------------------
+    |
+    | Aquí puedes especificar los eventos que el paquete utilizará para el
+    | broadcasting. Puedes cambiar estas clases por personalizadas.
+    |
+    */
+    'events' => [
+        'message' => \ScriptDevelop\InstagramApiManager\Events\InstagramMessageReceived::class,
+        'postback' => \ScriptDevelop\InstagramApiManager\Events\InstagramPostbackReceived::class,
+        'reaction' => \ScriptDevelop\InstagramApiManager\Events\InstagramReactionReceived::class,
+        'optin' => \ScriptDevelop\InstagramApiManager\Events\InstagramOptinReceived::class,
+        'referral' => \ScriptDevelop\InstagramApiManager\Events\InstagramReferralReceived::class,
+        'read' => \ScriptDevelop\InstagramApiManager\Events\InstagramReadReceived::class,
+        'message_edit' => \ScriptDevelop\InstagramApiManager\Events\InstagramMessageEdited::class,
     ],
 
     /*
