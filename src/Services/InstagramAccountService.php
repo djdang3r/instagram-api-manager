@@ -190,8 +190,9 @@ class InstagramAccountService
 
         try {
             // Crear cliente temporal para OAuth de Instagram (sin versión)
+            $oauthBaseUrl = $this->resolveInstagramOAuthBaseUrl();
             $oauthClient = new ApiClient(
-                config('instagram.api.oauth_base_url', 'https://api.instagram.com'),
+                $oauthBaseUrl,
                 '', // Sin versión para endpoints de OAuth
                 (int) config('instagram.api.timeout', 30)
             );
@@ -326,6 +327,26 @@ class InstagramAccountService
             DB::rollBack();
             return null;
         }
+    }
+
+    /**
+     * Resuelve la URL base OAuth de Instagram.
+     * Si la configuración apunta por error a Facebook, aplica fallback seguro.
+     */
+    protected function resolveInstagramOAuthBaseUrl(): string
+    {
+        $configuredBaseUrl = (string) config('instagram.api.oauth_base_url', 'https://api.instagram.com');
+        $host = parse_url($configuredBaseUrl, PHP_URL_HOST);
+
+        if (!$host || str_contains($host, 'facebook.com')) {
+            Log::channel('instagram')->warning('oauth_base_url inválida para Instagram. Se usará https://api.instagram.com', [
+                'configured_oauth_base_url' => $configuredBaseUrl,
+            ]);
+
+            return 'https://api.instagram.com';
+        }
+
+        return rtrim($configuredBaseUrl, '/');
     }
 
     public function exchangeForLongLivedToken(string $shortLivedToken): ?array
