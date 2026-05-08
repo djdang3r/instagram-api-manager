@@ -134,14 +134,17 @@ class InstagramServiceProvider extends ServiceProvider
         ], 'instagram-callback-routes');
 
         // Cargar rutas de canales de broadcast (Reverb) si custom_channels está desactivado
-        if (!config('instagram.broadcast.custom_channels', false)) {
-            $this->loadRoutesFrom(__DIR__ . '/../../routes/channels.php');
+        $channelsPath = __DIR__ . '/../../routes/channels.php';
+        if (!config('instagram.broadcast.custom_channels', false) && file_exists($channelsPath)) {
+            $this->loadRoutesFrom($channelsPath);
         }
 
         // Publicar rutas de canales de broadcast (tag: instagram-channels)
-        $this->publishes([
-            __DIR__ . '/../../routes/channels.php' => base_path('routes/channels.php'),
-        ], 'instagram-channels');
+        if (file_exists($channelsPath)) {
+            $this->publishes([
+                $channelsPath => base_path('routes/channels.php'),
+            ], 'instagram-channels');
+        }
 
         // Publicar configuración para logging personalizado (tag: instagram-logging)
         $this->publishes([
@@ -149,14 +152,17 @@ class InstagramServiceProvider extends ServiceProvider
         ], 'instagram-logging');
 
         // Publicación completa (todo junto) para simplicidad (tag: instagram-api-manager)
-        $this->publishes([
+        $publishAll = [
             __DIR__ . '/../../database/migrations/' => database_path('migrations'),
             __DIR__ . '/../../config/instagram.php' => config_path('instagram.php'),
             __DIR__ . '/../../config/facebook.php' => config_path('facebook.php'),
             __DIR__ . '/../../routes/instagram_webhook.php' => base_path('routes/instagram_webhook.php'),
-            __DIR__ . '/../../routes/channels.php' => base_path('routes/channels.php'),
             __DIR__ . '/../../config/logging-additions.php' => config_path('logging-additions.php'),
-        ], 'instagram-api-manager');
+        ];
+        if (file_exists($channelsPath)) {
+            $publishAll[$channelsPath] = base_path('routes/channels.php');
+        }
+        $this->publishes($publishAll, 'instagram-api-manager');
 
         // Registrar el comando Artisan para refrescar tokens largos
         $this->commands([
