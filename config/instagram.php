@@ -19,8 +19,10 @@ return [
 
         'instagram_contact' => \ScriptDevelop\InstagramApiManager\Models\InstagramContact::class,
 
+        'instagram_conversation' => \ScriptDevelop\InstagramApiManager\Models\InstagramConversation::class,
+
         //Mensajes
-        'message' => \ScriptDevelop\InstagramApiManager\Models\InstagramMessage::class,
+        'instagram_message' => \ScriptDevelop\InstagramApiManager\Models\InstagramMessage::class,
 
         'instagram_profile' => \ScriptDevelop\InstagramApiManager\Models\InstagramProfile::class,
 
