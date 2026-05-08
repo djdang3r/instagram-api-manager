@@ -5,10 +5,10 @@ namespace ScriptDevelop\InstagramApiManager\Events;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 
-class InstagramMessageEdited implements ShouldBroadcast
+class InstagramMessageEdited implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets;
 

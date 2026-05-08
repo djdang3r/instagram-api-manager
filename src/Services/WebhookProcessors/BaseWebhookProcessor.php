@@ -168,6 +168,7 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
         ];
 
         try {
+            Log::channel('instagram')->info("Disparando evento broadcast: {$eventType}, class: {$eventClass}");
             event(new $eventClass($payload));
         } catch (\Exception $e) {
             Log::channel('instagram')->error('Error al disparar evento broadcast', [
