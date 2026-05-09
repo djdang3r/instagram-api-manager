@@ -11,6 +11,20 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.0.77] - 2026-05-08
+
+### Changed
+- **Eventos broadcast ahora usan `ShouldBroadcastNow`**: Los 7 eventos broadcast (`InstagramMessageReceived`, `InstagramPostbackReceived`, `InstagramReactionReceived`, `InstagramOptinReceived`, `InstagramReferralReceived`, `InstagramReadReceived`, `InstagramMessageEdited`) ahora implementan `ShouldBroadcastNow` en lugar de `ShouldBroadcast`. Esto garantiza que los eventos se transmitan **inmediatamente** sin depender de un worker de cola — antes no funcionaban si `queue:work` no estaba corriendo.
+
+### Fixed
+- **Modelo `instagram_conversation` faltante en configuración**: Agregada la key `instagram_conversation` en `config('instagram.models.*')` que no existía, impidiendo la resolución dinámica del modelo de conversaciones.
+- **Key de modelo inconsistente**: Renombrada `message` → `instagram_message` en `config('instagram.models.*')` para mantener consistencia de nomenclatura con el resto de modelos (`instagram_profile`, `instagram_contact`, etc.).
+
+### Added
+- **Log de debug en `BaseWebhookProcessor`**: Agregado log informativo que registra el tipo de evento y la clase que se está disparando, facilitando la depuración del sistema de broadcast.
+
+---
+
 ## [1.0.75] - 2026-05-07
 
 ### Added
@@ -55,6 +69,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
-[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.75...HEAD
+[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.77...HEAD
+[1.0.77]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.75...v1.0.77
 [1.0.75]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.74...v1.0.75
 [1.0.74]: https://github.com/ScriptDevelop/instagram-api-manager/releases/tag/v1.0.74
