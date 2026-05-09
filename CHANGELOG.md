@@ -11,6 +11,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.0.80] - 2026-05-08
+
+### Fixed
+- **Migración idempotente `add_profile_fields_to_instagram_contacts_table`**: Las columnas `name`, `last_interaction_at`, `is_verified_user`, `follower_count`, `is_user_follow_business`, `is_business_follow_user` y `profile_synced_at` ahora verifican `Schema::hasColumn()` antes de intentar crearlas. Esto previene el error `Column already exists` (SQLSTATE 42S21) cuando la migración se ejecuta sobre una base de datos donde alguna de estas columnas ya fue agregada previamente.
+
+---
+
 ## [1.0.79] - 2026-05-08
 
 ### Removed
@@ -93,7 +100,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
-[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.79...HEAD
+[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.80...HEAD
+[1.0.80]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.79...v1.0.80
 [1.0.79]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.78...v1.0.79
 [1.0.78]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.77...v1.0.78
 [1.0.77]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.75...v1.0.77
