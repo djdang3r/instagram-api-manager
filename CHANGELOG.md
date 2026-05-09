@@ -11,6 +11,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.0.79] - 2026-05-08
+
+### Removed
+- **Dependencia explícita `laravel/prompts` eliminada**: `laravel/prompts` ya viene incluido en `laravel/framework` (^12.0 || ^13.0). Declararlo como dependencia explícita con `^1.0` causaba conflictos en proyectos con versiones anteriores de Laravel que usan `laravel/prompts 0.x`, impidiendo la instalación del paquete.
+
+---
+
 ## [1.0.78] - 2026-05-08
 
 ### Added
@@ -22,7 +29,6 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
   - Publicación opcional de rutas (webhook, callback, canales broadcast)
   - Impresión de variables de entorno requeridas al finalizar
 - **Hook post-install de Composer**: Al instalar el paquete vía `composer require`, se muestra un mensaje de éxito con los siguientes pasos y las variables de entorno necesarias. Implementado en `ComposerInstaller::postInstall()`.
-- **Dependencia `laravel/prompts`**: Agregada para el asistente interactivo (`confirm`, `intro`, `outro`, `note`, `spin`, `warning`).
 
 ### Changed
 - `InstagramServiceProvider`: registrado el nuevo comando `InstallInstagramApiManager`.
@@ -87,7 +93,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
-[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.78...HEAD
+[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.79...HEAD
+[1.0.79]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.78...v1.0.79
 [1.0.78]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.77...v1.0.78
 [1.0.77]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.75...v1.0.77
 [1.0.75]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.74...v1.0.75
