@@ -11,6 +11,24 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.0.78] - 2026-05-08
+
+### Added
+- **Asistente de instalación interactivo**: Nuevo comando `php artisan instagram:install` que guía al usuario paso a paso en la configuración inicial del paquete usando Laravel Prompts:
+  - Publicación de archivos de configuración (`instagram.php`, `facebook.php`)
+  - Publicación y ejecución opcional de migraciones
+  - Creación de enlace simbólico de storage
+  - Exclusión automática de rutas de CSRF (`instagram-webhook/*`, `instagram/callback`) en `bootstrap/app.php`
+  - Publicación opcional de rutas (webhook, callback, canales broadcast)
+  - Impresión de variables de entorno requeridas al finalizar
+- **Hook post-install de Composer**: Al instalar el paquete vía `composer require`, se muestra un mensaje de éxito con los siguientes pasos y las variables de entorno necesarias. Implementado en `ComposerInstaller::postInstall()`.
+- **Dependencia `laravel/prompts`**: Agregada para el asistente interactivo (`confirm`, `intro`, `outro`, `note`, `spin`, `warning`).
+
+### Changed
+- `InstagramServiceProvider`: registrado el nuevo comando `InstallInstagramApiManager`.
+
+---
+
 ## [1.0.77] - 2026-05-08
 
 ### Changed
@@ -69,7 +87,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
-[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.77...HEAD
+[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.78...HEAD
+[1.0.78]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.77...v1.0.78
 [1.0.77]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.75...v1.0.77
 [1.0.75]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.74...v1.0.75
 [1.0.74]: https://github.com/ScriptDevelop/instagram-api-manager/releases/tag/v1.0.74

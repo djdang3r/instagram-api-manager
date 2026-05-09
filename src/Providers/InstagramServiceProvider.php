@@ -170,6 +170,7 @@ class InstagramServiceProvider extends ServiceProvider
             \ScriptDevelop\InstagramApiManager\Console\Commands\CleanupOauthStates::class,
             \ScriptDevelop\InstagramApiManager\Console\Commands\ProcessPendingMessages::class,
             \ScriptDevelop\InstagramApiManager\Console\Commands\SyncInstagramConversations::class,
+            \ScriptDevelop\InstagramApiManager\Console\Commands\InstallInstagramApiManager::class,
         ]);
 
         // Puedes cargar vistas o comandos si el paquete los tuviera aquí

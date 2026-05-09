@@ -31,7 +31,7 @@ Asegúrate de que tus modelos estén correctamente configurados en `config/insta
 
 ### 3. Eventos en Tiempo Real (Laravel Reverb) 🆕
 
-> Esta funcionalidad está disponible a partir de la versión `1.0.77`.
+> Esta funcionalidad está disponible a partir de la versión `1.0.78`.
 
 Cada vez que se procesa un mensaje del webhook, el paquete **dispara automáticamente eventos broadcast** que puedes escuchar desde tu frontend en tiempo real con Laravel Echo + Reverb, o desde tu backend con listeners de Laravel.
 
@@ -41,7 +41,7 @@ Cada vez que se procesa un mensaje del webhook, el paquete **dispara automática
 
 ### 4. Procesador de Webhook Personalizable 🆕
 
-> Esta funcionalidad está disponible a partir de la versión `1.0.77`.
+> Esta funcionalidad está disponible a partir de la versión `1.0.78`.
 
 El paquete ahora utiliza el **patrón Strategy** para el procesamiento de webhooks. Puedes reemplazar completamente la lógica de procesamiento sin modificar el código del paquete.
 

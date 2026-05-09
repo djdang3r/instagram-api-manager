@@ -27,7 +27,7 @@ INSTAGRAM_WEBHOOK_VERIFY_TOKEN=tu_token_seguro_personalizado
 INSTAGRAM_WEBHOOK_PROCESSOR=\ScriptDevelop\InstagramApiManager\Services\WebhookProcessors\BaseWebhookProcessor
 INSTAGRAM_OAUTH_BASE_URL=https://api.instagram.com
 
-# Instagram API — Broadcast (Laravel Reverb) 🆕 v1.0.77
+# Instagram API — Broadcast (Laravel Reverb) 🆕 v1.0.78
 INSTAGRAM_BROADCAST_CHANNEL_TYPE=public
 INSTAGRAM_CUSTOM_CHANNELS=false
 
@@ -50,7 +50,7 @@ FACEBOOK_API_VERSION=v23.0
 
 ### 2. Requisitos para Eventos en Tiempo Real (Laravel Reverb) 🆕
 
-Si planeas usar los eventos broadcast (disponibles desde v1.0.77), asegúrate de tener Laravel Reverb configurado en tu proyecto:
+Si planeas usar los eventos broadcast (disponibles desde v1.0.78), asegúrate de tener Laravel Reverb configurado en tu proyecto:
 
 ```bash
 php artisan reverb:install
@@ -121,13 +121,13 @@ return [
         'oauth_state'        => \ScriptDevelop\InstagramApiManager\Models\OauthState::class,
     ],
 
-    // 🆕 Sección agregada en v1.0.77
+    // 🆕 Sección agregada en v1.0.78
     'broadcast' => [
         'channel_type'    => env('INSTAGRAM_BROADCAST_CHANNEL_TYPE', 'public'),
         'custom_channels' => env('INSTAGRAM_CUSTOM_CHANNELS', false),
     ],
 
-    // 🆕 Sección agregada en v1.0.77
+    // 🆕 Sección agregada en v1.0.78
     'events' => [
         'message'      => \ScriptDevelop\InstagramApiManager\Events\InstagramMessageReceived::class,
         'postback'     => \ScriptDevelop\InstagramApiManager\Events\InstagramPostbackReceived::class,
@@ -138,7 +138,7 @@ return [
         'message_edit' => \ScriptDevelop\InstagramApiManager\Events\InstagramMessageEdited::class,
     ],
 
-    // 🆕 Campo agregado en v1.0.77
+    // 🆕 Campo agregado en v1.0.78
     'webhook' => [
         'verify_token' => env('INSTAGRAM_WEBHOOK_VERIFY_TOKEN', 'default_token'),
         'processor'    => env('INSTAGRAM_WEBHOOK_PROCESSOR', \ScriptDevelop\InstagramApiManager\Services\WebhookProcessors\BaseWebhookProcessor::class),
