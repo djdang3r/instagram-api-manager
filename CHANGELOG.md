@@ -11,6 +11,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.0.81] - 2026-05-08
+
+### Fixed
+- **Migración `add_profile_fields_to_instagram_contacts_table` — `hasColumn` fuera del closure**: `Schema::hasColumn()` no funciona dentro de un `Schema::table()` porque MySQL lockea la tabla durante la alteración. Cada columna ahora tiene su propio bloque `Schema::table()` independiente con la verificación `hasColumn` hecha **antes** de abrir el closure. Esto resuelve definitivamente el error `Duplicate column name` (SQLSTATE 42S21).
+
+---
+
 ## [1.0.80] - 2026-05-08
 
 ### Fixed
@@ -100,7 +107,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
-[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.80...HEAD
+[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.81...HEAD
+[1.0.81]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.80...v1.0.81
 [1.0.80]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.79...v1.0.80
 [1.0.79]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.78...v1.0.79
 [1.0.78]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.77...v1.0.78
