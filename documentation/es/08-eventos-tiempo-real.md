@@ -3,7 +3,7 @@
 
 # 📡 Eventos en Tiempo Real (Laravel Reverb)
 
-A partir de la versión `1.0.81`, el paquete incluye soporte nativo para **Laravel Reverb** y cualquier driver de broadcasting compatible con Laravel (Pusher, Ably, Soketi, etc.). Esto te permite recibir notificaciones en tiempo real cada vez que ocurre un evento en tus webhooks de Instagram, sin necesidad de hacer polling.
+A partir de la versión `1.0.82`, el paquete incluye soporte nativo para **Laravel Reverb** y cualquier driver de broadcasting compatible con Laravel (Pusher, Ably, Soketi, etc.). Esto te permite recibir notificaciones en tiempo real cada vez que ocurre un evento en tus webhooks de Instagram, sin necesidad de hacer polling.
 
 ---
 

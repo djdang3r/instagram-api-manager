@@ -58,11 +58,12 @@ class InstallInstagramApiManager extends Command
             spin(function () {
                 $this->callSilent('vendor:publish', [
                     '--tag'   => 'instagram-migrations',
-                    '--force' => $this->option('force'),
+                    '--force' => true,
                 ]);
             }, 'Publicando migraciones...');
 
             $this->components->info('Migraciones publicadas en database/migrations/');
+            note('Las migraciones publicadas siempre se sobrescriben con la última versión del paquete.');
         }
 
         $runMigrations = confirm(

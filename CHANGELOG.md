@@ -11,6 +11,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.0.82] - 2026-05-08
+
+### Fixed
+- **Wizard `instagram:install` siempre sobrescribe migraciones**: La publicación de migraciones ahora usa `--force` siempre, no solo cuando se pasa `--force` al comando. Esto garantiza que si el usuario ya tenía migraciones publicadas de una versión anterior, el wizard las sobrescriba con las versiones corregidas del paquete. Combinado con el fix de `hasColumn` fuera del closure (v1.0.81), resuelve el ciclo de "migración rota publicada que nunca se actualiza".
+
+---
+
 ## [1.0.81] - 2026-05-08
 
 ### Fixed
@@ -107,7 +114,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
-[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.81...HEAD
+[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.82...HEAD
+[1.0.82]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.81...v1.0.82
 [1.0.81]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.80...v1.0.81
 [1.0.80]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.79...v1.0.80
 [1.0.79]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.78...v1.0.79
