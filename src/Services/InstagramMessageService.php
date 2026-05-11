@@ -108,7 +108,7 @@ class InstagramMessageService
         ]);
 
         $this->withAccessToken($businessAccount->access_token)
-             ->withInstagramUserId($businessAccount->instagram_business_account_id);
+            ->withInstagramUserId($businessAccount->instagram_business_account_id);
 
         $conversation = $this->findOrCreateConversation(
             $businessAccount->instagram_business_account_id,
@@ -376,6 +376,7 @@ class InstagramMessageService
             'json'            => $message,
             'status'          => 'received',
             'created_time'    => now(),
+            'is_unsupported'   => isset($message['is_unsupported']) ? $message['is_unsupported'] : false,
             'sent_at'         => isset($message['timestamp']) ? date('Y-m-d H:i:s', $message['timestamp'] / 1000) : now()
         ];
 
@@ -406,12 +407,22 @@ class InstagramMessageService
 
         foreach ($message['attachments'] as $attachment) {
             if (isset($attachment['type'], $attachment['payload']['url'])) {
-                $savedMessage->update(['media_url' => $attachment['payload']['url']]);
-                Log::channel('instagram')->info('📎 Adjunto procesado', [
-                    'type' => $attachment['type'],
-                    'url'  => $attachment['payload']['url']
-                ]);
-                break;
+                    InstagramModelResolver::instagram_media_message()->create([
+                        'media_id'   => uniqid('media_'),
+                        'message_id' => $savedMessage->message_id,
+                        'media_type' => $attachment['type'],
+                        'url'        => $attachment['payload']['url'],
+                        'json'       => $attachment,
+                    ]);
+
+                    Log::channel('instagram')->info('📎 Adjunto procesado', [
+                        'type' => $attachment['type'],
+                        'url'  => $attachment['payload']['url']
+                    ]);
+
+                //Se comenta el siguiente código, se debe guardar todos los atarchments, y además ahora se guardan en su tabla correspondiente, por lo que no es necesario actualizar la url en el mensaje principal
+                //$savedMessage->update(['media_url' => $attachment['payload']['url']]);
+                //break;
             }
         }
     }

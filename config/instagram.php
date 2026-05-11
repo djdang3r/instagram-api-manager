@@ -24,6 +24,8 @@ return [
         //Mensajes
         'instagram_message' => \ScriptDevelop\InstagramApiManager\Models\InstagramMessage::class,
 
+        'instagram_media_message' => \ScriptDevelop\InstagramApiManager\Models\InstagramMediaMessage::class,
+
         'instagram_profile' => \ScriptDevelop\InstagramApiManager\Models\InstagramProfile::class,
 
         'instagram_referral' => \ScriptDevelop\InstagramApiManager\Models\InstagramReferral::class,
