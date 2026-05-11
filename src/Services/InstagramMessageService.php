@@ -408,7 +408,6 @@ class InstagramMessageService
         foreach ($message['attachments'] as $attachment) {
             if (isset($attachment['type'], $attachment['payload']['url'])) {
                     InstagramModelResolver::instagram_media_message()->create([
-                        'media_id'   => uniqid('media_'),
                         'message_id' => $savedMessage->message_id,
                         'media_type' => $attachment['type'],
                         'url'        => $attachment['payload']['url'],
