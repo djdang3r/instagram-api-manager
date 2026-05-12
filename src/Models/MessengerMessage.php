@@ -29,6 +29,7 @@ class MessengerMessage extends Model
         'json_content',
         'status',
         'sent_at',
+        'delivered_at',
         'read_at',
         'edited_at',
         'failed_at',
@@ -45,7 +46,7 @@ class MessengerMessage extends Model
     ];
 
     protected $dates = [
-        'sent_at', 'read_at', 'edited_at', 'failed_at', 'created_at', 'updated_at', 'deleted_at',
+        'sent_at', 'delivered_at', 'read_at', 'edited_at', 'failed_at', 'created_at', 'updated_at', 'deleted_at',
     ];
 
     public function messengerConversation(): BelongsTo
