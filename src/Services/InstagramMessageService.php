@@ -925,7 +925,11 @@ class InstagramMessageService
 
             $conversation->update(['last_message_at' => now(), 'updated_time' => now()]);
 
-            return $response;
+            return [
+                'response' => $response,
+                'message' => $message,
+                'conversation' => $conversation
+            ];
         } catch (Exception $e) {
             $message->update([
                 'status'        => 'failed',
