@@ -5,6 +5,7 @@ namespace ScriptDevelop\InstagramApiManager\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use ScriptDevelop\InstagramApiManager\Traits\GeneratesUlid;
 
 class InstagramMessage extends Model
@@ -39,6 +40,7 @@ class InstagramMessage extends Model
         'json_content',
         'status',
         'sent_at',
+        'delivered_at',
         'read_at',
         'edited_at',
         'failed_at',
@@ -66,13 +68,23 @@ class InstagramMessage extends Model
     ];
 
     protected $dates = [
-        'created_time', 'sent_at', 'read_at', 'edited_at', 'failed_at', 
+        'created_time', 'sent_at', 'delivered_at', 'read_at', 'edited_at', 'failed_at',
         'created_at', 'updated_at', 'deleted_at',
     ];
 
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(InstagramConversation::class, 'conversation_id', 'id');
+    }
+
+    public function media(): HasMany
+    {
+        return $this->hasMany(InstagramMediaMessage::class, 'message_id', 'message_id');
+    }
+
+    public function mediaCount(): int
+    {
+        return $this->media()->count();
     }
 
     public function getSenderAttribute()

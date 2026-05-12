@@ -108,7 +108,7 @@ class InstagramMessageService
         ]);
 
         $this->withAccessToken($businessAccount->access_token)
-             ->withInstagramUserId($businessAccount->instagram_business_account_id);
+            ->withInstagramUserId($businessAccount->instagram_business_account_id);
 
         $conversation = $this->findOrCreateConversation(
             $businessAccount->instagram_business_account_id,
@@ -301,11 +301,12 @@ class InstagramMessageService
         Log::channel('instagram')->info('📋 Determinando tipo de evento...');
 
         if (isset($messageData['message'])) {
-            if ($isEcho) {
+            //Nota Cuau 2026-05-12: Comento las líneas que excluyen un mensaje cuando tiene la variable is_echo en true, ya estos mensajes nos pueden indicar cuando fue entregado el mensaje para guardar el campo delivered_at, además, de que tendría los attachments para guardarlos con una URL proveniente de instagram y guardarlos en la tabla instagram_media_messages
+            /*if ($isEcho) {
                 Log::channel('instagram')->info('→ Mensaje ECO (ignorado)');
-            } else {
+            } else */{
                 Log::channel('instagram')->info('→ Mensaje entrante');
-                $this->processIncomingMessage($conversation, $messageData['message'], $contactUserId, $businessAccount->instagram_business_account_id);
+                $this->processIncomingMessage($conversation, $messageData, $contactUserId, $businessAccount->instagram_business_account_id);
             }
             return;
         }
@@ -336,7 +337,7 @@ class InstagramMessageService
 
         if (isset($messageData['read'])) {
             Log::channel('instagram')->info('→ Evento de lectura');
-            $this->processRead($conversation, $messageData['read'], $contactUserId, $businessAccount->instagram_business_account_id);
+            $this->processRead($conversation, $messageData, $contactUserId, $businessAccount->instagram_business_account_id);
             return;
         }
 
@@ -352,12 +353,59 @@ class InstagramMessageService
     // ------------------------------------------------------------------------
     // 6. Procesar mensaje entrante
     // ------------------------------------------------------------------------
-    protected function processIncomingMessage(Model $conversation, array $message, string $senderId, string $recipientId): void
+    protected function processIncomingMessage(Model $conversation, array $messageData, string $senderId, string $recipientId): void
     {
+        $message = $messageData['message'];
         $messageId = $message['mid'] ?? uniqid();
 
-        if (InstagramModelResolver::instagram_message()->where('message_id', $messageId)->exists()) {
-            Log::channel('instagram')->info('⚠️ Mensaje duplicado ignorado', ['message_id' => $messageId]);
+        $db_message = InstagramModelResolver::instagram_message()->where('message_id', $messageId)->first();
+
+        if ($db_message) {
+            $message_has_attachments = isset($message['attachments']) && is_array($message['attachments']) && count($message['attachments']) > 0;
+
+            $mediaCount = $db_message->mediaCount();
+
+            Log::channel('instagram')->info('⚠️ Mensaje existente encontrado', [
+                'message_id' => $messageId,
+                'has_attachments_in_payload' => $message_has_attachments,
+                'media_count_in_db' => $mediaCount
+            ]);
+
+            $date = isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now();
+
+            $status = 'delivered';
+
+            //Esto es solo por si acaso los webhook se disparan en desorden, si el registro ya tiene marcado status como leído, no se debe actualizar a entregado, aunque llegue un mensaje con is_echo en true, lo que indicaría que el mensaje fue entregado, pero si el mensaje ya se marcó como leído, no se debe cambiar el status a entregado, por eso se hace esta validación
+            if( $db_message->status == 'read' ){
+                $status = $db_message->status;
+            }
+
+            if( $message_has_attachments && $mediaCount === 0){
+                Log::channel('instagram')->info('⚠️ Mensaje existente sin adjuntos, pero el nuevo mensaje sí tiene adjuntos. Actualizando mensaje existente.', ['message_id' => $messageId]);
+                $db_message->update([
+                    'status' => $status,
+                    'delivered_at' => $date,
+                    'attachments' => $message['attachments'],
+                    //'media_url' => $message['attachments'][0]['payload']['url'] ?? null,
+                    'message_content' => $message['text'] ?? null,
+                    'json_content' => $message,
+                ]);
+                Log::channel('instagram')->info('✅ Mensaje actualizado con adjuntos', ['message_id' => $messageId]);
+
+                $this->processAttachments($message, $db_message);
+            }
+            else{
+                $db_message->update([
+                    'status' => $status,
+                    'delivered_at' => $date,
+                    //'media_url' => $message['attachments'][0]['payload']['url'] ?? null,
+                    'message_content' => $message['text'] ?? null,
+                    'json_content' => $message,
+                ]);
+
+                Log::channel('instagram')->info('✅ Mensaje actualizado sin adjuntos', ['message_id' => $messageId]);
+            }
+
             return;
         }
 
@@ -376,6 +424,7 @@ class InstagramMessageService
             'json'            => $message,
             'status'          => 'received',
             'created_time'    => now(),
+            'is_unsupported'   => isset($message['is_unsupported']) ? $message['is_unsupported'] : false,
             'sent_at'         => isset($message['timestamp']) ? date('Y-m-d H:i:s', $message['timestamp'] / 1000) : now()
         ];
 
@@ -406,12 +455,21 @@ class InstagramMessageService
 
         foreach ($message['attachments'] as $attachment) {
             if (isset($attachment['type'], $attachment['payload']['url'])) {
-                $savedMessage->update(['media_url' => $attachment['payload']['url']]);
-                Log::channel('instagram')->info('📎 Adjunto procesado', [
-                    'type' => $attachment['type'],
-                    'url'  => $attachment['payload']['url']
-                ]);
-                break;
+                    InstagramModelResolver::instagram_media_message()->create([
+                        'message_id' => $savedMessage->message_id,
+                        'media_type' => $attachment['type'],
+                        'url'        => $attachment['payload']['url'],
+                        'json'       => $attachment,
+                    ]);
+
+                    Log::channel('instagram')->info('📎 Adjunto procesado', [
+                        'type' => $attachment['type'],
+                        'url'  => $attachment['payload']['url']
+                    ]);
+
+                //Se comenta el siguiente código, se debe guardar todos los atarchments, y además ahora se guardan en su tabla correspondiente, por lo que no es necesario actualizar la url en el mensaje principal
+                //$savedMessage->update(['media_url' => $attachment['payload']['url']]);
+                //break;
             }
         }
     }
@@ -749,19 +807,22 @@ class InstagramMessageService
         }
     }
 
-    protected function processRead(Model $conversation, array $read, string $senderId, string $recipientId): void
+    protected function processRead(Model $conversation, array $messageData, string $senderId, string $recipientId): void
     {
+        $read = $messageData['read'] ?? null;
+        $date = $messageData['timestamp'] ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now();
+
         if (isset($read['watermark'])) {
             InstagramModelResolver::instagram_message()
                 ->where('conversation_id', $conversation->id)
                 ->where('created_time', '<=', date('Y-m-d H:i:s', $read['watermark'] / 1000))
                 ->where('status', 'sent')
-                ->update(['status' => 'read', 'read_at' => now()]);
+                ->update(['status' => 'read', 'read_at' => $date]);
         }
         if (isset($read['mid'])) {
             InstagramModelResolver::instagram_message()
                 ->where('message_id', $read['mid'])
-                ->update(['status' => 'read', 'read_at' => now()]);
+                ->update(['status' => 'read', 'read_at' => $date]);
         }
         Log::channel('instagram')->info('Instagram read receipt processed', ['conversation_id' => $conversation->id, 'read' => $read]);
     }
@@ -822,8 +883,9 @@ class InstagramMessageService
 
         if ($messageType === 'text') {
             $messageData['message_content'] = $payload['message']['text'];
-        } elseif (in_array($messageType, ['image', 'audio', 'video'])) {
-            $messageData['media_url'] = $mediaUrl;
+        } elseif (in_array($messageType, ['image', 'audio', 'video', 'document'])) {
+            //Se comenta esta línea ya que ahora le webhook será el que actualice este valor, y además, se pueden guardar varios adjuntos, por lo que no es correcto actualizar el mensaje principal con la url del adjunto, ahora se guardan en la tabla instagram_media_messages
+            //$messageData['media_url'] = $mediaUrl;
             $messageData['message_content'] = $payload['message']['attachment']['type'];
         } elseif ($messageType === 'sticker') {
             $messageData['message_content'] = 'sticker';
@@ -863,7 +925,11 @@ class InstagramMessageService
 
             $conversation->update(['last_message_at' => now(), 'updated_time' => now()]);
 
-            return $response;
+            return [
+                'response' => $response,
+                'message' => $message,
+                'conversation' => $conversation
+            ];
         } catch (Exception $e) {
             $message->update([
                 'status'        => 'failed',
@@ -877,7 +943,8 @@ class InstagramMessageService
 
     public function sendTextMessage(string $recipientId, string $text, ?string $conversationId = null): ?array
     {
-        return $this->sendMessageGeneric($recipientId, ['recipient' => ['id' => $recipientId], 'message' => ['text' => $text]], 'text', $conversationId);
+        $payload = ['recipient' => ['id' => $recipientId], 'message' => ['text' => $text]];
+        return $this->sendMessageGeneric($recipientId, $payload, 'text', $conversationId);
     }
 
     public function sendImageMessage(string $recipientId, string $imageUrl, ?string $conversationId = null): ?array
@@ -896,6 +963,12 @@ class InstagramMessageService
     {
         $payload = ['recipient' => ['id' => $recipientId], 'message' => ['attachment' => ['type' => 'video', 'payload' => ['url' => $videoUrl]]]];
         return $this->sendMessageGeneric($recipientId, $payload, 'video', $conversationId, $videoUrl);
+    }
+
+    public function sendDocumentMessage(string $recipientId, string $documentUrl, ?string $conversationId = null): ?array
+    {
+        $payload = ['recipient' => ['id' => $recipientId], 'message' => ['attachment' => ['type' => 'file', 'payload' => ['url' => $documentUrl]]]];
+        return $this->sendMessageGeneric($recipientId, $payload, 'document', $conversationId, $documentUrl);
     }
 
     public function sendStickerMessage(string $recipientId, ?string $conversationId = null): ?array
