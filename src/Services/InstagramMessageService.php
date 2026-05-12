@@ -832,7 +832,7 @@ class InstagramMessageService
 
         if ($messageType === 'text') {
             $messageData['message_content'] = $payload['message']['text'];
-        } elseif (in_array($messageType, ['image', 'audio', 'video'])) {
+        } elseif (in_array($messageType, ['image', 'audio', 'video', 'document'])) {
             $messageData['media_url'] = $mediaUrl;
             $messageData['message_content'] = $payload['message']['attachment']['type'];
         } elseif ($messageType === 'sticker') {
@@ -906,6 +906,12 @@ class InstagramMessageService
     {
         $payload = ['recipient' => ['id' => $recipientId], 'message' => ['attachment' => ['type' => 'video', 'payload' => ['url' => $videoUrl]]]];
         return $this->sendMessageGeneric($recipientId, $payload, 'video', $conversationId, $videoUrl);
+    }
+
+    public function sendDocumentMessage(string $recipientId, string $documentUrl, ?string $conversationId = null): ?array
+    {
+        $payload = ['recipient' => ['id' => $recipientId], 'message' => ['attachment' => ['type' => 'file', 'payload' => ['url' => $documentUrl]]]];
+        return $this->sendMessageGeneric($recipientId, $payload, 'document', $conversationId, $documentUrl);
     }
 
     public function sendStickerMessage(string $recipientId, ?string $conversationId = null): ?array
