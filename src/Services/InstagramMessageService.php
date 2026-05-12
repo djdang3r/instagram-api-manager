@@ -373,10 +373,17 @@ class InstagramMessageService
 
             $date = isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now();
 
+            $status = 'delivered';
+
+            //Esto es solo por si acaso los webhook se disparan en desorden, si el registro ya tiene marcado status como leído, no se debe actualizar a entregado, aunque llegue un mensaje con is_echo en true, lo que indicaría que el mensaje fue entregado, pero si el mensaje ya se marcó como leído, no se debe cambiar el status a entregado, por eso se hace esta validación
+            if( $db_message->status == 'read' ){
+                $status = $db_message->status;
+            }
+
             if( $message_has_attachments && $mediaCount === 0){
                 Log::channel('instagram')->info('⚠️ Mensaje existente sin adjuntos, pero el nuevo mensaje sí tiene adjuntos. Actualizando mensaje existente.', ['message_id' => $messageId]);
                 $db_message->update([
-                    'status' => 'delivered',
+                    'status' => $status,
                     'delivered_at' => $date,
                     'attachments' => $message['attachments'],
                     //'media_url' => $message['attachments'][0]['payload']['url'] ?? null,
@@ -389,7 +396,7 @@ class InstagramMessageService
             }
             else{
                 $db_message->update([
-                    'status' => 'delivered',
+                    'status' => $status,
                     'delivered_at' => $date,
                     //'media_url' => $message['attachments'][0]['payload']['url'] ?? null,
                     'message_content' => $message['text'] ?? null,
