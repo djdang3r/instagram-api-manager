@@ -301,7 +301,7 @@ class InstagramMessageService
         Log::channel('instagram')->info('📋 Determinando tipo de evento...');
 
         if (isset($messageData['message'])) {
-            //Nota Cuau 2026-05-12: Comento el excluir un mensaje cuando tiene la vaiable is_echo en true, ya que el echo indicaría cuando fue entregado el emsnaje para marcalro como entregado  y marcar su delivered_at, además de que tendría los attachments para actualizar con una URL proveniente de instagram
+            //Nota Cuau 2026-05-12: Comento las líneas que excluyen un mensaje cuando tiene la variable is_echo en true, ya estos mensajes nos pueden indicar cuando fue entregado el mensaje para guardar el campo delivered_at, además, de que tendría los attachments para guardarlos con una URL proveniente de instagram y guardarlos en la tabla instagram_media_messages
             /*if ($isEcho) {
                 Log::channel('instagram')->info('→ Mensaje ECO (ignorado)');
             } else */{
@@ -337,7 +337,7 @@ class InstagramMessageService
 
         if (isset($messageData['read'])) {
             Log::channel('instagram')->info('→ Evento de lectura');
-            $this->processRead($conversation, $messageData['read'], $contactUserId, $businessAccount->instagram_business_account_id);
+            $this->processRead($conversation, $messageData, $contactUserId, $businessAccount->instagram_business_account_id);
             return;
         }
 
@@ -371,10 +371,13 @@ class InstagramMessageService
                 'media_count_in_db' => $mediaCount
             ]);
 
+            $date = isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now();
+
             if( $message_has_attachments && $mediaCount === 0){
                 Log::channel('instagram')->info('⚠️ Mensaje existente sin adjuntos, pero el nuevo mensaje sí tiene adjuntos. Actualizando mensaje existente.', ['message_id' => $messageId]);
                 $db_message->update([
-                    'delivered_at' => isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now(),
+                    'status' => 'delivered',
+                    'delivered_at' => $date,
                     'attachments' => $message['attachments'],
                     //'media_url' => $message['attachments'][0]['payload']['url'] ?? null,
                     'message_content' => $message['text'] ?? null,
@@ -386,7 +389,8 @@ class InstagramMessageService
             }
             else{
                 $db_message->update([
-                    'delivered_at' => isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now(),
+                    'status' => 'delivered',
+                    'delivered_at' => $date,
                     //'media_url' => $message['attachments'][0]['payload']['url'] ?? null,
                     'message_content' => $message['text'] ?? null,
                     'json_content' => $message,
@@ -796,19 +800,22 @@ class InstagramMessageService
         }
     }
 
-    protected function processRead(Model $conversation, array $read, string $senderId, string $recipientId): void
+    protected function processRead(Model $conversation, array $messageData, string $senderId, string $recipientId): void
     {
+        $read = $messageData['read'] ?? null;
+        $date = $messageData['timestamp'] ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now();
+
         if (isset($read['watermark'])) {
             InstagramModelResolver::instagram_message()
                 ->where('conversation_id', $conversation->id)
                 ->where('created_time', '<=', date('Y-m-d H:i:s', $read['watermark'] / 1000))
                 ->where('status', 'sent')
-                ->update(['status' => 'read', 'read_at' => now()]);
+                ->update(['status' => 'read', 'read_at' => $date]);
         }
         if (isset($read['mid'])) {
             InstagramModelResolver::instagram_message()
                 ->where('message_id', $read['mid'])
-                ->update(['status' => 'read', 'read_at' => now()]);
+                ->update(['status' => 'read', 'read_at' => $date]);
         }
         Log::channel('instagram')->info('Instagram read receipt processed', ['conversation_id' => $conversation->id, 'read' => $read]);
     }
