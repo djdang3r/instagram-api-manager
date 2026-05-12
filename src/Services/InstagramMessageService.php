@@ -301,11 +301,12 @@ class InstagramMessageService
         Log::channel('instagram')->info('📋 Determinando tipo de evento...');
 
         if (isset($messageData['message'])) {
-            if ($isEcho) {
+            //Nota Cuau 2026-05-12: Comento el excluir un mensaje cuando tiene la vaiable is_echo en true, ya que el echo indicaría cuando fue entregado el emsnaje para marcalro como entregado  y marcar su delivered_at, además de que tendría los attachments para actualizar con una URL proveniente de instagram
+            /*if ($isEcho) {
                 Log::channel('instagram')->info('→ Mensaje ECO (ignorado)');
-            } else {
+            } else */{
                 Log::channel('instagram')->info('→ Mensaje entrante');
-                $this->processIncomingMessage($conversation, $messageData['message'], $contactUserId, $businessAccount->instagram_business_account_id);
+                $this->processIncomingMessage($conversation, $messageData, $contactUserId, $businessAccount->instagram_business_account_id);
             }
             return;
         }
@@ -352,12 +353,48 @@ class InstagramMessageService
     // ------------------------------------------------------------------------
     // 6. Procesar mensaje entrante
     // ------------------------------------------------------------------------
-    protected function processIncomingMessage(Model $conversation, array $message, string $senderId, string $recipientId): void
+    protected function processIncomingMessage(Model $conversation, array $messageData, string $senderId, string $recipientId): void
     {
+        $message = $messageData['message'];
         $messageId = $message['mid'] ?? uniqid();
 
-        if (InstagramModelResolver::instagram_message()->where('message_id', $messageId)->exists()) {
-            Log::channel('instagram')->info('⚠️ Mensaje duplicado ignorado', ['message_id' => $messageId]);
+        $db_message = InstagramModelResolver::instagram_message()->where('message_id', $messageId)->first();
+
+        if ($db_message) {
+            $message_has_attachments = isset($message['attachments']) && is_array($message['attachments']) && count($message['attachments']) > 0;
+
+            $mediaCount = $db_message->mediaCount();
+
+            Log::channel('instagram')->info('⚠️ Mensaje existente encontrado', [
+                'message_id' => $messageId,
+                'has_attachments_in_payload' => $message_has_attachments,
+                'media_count_in_db' => $mediaCount
+            ]);
+
+            if( $message_has_attachments && $mediaCount === 0){
+                Log::channel('instagram')->info('⚠️ Mensaje existente sin adjuntos, pero el nuevo mensaje sí tiene adjuntos. Actualizando mensaje existente.', ['message_id' => $messageId]);
+                $db_message->update([
+                    'delivered_at' => isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now(),
+                    'attachments' => $message['attachments'],
+                    //'media_url' => $message['attachments'][0]['payload']['url'] ?? null,
+                    'message_content' => $message['text'] ?? null,
+                    'json_content' => $message,
+                ]);
+                Log::channel('instagram')->info('✅ Mensaje actualizado con adjuntos', ['message_id' => $messageId]);
+
+                $this->processAttachments($message, $db_message);
+            }
+            else{
+                $db_message->update([
+                    'delivered_at' => isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now(),
+                    //'media_url' => $message['attachments'][0]['payload']['url'] ?? null,
+                    'message_content' => $message['text'] ?? null,
+                    'json_content' => $message,
+                ]);
+
+                Log::channel('instagram')->info('✅ Mensaje actualizado sin adjuntos', ['message_id' => $messageId]);
+            }
+
             return;
         }
 
@@ -833,7 +870,8 @@ class InstagramMessageService
         if ($messageType === 'text') {
             $messageData['message_content'] = $payload['message']['text'];
         } elseif (in_array($messageType, ['image', 'audio', 'video', 'document'])) {
-            $messageData['media_url'] = $mediaUrl;
+            //Se comenta esta línea ya que ahora le webhook será el que actualice este valor, y además, se pueden guardar varios adjuntos, por lo que no es correcto actualizar el mensaje principal con la url del adjunto, ahora se guardan en la tabla instagram_media_messages
+            //$messageData['media_url'] = $mediaUrl;
             $messageData['message_content'] = $payload['message']['attachment']['type'];
         } elseif ($messageType === 'sticker') {
             $messageData['message_content'] = 'sticker';
@@ -887,7 +925,8 @@ class InstagramMessageService
 
     public function sendTextMessage(string $recipientId, string $text, ?string $conversationId = null): ?array
     {
-        return $this->sendMessageGeneric($recipientId, ['recipient' => ['id' => $recipientId], 'message' => ['text' => $text]], 'text', $conversationId);
+        $payload = ['recipient' => ['id' => $recipientId], 'message' => ['text' => $text]];
+        return $this->sendMessageGeneric($recipientId, $payload, 'text', $conversationId);
     }
 
     public function sendImageMessage(string $recipientId, string $imageUrl, ?string $conversationId = null): ?array

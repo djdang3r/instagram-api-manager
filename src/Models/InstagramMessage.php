@@ -67,7 +67,7 @@ class InstagramMessage extends Model
     ];
 
     protected $dates = [
-        'created_time', 'sent_at', 'read_at', 'edited_at', 'failed_at', 
+        'created_time', 'sent_at', 'read_at', 'edited_at', 'failed_at',
         'created_at', 'updated_at', 'deleted_at',
     ];
 
@@ -76,9 +76,14 @@ class InstagramMessage extends Model
         return $this->belongsTo(InstagramConversation::class, 'conversation_id', 'id');
     }
 
-    public function mediaMessages(): HasMany
+    public function media(): HasMany
     {
         return $this->hasMany(InstagramMediaMessage::class, 'message_id', 'message_id');
+    }
+
+    public function mediaCount(): int
+    {
+        return $this->media()->count();
     }
 
     public function getSenderAttribute()
