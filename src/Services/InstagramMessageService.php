@@ -60,7 +60,7 @@ class InstagramMessageService
         Log::channel('instagram')->info('🔄 INICIANDO PROCESAMIENTO DE MENSAJE DEL WEBHOOK');
         try {
             $result = $this->processMessage($messaging);
-            Log::channel('instagram')->info('✅ MENSAJE DEL WEBHOOK PROCESADO EXITOSAMENTE');
+            Log::channel('instagram')->info('✅ MENSAJE DEL WEBHOOK PROCESADO EXITOSAMENTE', [ 'result' => $result ]);
             return $result;
         } catch (\Exception $e) {
             Log::channel('instagram')->error('❌ ERROR AL PROCESAR MENSAJE:', [
@@ -127,6 +127,11 @@ class InstagramMessageService
         if ($this->shouldUpdateContact($messageData)) {
             $this->updateOrCreateContact($contactUserId, $businessAccount);
         }
+
+        $this->dispatchBroadcastEvent($messageData, [
+            'message' => $eventResult['message'] ?? null,
+            'conversation' => $conversation,
+        ]);
 
         Log::channel('instagram')->info('✅ PROCESAMIENTO COMPLETADO');
         Log::channel('instagram')->info('═══════════════════════════════════════════════════════');
@@ -512,6 +517,88 @@ class InstagramMessageService
         return 'text';
     }
 
+    /**
+     * Despacha el evento broadcast correspondiente según el tipo de mensaje.
+     */
+    protected function dispatchBroadcastEvent(array $messaging, array $processedData = []): void
+    {
+        $eventType = $this->resolveEventType($messaging);
+
+        if (!$eventType) {
+            return;
+        }
+
+        $eventClass = config("instagram.events.{$eventType}");
+
+        if (!$eventClass || !class_exists($eventClass)) {
+            Log::channel('instagram')->debug('No se encontró clase de evento para el tipo', [
+                'event_type' => $eventType,
+                'event_class' => $eventClass,
+            ]);
+            return;
+        }
+
+        $messageRecord = $processedData['message'] ?? null;
+        $conversationRecord = $processedData['conversation'] ?? null;
+
+        $payload = [
+            'sender' => $messaging['sender']['id'] ?? null,
+            'recipient' => $messaging['recipient']['id'] ?? null,
+            'timestamp' => $messaging['timestamp'] ?? null,
+            'data' => $messaging[$eventType] ?? $messaging['message'] ?? $messaging,
+            'message' => $messageRecord && method_exists($messageRecord, 'toArray') ? $messageRecord->toArray() : null,
+            'conversation' => $conversationRecord && method_exists($conversationRecord, 'toArray') ? $conversationRecord->toArray() : null,
+        ];
+
+        try {
+            Log::channel('instagram')->info("Disparando evento broadcast: {$eventType}, class: {$eventClass}");
+            event(new $eventClass($payload));
+        } catch (Exception $e) {
+            Log::channel('instagram')->error('Error al disparar evento broadcast', [
+                'event_type' => $eventType,
+                'event_class' => $eventClass,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Resuelve el tipo de evento a partir del array messaging.
+     * Retorna la clave del config 'instagram.events' que corresponde.
+     */
+    protected function resolveEventType(array $messaging): ?string
+    {
+        if (isset($messaging['message']) && !isset($messaging['message']['is_echo'])) {
+            return 'message';
+        }
+
+        if (isset($messaging['postback'])) {
+            return 'postback';
+        }
+
+        if (isset($messaging['reaction'])) {
+            return 'reaction';
+        }
+
+        if (isset($messaging['optin'])) {
+            return 'optin';
+        }
+
+        if (isset($messaging['referral'])) {
+            return 'referral';
+        }
+
+        if (isset($messaging['read'])) {
+            return 'read';
+        }
+
+        if (isset($messaging['message_edit'])) {
+            return 'message_edit';
+        }
+
+        return null;
+    }
+
     // ------------------------------------------------------------------------
     // 7. Contacto: obtener perfil y guardar (con reintento y refresco de token)
     // ------------------------------------------------------------------------
@@ -858,6 +945,7 @@ class InstagramMessageService
         if (isset($read['mid'])) {
             InstagramModelResolver::instagram_message()
                 ->where('message_id', $read['mid'])
+                ->whereNull('read_at')
                 ->update(['status' => 'read', 'read_at' => $date]);
 
             $updatedMessage = InstagramModelResolver::instagram_message()
