@@ -5,6 +5,8 @@ namespace ScriptDevelop\InstagramApiManager\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use ScriptDevelop\InstagramApiManager\Traits\GeneratesUlid;
 
 class InstagramContact extends Model
@@ -47,12 +49,12 @@ class InstagramContact extends Model
         return $this->belongsTo(config('instagram.models.instagram_business_account'), 'instagram_business_account_id', 'instagram_business_account_id');
     }
 
-    public function conversations()
+    public function conversations(): HasMany
     {
         return $this->hasMany(config('instagram.models.instagram_conversation'), 'instagram_user_id', 'instagram_user_id');
     }
 
-    public function latestConversation()
+    public function latestConversation(): HasOne
     {
         return $this->hasOne(config('instagram.models.instagram_conversation'), 'instagram_user_id', 'instagram_user_id')
             ->whereNull('deleted_at')
