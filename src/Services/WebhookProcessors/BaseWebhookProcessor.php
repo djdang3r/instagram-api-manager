@@ -85,10 +85,7 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
                             ]);
 
                             // Procesar y almacenar el mensaje usando el servicio existente
-                            $this->messageService->processWebhookMessage($messaging);
-
-                            // Disparar el evento broadcast correspondiente
-                            $this->dispatchBroadcastEvent($messaging);
+                            $processedData = $this->messageService->processWebhookMessage($messaging);
                         }
                     } else {
                         Log::channel('instagram')->warning('No hay mensajes en esta entrada del webhook');
@@ -139,80 +136,4 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
         return 'unknown';
     }
 
-    /**
-     * Despacha el evento broadcast correspondiente según el tipo de mensaje.
-     */
-    protected function dispatchBroadcastEvent(array $messaging): void
-    {
-        $eventType = $this->resolveEventType($messaging);
-
-        if (!$eventType) {
-            return;
-        }
-
-        $eventClass = config("instagram.events.{$eventType}");
-
-        if (!$eventClass || !class_exists($eventClass)) {
-            Log::channel('instagram')->debug('No se encontró clase de evento para el tipo', [
-                'event_type'  => $eventType,
-                'event_class' => $eventClass,
-            ]);
-            return;
-        }
-
-        $payload = [
-            'sender'    => $messaging['sender']['id'] ?? null,
-            'recipient' => $messaging['recipient']['id'] ?? null,
-            'timestamp' => $messaging['timestamp'] ?? null,
-            'data'      => $messaging[$eventType] ?? $messaging['message'] ?? $messaging,
-        ];
-
-        try {
-            Log::channel('instagram')->info("Disparando evento broadcast: {$eventType}, class: {$eventClass}");
-            event(new $eventClass($payload));
-        } catch (\Exception $e) {
-            Log::channel('instagram')->error('Error al disparar evento broadcast', [
-                'event_type'  => $eventType,
-                'event_class' => $eventClass,
-                'error'       => $e->getMessage(),
-            ]);
-        }
-    }
-
-    /**
-     * Resuelve el tipo de evento a partir del array messaging.
-     * Retorna la clave del config 'instagram.events' que corresponde.
-     */
-    protected function resolveEventType(array $messaging): ?string
-    {
-        if (isset($messaging['message']) && !isset($messaging['message']['is_echo'])) {
-            return 'message';
-        }
-
-        if (isset($messaging['postback'])) {
-            return 'postback';
-        }
-
-        if (isset($messaging['reaction'])) {
-            return 'reaction';
-        }
-
-        if (isset($messaging['optin'])) {
-            return 'optin';
-        }
-
-        if (isset($messaging['referral'])) {
-            return 'referral';
-        }
-
-        if (isset($messaging['read'])) {
-            return 'read';
-        }
-
-        if (isset($messaging['message_edit'])) {
-            return 'message_edit';
-        }
-
-        return null;
-    }
 }
