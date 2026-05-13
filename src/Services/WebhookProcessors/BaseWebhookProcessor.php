@@ -86,10 +86,6 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
 
                             // Procesar y almacenar el mensaje usando el servicio existente
                             $processedData = $this->messageService->processWebhookMessage($messaging);
-
-                            Log::channel('instagram')->info('Mensaje procesado y almacenado', [
-                                'processedData' => $processedData,
-                            ]);
                         }
                     } else {
                         Log::channel('instagram')->warning('No hay mensajes en esta entrada del webhook');

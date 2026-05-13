@@ -60,7 +60,7 @@ class InstagramMessageService
         Log::channel('instagram')->info('🔄 INICIANDO PROCESAMIENTO DE MENSAJE DEL WEBHOOK');
         try {
             $result = $this->processMessage($messaging);
-            Log::channel('instagram')->info('✅ MENSAJE DEL WEBHOOK PROCESADO EXITOSAMENTE', [ 'result' => $result ]);
+
             return $result;
         } catch (\Exception $e) {
             Log::channel('instagram')->error('❌ ERROR AL PROCESAR MENSAJE:', [
@@ -525,6 +525,9 @@ class InstagramMessageService
         $eventType = $this->resolveEventType($messaging);
 
         if (!$eventType) {
+            Log::channel('instagram')->info('No se pudo resolver tipo de evento para broadcast', [
+                'messaging' => $messaging
+            ]);
             return;
         }
 
@@ -568,7 +571,8 @@ class InstagramMessageService
      */
     protected function resolveEventType(array $messaging): ?string
     {
-        if (isset($messaging['message']) && !isset($messaging['message']['is_echo'])) {
+        //2026-05-13 Cuauh: Se comenta revisar que no esté definido la variable is_echo, ya que aunque el mensaje sea un eco, este con los cambios anteriores ahora si se procesa y se obtiene información que se guarda en base de datos com delivered_at y status además de atachments, por lo que tampoco debe excluirse en este método que se usa para revisar si se emite un evento broadcast
+        if (isset($messaging['message']) /*&& !isset($messaging['message']['is_echo'])*/) {
             return 'message';
         }
 
