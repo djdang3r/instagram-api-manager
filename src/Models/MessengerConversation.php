@@ -30,11 +30,11 @@ class MessengerConversation extends Model
 
     public function facebookPage(): BelongsTo
     {
-        return $this->belongsTo(FacebookPage::class, 'page_id', 'page_id');
+        return $this->belongsTo(config('instagram.models.facebook_page'), 'page_id', 'page_id');
     }
 
     public function messengerMessages(): HasMany
     {
-        return $this->hasMany(MessengerMessage::class, 'conversation_id', 'id');
+        return $this->hasMany(config('instagram.models.messenger_message'), 'conversation_id', 'id');
     }
 }

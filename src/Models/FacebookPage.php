@@ -49,21 +49,21 @@ class FacebookPage extends Model
 
     public function metaApp(): BelongsTo
     {
-        return $this->belongsTo(MetaApp::class, 'meta_app_id', 'id');
+        return $this->belongsTo(config('instagram.models.meta_app'), 'meta_app_id', 'id');
     }
 
     public function instagramBusinessAccount(): HasOne
     {
-        return $this->hasOne(InstagramBusinessAccount::class, 'facebook_page_id', 'page_id');
+        return $this->hasOne(config('instagram.models.instagram_business_account'), 'facebook_page_id', 'page_id');
     }
 
     public function messengerConversations(): HasMany
     {
-        return $this->hasMany(MessengerConversation::class, 'page_id', 'page_id');
+        return $this->hasMany(config('instagram.models.messenger_conversation'), 'page_id', 'page_id');
     }
 
     public function messengerContacts(): HasMany
     {
-        return $this->hasMany(MessengerContact::class, 'page_id', 'page_id');
+        return $this->hasMany(config('instagram.models.messenger_contact'), 'page_id', 'page_id');
     }
 }

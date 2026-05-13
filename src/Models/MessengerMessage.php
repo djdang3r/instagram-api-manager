@@ -51,6 +51,6 @@ class MessengerMessage extends Model
 
     public function messengerConversation(): BelongsTo
     {
-        return $this->belongsTo(MessengerConversation::class, 'conversation_id', 'id');
+        return $this->belongsTo(config('instagram.models.messenger_conversation'), 'conversation_id', 'id');
     }
 }

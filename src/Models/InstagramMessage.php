@@ -74,12 +74,12 @@ class InstagramMessage extends Model
 
     public function conversation(): BelongsTo
     {
-        return $this->belongsTo(InstagramConversation::class, 'conversation_id', 'id');
+        return $this->belongsTo(config('instagram.models.instagram_conversation'), 'conversation_id', 'id');
     }
 
     public function media(): HasMany
     {
-        return $this->hasMany(InstagramMediaMessage::class, 'message_id', 'message_id');
+        return $this->hasMany(config('instagram.models.instagram_media_message'), 'message_id', 'message_id');
     }
 
     public function mediaCount(): int

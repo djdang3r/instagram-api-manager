@@ -33,6 +33,6 @@ class InstagramMediaMessage extends Model
 
     public function message(): BelongsTo
     {
-        return $this->belongsTo(InstagramMessage::class, 'message_id', 'message_id');
+        return $this->belongsTo(config('instagram.models.instagram_message'), 'message_id', 'message_id');
     }
 }
