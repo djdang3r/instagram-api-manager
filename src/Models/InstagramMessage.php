@@ -61,6 +61,7 @@ class InstagramMessage extends Model
         'reactions' => 'array',
         'created_time' => 'datetime',
         'sent_at' => 'datetime',
+        'delivered_at' => 'datetime',
         'read_at' => 'datetime',
         'edited_at' => 'datetime',
         'failed_at' => 'datetime',
