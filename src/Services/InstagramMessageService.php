@@ -947,14 +947,36 @@ class InstagramMessageService
                 ->update(['status' => 'read', 'read_at' => $date]);
         }
         if (isset($read['mid'])) {
-            InstagramModelResolver::instagram_message()
-                ->where('message_id', $read['mid'])
-                ->whereNull('read_at')
-                ->update(['status' => 'read', 'read_at' => $date]);
-
-            $updatedMessage = InstagramModelResolver::instagram_message()
+            $targetMessage = InstagramModelResolver::instagram_message()
+                ->select('id', 'conversation_id', 'created_time')
                 ->where('message_id', $read['mid'])
                 ->first();
+
+            if ($targetMessage) {
+                InstagramModelResolver::instagram_message()
+                    ->where('conversation_id', $targetMessage->conversation_id)
+                    ->where('message_method', 'outgoing')
+                    ->where('created_time', '<=', $targetMessage->created_time)
+                    ->where(function ($query) {
+                        $query->whereNull('read_at')
+                            ->orWhereIn('status', ['sent', 'delivered']);
+                    })
+                    ->update(['status' => 'read', 'read_at' => $date]);
+
+                $updatedMessage = InstagramModelResolver::instagram_message()
+                    ->where('message_id', $read['mid'])
+                    ->first();
+            } else {
+                // Fallback: si no existe el mensaje objetivo, se actualiza solo por MID.
+                InstagramModelResolver::instagram_message()
+                    ->where('message_id', $read['mid'])
+                    ->whereNull('read_at')
+                    ->update(['status' => 'read', 'read_at' => $date]);
+
+                $updatedMessage = InstagramModelResolver::instagram_message()
+                    ->where('message_id', $read['mid'])
+                    ->first();
+            }
         }
         Log::channel('instagram')->info('Instagram read receipt processed', ['conversation_id' => $conversation->id, 'read' => $read]);
 
