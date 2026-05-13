@@ -85,10 +85,10 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
                             ]);
 
                             // Procesar y almacenar el mensaje usando el servicio existente
-                            $this->messageService->processWebhookMessage($messaging);
+                            $processedData = $this->messageService->processWebhookMessage($messaging);
 
                             // Disparar el evento broadcast correspondiente
-                            $this->dispatchBroadcastEvent($messaging);
+                            $this->dispatchBroadcastEvent($messaging, $processedData);
                         }
                     } else {
                         Log::channel('instagram')->warning('No hay mensajes en esta entrada del webhook');
@@ -142,7 +142,7 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
     /**
      * Despacha el evento broadcast correspondiente según el tipo de mensaje.
      */
-    protected function dispatchBroadcastEvent(array $messaging): void
+    protected function dispatchBroadcastEvent(array $messaging, array $processedData = []): void
     {
         $eventType = $this->resolveEventType($messaging);
 
@@ -160,11 +160,16 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
             return;
         }
 
+        $messageRecord = $processedData['message'] ?? null;
+        $conversationRecord = $processedData['conversation'] ?? null;
+
         $payload = [
             'sender'    => $messaging['sender']['id'] ?? null,
             'recipient' => $messaging['recipient']['id'] ?? null,
             'timestamp' => $messaging['timestamp'] ?? null,
             'data'      => $messaging[$eventType] ?? $messaging['message'] ?? $messaging,
+            'message' => $messageRecord && method_exists($messageRecord, 'toArray') ? $messageRecord->toArray() : null,
+            'conversation' => $conversationRecord && method_exists($conversationRecord, 'toArray') ? $conversationRecord->toArray() : null,
         ];
 
         try {

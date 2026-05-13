@@ -55,12 +55,13 @@ class InstagramMessageService
     // ------------------------------------------------------------------------
     // ENTRY POINT
     // ------------------------------------------------------------------------
-    public function processWebhookMessage(array $messaging): void
+    public function processWebhookMessage(array $messaging): array
     {
         Log::channel('instagram')->info('🔄 INICIANDO PROCESAMIENTO DE MENSAJE DEL WEBHOOK');
         try {
-            $this->processMessage($messaging);
+            $result = $this->processMessage($messaging);
             Log::channel('instagram')->info('✅ MENSAJE DEL WEBHOOK PROCESADO EXITOSAMENTE');
+            return $result;
         } catch (\Exception $e) {
             Log::channel('instagram')->error('❌ ERROR AL PROCESAR MENSAJE:', [
                 'error' => $e->getMessage(),
@@ -73,7 +74,7 @@ class InstagramMessageService
     // ------------------------------------------------------------------------
     // PROCESAMIENTO PRINCIPAL
     // ------------------------------------------------------------------------
-    protected function processMessage(array $messageData): void
+    protected function processMessage(array $messageData): array
     {
         Log::channel('instagram')->info('═══════════════════════════════════════════════════════');
         Log::channel('instagram')->info('🔄 INICIANDO PROCESAMIENTO DE MENSAJE');
@@ -82,7 +83,7 @@ class InstagramMessageService
         [$senderId, $recipientId, $isEcho] = $this->extractMessageContext($messageData);
         if (!$senderId || !$recipientId) {
             Log::channel('instagram')->warning('⚠️ Evento ignorado (sin sender/recipient)');
-            return;
+            return ['message' => null, 'conversation' => null];
         }
 
         $businessIdToSearch = $isEcho ? $senderId : $recipientId;
@@ -100,7 +101,7 @@ class InstagramMessageService
                 'business_id' => $businessIdToSearch,
                 'hint'        => 'Conecta la cuenta primero'
             ]);
-            return;
+            return ['message' => null, 'conversation' => null];
         }
 
         Log::channel('instagram')->info('✅ Cuenta de negocio encontrada', [
@@ -117,7 +118,11 @@ class InstagramMessageService
 
         $this->updateConversationStats($conversation, $isEcho);
 
-        $this->handleEventByType($messageData, $conversation, $contactUserId, $businessAccount, $isEcho);
+        $eventResult = $this->handleEventByType($messageData, $conversation, $contactUserId, $businessAccount, $isEcho);
+
+        if (!empty($eventResult['conversation']) && $eventResult['conversation'] instanceof Model) {
+            $conversation = $eventResult['conversation'];
+        }
 
         if ($this->shouldUpdateContact($messageData)) {
             $this->updateOrCreateContact($contactUserId, $businessAccount);
@@ -125,6 +130,11 @@ class InstagramMessageService
 
         Log::channel('instagram')->info('✅ PROCESAMIENTO COMPLETADO');
         Log::channel('instagram')->info('═══════════════════════════════════════════════════════');
+
+        return [
+            'message' => $eventResult['message'] ?? null,
+            'conversation' => $conversation,
+        ];
     }
 
     // ------------------------------------------------------------------------
@@ -296,7 +306,7 @@ class InstagramMessageService
     // ------------------------------------------------------------------------
     // 5. Manejar tipo de evento
     // ------------------------------------------------------------------------
-    protected function handleEventByType(array $messageData, Model $conversation, string $contactUserId, Model $businessAccount, bool $isEcho): void
+    protected function handleEventByType(array $messageData, Model $conversation, string $contactUserId, Model $businessAccount, bool $isEcho): array
     {
         Log::channel('instagram')->info('📋 Determinando tipo de evento...');
 
@@ -306,54 +316,68 @@ class InstagramMessageService
                 Log::channel('instagram')->info('→ Mensaje ECO (ignorado)');
             } else */{
                 Log::channel('instagram')->info('→ Mensaje entrante');
-                $this->processIncomingMessage($conversation, $messageData, $contactUserId, $businessAccount->instagram_business_account_id);
+                return [
+                    'message' => $this->processIncomingMessage($conversation, $messageData, $contactUserId, $businessAccount->instagram_business_account_id),
+                    'conversation' => null,
+                ];
             }
-            return;
+            return ['message' => null, 'conversation' => null];
         }
 
         if (isset($messageData['postback'])) {
             Log::channel('instagram')->info('→ Postback');
-            $this->processPostback($conversation, $messageData['postback'], $contactUserId, $businessAccount->instagram_business_account_id, $messageData['timestamp'] ?? null);
-            return;
+            return [
+                'message' => $this->processPostback($conversation, $messageData['postback'], $contactUserId, $businessAccount->instagram_business_account_id, $messageData['timestamp'] ?? null),
+                'conversation' => null,
+            ];
         }
 
         if (isset($messageData['reaction'])) {
             Log::channel('instagram')->info('→ Reacción');
-            $this->processReaction($conversation, $messageData['reaction'], $contactUserId, $businessAccount->instagram_business_account_id);
-            return;
+            return [
+                'message' => $this->processReaction($conversation, $messageData['reaction'], $contactUserId, $businessAccount->instagram_business_account_id),
+                'conversation' => null,
+            ];
         }
 
         if (isset($messageData['optin'])) {
             Log::channel('instagram')->info('→ Opt-in');
             $this->processOptin($conversation, $messageData['optin'], $contactUserId, $businessAccount->instagram_business_account_id);
-            return;
+            return ['message' => null, 'conversation' => $conversation];
         }
 
         if (isset($messageData['referral'])) {
             Log::channel('instagram')->info('→ Referral');
-            $this->processReferral($conversation, $messageData['referral'], $contactUserId, $businessAccount->instagram_business_account_id);
-            return;
+            return [
+                'message' => null,
+                'conversation' => $this->processReferral($conversation, $messageData['referral'], $contactUserId, $businessAccount->instagram_business_account_id) ?? $conversation,
+            ];
         }
 
         if (isset($messageData['read'])) {
             Log::channel('instagram')->info('→ Evento de lectura');
-            $this->processRead($conversation, $messageData, $contactUserId, $businessAccount->instagram_business_account_id);
-            return;
+            return [
+                'message' => $this->processRead($conversation, $messageData, $contactUserId, $businessAccount->instagram_business_account_id),
+                'conversation' => null,
+            ];
         }
 
         if (isset($messageData['message_edit'])) {
             Log::channel('instagram')->info('→ Edición de mensaje');
-            $this->processMessageEdit($conversation, $messageData['message_edit'], $contactUserId, $businessAccount->instagram_business_account_id);
-            return;
+            return [
+                'message' => $this->processMessageEdit($conversation, $messageData['message_edit'], $contactUserId, $businessAccount->instagram_business_account_id),
+                'conversation' => null,
+            ];
         }
 
         Log::channel('instagram')->warning('⚠️ Tipo de evento desconocido', $messageData);
+        return ['message' => null, 'conversation' => null];
     }
 
     // ------------------------------------------------------------------------
     // 6. Procesar mensaje entrante
     // ------------------------------------------------------------------------
-    protected function processIncomingMessage(Model $conversation, array $messageData, string $senderId, string $recipientId): void
+    protected function processIncomingMessage(Model $conversation, array $messageData, string $senderId, string $recipientId): ?Model
     {
         $message = $messageData['message'];
         $messageId = $message['mid'] ?? uniqid();
@@ -406,7 +430,7 @@ class InstagramMessageService
                 Log::channel('instagram')->info('✅ Mensaje actualizado sin adjuntos', ['message_id' => $messageId]);
             }
 
-            return;
+            return $db_message;
         }
 
         $messageType = $this->determineMessageType($message);
@@ -445,6 +469,8 @@ class InstagramMessageService
         ]);
 
         $this->processAttachments($message, $savedMessage);
+
+        return $savedMessage;
     }
 
     protected function processAttachments(array $message, Model $savedMessage): void
@@ -708,12 +734,12 @@ class InstagramMessageService
     // ------------------------------------------------------------------------
     // 8. Procesadores de eventos específicos (sin cambios)
     // ------------------------------------------------------------------------
-    protected function processPostback(Model $conversation, array $postback, string $senderId, string $recipientId, $timestamp = null): void
+    protected function processPostback(Model $conversation, array $postback, string $senderId, string $recipientId, $timestamp = null): ?Model
     {
         $messageId = $postback['mid'] ?? 'postback_' . uniqid();
         if (InstagramModelResolver::instagram_message()->where('message_id', $messageId)->exists()) {
             Log::channel('instagram')->info('Postback duplicado ignorado', ['message_id' => $messageId]);
-            return;
+            return InstagramModelResolver::instagram_message()->where('message_id', $messageId)->first();
         }
 
         $messageData = [
@@ -734,11 +760,13 @@ class InstagramMessageService
             'sent_at'         => $timestamp ? date('Y-m-d H:i:s', $timestamp / 1000) : now()
         ];
 
-        InstagramModelResolver::instagram_message()->create($messageData);
+        $savedMessage = InstagramModelResolver::instagram_message()->create($messageData);
         Log::channel('instagram')->info('Instagram postback processed', ['conversation_id' => $conversation->id, 'postback' => $postback]);
+
+        return $savedMessage;
     }
 
-    protected function processReaction(Model $conversation, array $reaction, string $senderId, string $recipientId): void
+    protected function processReaction(Model $conversation, array $reaction, string $senderId, string $recipientId): ?Model
     {
         $reactedMessage = InstagramModelResolver::instagram_message()
             ->where('message_id', $reaction['mid'] ?? '')
@@ -757,6 +785,8 @@ class InstagramMessageService
         }
 
         Log::channel('instagram')->info('Instagram reaction processed', ['conversation_id' => $conversation->id, 'reaction' => $reaction]);
+
+        return $reactedMessage;
     }
 
     protected function processOptin(Model $conversation, array $optin, string $senderId, string $recipientId): void
@@ -764,15 +794,17 @@ class InstagramMessageService
         Log::channel('instagram')->info('Instagram optin processed', ['conversation_id' => $conversation->id, 'optin' => $optin]);
     }
 
-    protected function processReferral(Model $conversation, array $referral, string $senderId, string $recipientId): void
+    protected function processReferral(Model $conversation, array $referral, string $senderId, string $recipientId): ?Model
     {
         Log::channel('instagram')->info('Instagram referral processed', ['conversation_id' => $conversation->id, 'referral' => $referral]);
         if (isset($referral['source']) && $referral['source'] === 'SHORTLINKS') {
-            $this->processIgMeReferral($conversation, $referral, $senderId, $recipientId);
+            return $this->processIgMeReferral($conversation, $referral, $senderId, $recipientId);
         }
+
+        return $conversation;
     }
 
-    protected function processIgMeReferral(Model $conversation, array $referral, string $senderId, string $recipientId): void
+    protected function processIgMeReferral(Model $conversation, array $referral, string $senderId, string $recipientId): ?Model
     {
         try {
             $ref = $referral['ref'] ?? null;
@@ -802,15 +834,19 @@ class InstagramMessageService
                 'source' => $source,
                 'type' => $type
             ]);
+
+            return $conversation;
         } catch (Exception $e) {
             Log::channel('instagram')->error('Error processing ig.me referral:', ['error' => $e->getMessage(), 'referral' => $referral]);
+            return null;
         }
     }
 
-    protected function processRead(Model $conversation, array $messageData, string $senderId, string $recipientId): void
+    protected function processRead(Model $conversation, array $messageData, string $senderId, string $recipientId): ?Model
     {
         $read = $messageData['read'] ?? null;
         $date = $messageData['timestamp'] ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now();
+        $updatedMessage = null;
 
         if (isset($read['watermark'])) {
             InstagramModelResolver::instagram_message()
@@ -823,16 +859,22 @@ class InstagramMessageService
             InstagramModelResolver::instagram_message()
                 ->where('message_id', $read['mid'])
                 ->update(['status' => 'read', 'read_at' => $date]);
+
+            $updatedMessage = InstagramModelResolver::instagram_message()
+                ->where('message_id', $read['mid'])
+                ->first();
         }
         Log::channel('instagram')->info('Instagram read receipt processed', ['conversation_id' => $conversation->id, 'read' => $read]);
+
+        return $updatedMessage;
     }
 
-    protected function processMessageEdit(Model $conversation, array $messageEdit, string $senderId, string $recipientId): void
+    protected function processMessageEdit(Model $conversation, array $messageEdit, string $senderId, string $recipientId): ?Model
     {
         $mid = $messageEdit['mid'] ?? null;
         if (!$mid) {
             Log::channel('instagram')->warning('Edición de mensaje sin ID (mid)', $messageEdit);
-            return;
+            return null;
         }
         $message = InstagramModelResolver::instagram_message()->where('message_id', $mid)->first();
         if ($message) {
@@ -841,6 +883,8 @@ class InstagramMessageService
         } else {
             Log::channel('instagram')->warning('⚠️ Mensaje original no encontrado al procesar edición');
         }
+
+        return $message;
     }
 
     // ------------------------------------------------------------------------
