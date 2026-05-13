@@ -25,11 +25,11 @@ class InstagramReferral extends Model
 
     public function conversation(): BelongsTo
     {
-        return $this->belongsTo(InstagramConversation::class, 'conversation_id');
+        return $this->belongsTo(config('instagram.models.instagram_conversation'), 'conversation_id');
     }
 
     public function businessAccount(): BelongsTo
     {
-        return $this->belongsTo(InstagramBusinessAccount::class, 'instagram_business_account_id', 'instagram_business_account_id');
+        return $this->belongsTo(config('instagram.models.instagram_business_account'), 'instagram_business_account_id', 'instagram_business_account_id');
     }
 }

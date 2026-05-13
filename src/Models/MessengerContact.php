@@ -31,6 +31,6 @@ class MessengerContact extends Model
 
     public function facebookPage(): BelongsTo
     {
-        return $this->belongsTo(FacebookPage::class, 'page_id', 'page_id');
+        return $this->belongsTo(config('instagram.models.facebook_page'), 'page_id', 'page_id');
     }
 }

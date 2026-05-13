@@ -67,7 +67,7 @@ class InstagramProfile extends Model
     public function instagramBusinessAccount(): BelongsTo
     {
         return $this->belongsTo(
-            InstagramBusinessAccount::class,
+            config('instagram.models.instagram_business_account'),
             'instagram_business_account_id',
             'instagram_business_account_id'
         );

@@ -44,11 +44,18 @@ class InstagramContact extends Model
 
     public function instagramBusinessAccount(): BelongsTo
     {
-        return $this->belongsTo(InstagramBusinessAccount::class, 'instagram_business_account_id', 'instagram_business_account_id');
+        return $this->belongsTo(config('instagram.models.instagram_business_account'), 'instagram_business_account_id', 'instagram_business_account_id');
     }
 
     public function conversations()
     {
-        return $this->hasMany(InstagramConversation::class, 'instagram_user_id', 'instagram_user_id');
+        return $this->hasMany(config('instagram.models.instagram_conversation'), 'instagram_user_id', 'instagram_user_id');
+    }
+
+    public function latestConversation()
+    {
+        return $this->hasOne(config('instagram.models.instagram_conversation'), 'instagram_user_id', 'instagram_user_id')
+            ->whereNull('deleted_at')
+            ->orderByDesc('created_at');
     }
 }

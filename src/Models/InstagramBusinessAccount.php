@@ -69,24 +69,24 @@ class InstagramBusinessAccount extends Model
 
     public function profile(): HasOne
     {
-        return $this->hasOne(InstagramProfile::class, 'instagram_business_account_id', 'instagram_business_account_id');
+        return $this->hasOne(config('instagram.models.instagram_profile'), 'instagram_business_account_id', 'instagram_business_account_id');
     }
 
     // Relación opcional con Facebook Page
     public function facebookPage(): BelongsTo
     {
-        return $this->belongsTo(FacebookPage::class, 'facebook_page_id', 'page_id')
+        return $this->belongsTo(config('instagram.models.facebook_page'), 'facebook_page_id', 'page_id')
                     ->withDefault();
     }
 
     public function instagramConversations(): HasMany
     {
-        return $this->hasMany(InstagramConversation::class, 'instagram_business_account_id', 'instagram_business_account_id');
+        return $this->hasMany(config('instagram.models.instagram_conversation'), 'instagram_business_account_id', 'instagram_business_account_id');
     }
 
     public function instagramContacts(): HasMany
     {
-        return $this->hasMany(InstagramContact::class, 'instagram_business_account_id', 'instagram_business_account_id');
+        return $this->hasMany(config('instagram.models.instagram_contact'), 'instagram_business_account_id', 'instagram_business_account_id');
     }
 
     /**

@@ -43,7 +43,7 @@ class InstagramConversation extends Model
     public function instagramBusinessAccount(): BelongsTo
     {
         return $this->belongsTo(
-            InstagramBusinessAccount::class,
+            config('instagram.models.instagram_business_account'),
             'instagram_business_account_id',
             'instagram_business_account_id'
         );
@@ -51,19 +51,19 @@ class InstagramConversation extends Model
 
     public function messages(): HasMany
     {
-        return $this->hasMany(InstagramMessage::class, 'conversation_id', 'id');
+        return $this->hasMany(config('instagram.models.instagram_message'), 'conversation_id', 'id');
     }
 
     public function latestMessage()
     {
-        return $this->hasOne(InstagramMessage::class, 'conversation_id', 'id')
+        return $this->hasOne(config('instagram.models.instagram_message'), 'conversation_id', 'id')
             ->orderBy('created_at', 'desc');
     }
 
     public function contact()
     {
         return $this->belongsTo(
-            InstagramContact::class,
+            config('instagram.models.instagram_contact'),
             'instagram_user_id',
             'instagram_user_id'
         );

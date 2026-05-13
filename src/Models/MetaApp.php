@@ -47,14 +47,14 @@ class MetaApp extends Model
 
     public function facebookPages(): HasMany
     {
-        return $this->hasMany(FacebookPage::class, 'meta_app_id', 'id');
+        return $this->hasMany(config('instagram.models.facebook_page'), 'meta_app_id', 'id');
     }
 
     public function instagramBusinessAccounts()
     {
         return $this->hasManyThrough(
-            InstagramBusinessAccount::class,
-            FacebookPage::class,
+            config('instagram.models.instagram_business_account'),
+            config('instagram.models.facebook_page'),
             'meta_app_id', // Foreign key on FacebookPage table
             'facebook_page_id', // Foreign key on InstagramBusinessAccount table
             'id', // Local key on MetaApp table
