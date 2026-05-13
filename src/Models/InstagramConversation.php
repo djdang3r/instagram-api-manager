@@ -43,8 +43,8 @@ class InstagramConversation extends Model
     public function instagramBusinessAccount(): BelongsTo
     {
         return $this->belongsTo(
-            InstagramBusinessAccount::class, 
-            'instagram_business_account_id', 
+            InstagramBusinessAccount::class,
+            'instagram_business_account_id',
             'instagram_business_account_id'
         );
     }
@@ -54,11 +54,17 @@ class InstagramConversation extends Model
         return $this->hasMany(InstagramMessage::class, 'conversation_id', 'id');
     }
 
+    public function latestMessage()
+    {
+        return $this->hasOne(InstagramMessage::class, 'conversation_id', 'id')
+            ->orderBy('created_at', 'desc');
+    }
+
     public function contact()
     {
         return $this->belongsTo(
-            InstagramContact::class, 
-            'instagram_user_id', 
+            InstagramContact::class,
+            'instagram_user_id',
             'instagram_user_id'
         );
     }

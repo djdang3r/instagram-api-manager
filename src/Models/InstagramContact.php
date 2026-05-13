@@ -46,4 +46,9 @@ class InstagramContact extends Model
     {
         return $this->belongsTo(InstagramBusinessAccount::class, 'instagram_business_account_id', 'instagram_business_account_id');
     }
+
+    public function conversations()
+    {
+        return $this->hasMany(InstagramConversation::class, 'instagram_user_id', 'instagram_user_id');
+    }
 }
