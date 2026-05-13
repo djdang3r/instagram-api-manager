@@ -54,10 +54,15 @@ class InstagramConversation extends Model
         return $this->hasMany(config('instagram.models.instagram_message'), 'conversation_id', 'id');
     }
 
-    public function latestMessage()
+    /**
+     * Obtiene el último mensaje de la conversación
+     * @return HasOne
+     */
+    public function latestMessage(): HasOne
     {
         return $this->hasOne(config('instagram.models.instagram_message'), 'conversation_id', 'id')
-            ->orderBy('created_at', 'desc');
+            ->orderByDesc('created_time')
+            ->orderByDesc('created_at');
     }
 
     public function contact()
