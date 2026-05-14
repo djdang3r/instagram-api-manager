@@ -514,6 +514,9 @@ class InstagramMessageService
             $attachment = $message['attachments'][0] ?? [];
             return $attachment['type'] ?? 'text';
         }
+        if( isset($message['is_unsupported']) && $message['is_unsupported'] === true ){
+            return 'unsupported';
+        }
         return 'text';
     }
 
