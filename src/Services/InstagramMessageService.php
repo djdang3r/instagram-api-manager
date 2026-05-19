@@ -576,7 +576,7 @@ class InstagramMessageService
     {
         //2026-05-13 Cuauh: Se comenta revisar que no esté definido la variable is_echo, ya que aunque el mensaje sea un eco, este con los cambios anteriores ahora si se procesa y se obtiene información que se guarda en base de datos com delivered_at y status además de atachments, por lo que tampoco debe excluirse en este método que se usa para revisar si se emite un evento broadcast
         if (isset($messaging['message']) /*&& !isset($messaging['message']['is_echo'])*/) {
-            return 'message';
+            return (isset($messaging['message']['is_echo']) and $messaging['message']['is_echo'] === true) ? 'message_echo' : 'message';
         }
 
         if (isset($messaging['postback'])) {

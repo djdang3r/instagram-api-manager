@@ -100,6 +100,7 @@ return [
     */
     'events' => [
         'message' => \ScriptDevelop\InstagramApiManager\Events\InstagramMessageReceived::class,
+        'message_echo' => \ScriptDevelop\InstagramApiManager\Events\InstagramMessageEchoReceived::class,
         'postback' => \ScriptDevelop\InstagramApiManager\Events\InstagramPostbackReceived::class,
         'reaction' => \ScriptDevelop\InstagramApiManager\Events\InstagramReactionReceived::class,
         'optin' => \ScriptDevelop\InstagramApiManager\Events\InstagramOptinReceived::class,
