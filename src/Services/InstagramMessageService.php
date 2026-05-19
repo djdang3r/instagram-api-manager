@@ -999,7 +999,13 @@ class InstagramMessageService
         }
         $message = InstagramModelResolver::instagram_message()->where('message_id', $mid)->first();
         if ($message) {
-            $message->update(['is_edited' => true, 'edited_at' => now()]);
+            $dataUpdate = [
+                'message_content' => $messageEdit['text'] ?? $message->message_content,
+                'json_content'    => $messageEdit,
+                'is_edited'      => true,
+                'edited_at'      => now(),
+            ];
+            $message->update($dataUpdate);
             Log::channel('instagram')->info('✅ Mensaje marcado como editado en BD');
         } else {
             Log::channel('instagram')->warning('⚠️ Mensaje original no encontrado al procesar edición');
