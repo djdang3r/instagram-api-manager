@@ -547,13 +547,17 @@ class InstagramMessageService
         $messageRecord = $processedData['message'] ?? null;
         $conversationRecord = $processedData['conversation'] ?? null;
 
+        if( $conversationRecord ){
+            $conversationRecord->load('contact');
+        }
+
         $payload = [
             'sender' => $messaging['sender']['id'] ?? null,
             'recipient' => $messaging['recipient']['id'] ?? null,
             'timestamp' => $messaging['timestamp'] ?? null,
             'data' => $messaging[$eventType] ?? $messaging['message'] ?? $messaging,
-            'message' => $messageRecord && method_exists($messageRecord, 'toArray') ? $messageRecord->toArray() : null,
-            'conversation' => $conversationRecord && method_exists($conversationRecord, 'toArray') ? $conversationRecord->toArray() : null,
+            'message' => $messageRecord,
+            'conversation' => $conversationRecord,
         ];
 
         try {
@@ -576,7 +580,7 @@ class InstagramMessageService
     {
         //2026-05-13 Cuauh: Se comenta revisar que no esté definido la variable is_echo, ya que aunque el mensaje sea un eco, este con los cambios anteriores ahora si se procesa y se obtiene información que se guarda en base de datos com delivered_at y status además de atachments, por lo que tampoco debe excluirse en este método que se usa para revisar si se emite un evento broadcast
         if (isset($messaging['message']) /*&& !isset($messaging['message']['is_echo'])*/) {
-            return 'message';
+            return (isset($messaging['message']['is_echo']) and $messaging['message']['is_echo'] === true) ? 'message_echo' : 'message';
         }
 
         if (isset($messaging['postback'])) {
@@ -995,7 +999,13 @@ class InstagramMessageService
         }
         $message = InstagramModelResolver::instagram_message()->where('message_id', $mid)->first();
         if ($message) {
-            $message->update(['is_edited' => true, 'edited_at' => now()]);
+            $dataUpdate = [
+                'message_content' => $messageEdit['text'] ?? $message->message_content,
+                'json_content'    => $messageEdit,
+                'is_edited'      => true,
+                'edited_at'      => now(),
+            ];
+            $message->update($dataUpdate);
             Log::channel('instagram')->info('✅ Mensaje marcado como editado en BD');
         } else {
             Log::channel('instagram')->warning('⚠️ Mensaje original no encontrado al procesar edición');
