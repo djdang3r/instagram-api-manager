@@ -547,13 +547,17 @@ class InstagramMessageService
         $messageRecord = $processedData['message'] ?? null;
         $conversationRecord = $processedData['conversation'] ?? null;
 
+        if( $conversationRecord ){
+            $conversationRecord->load('contact');
+        }
+
         $payload = [
             'sender' => $messaging['sender']['id'] ?? null,
             'recipient' => $messaging['recipient']['id'] ?? null,
             'timestamp' => $messaging['timestamp'] ?? null,
             'data' => $messaging[$eventType] ?? $messaging['message'] ?? $messaging,
-            'message' => $messageRecord && method_exists($messageRecord, 'toArray') ? $messageRecord->toArray() : null,
-            'conversation' => $conversationRecord && method_exists($conversationRecord, 'toArray') ? $conversationRecord->toArray() : null,
+            'message' => $messageRecord,
+            'conversation' => $conversationRecord,
         ];
 
         try {
