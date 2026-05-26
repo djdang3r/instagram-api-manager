@@ -196,9 +196,9 @@ class InstagramServiceProvider extends ServiceProvider
             __DIR__ . '/../../config/instagram.php' => config_path('instagram.php'),
             __DIR__ . '/../../config/facebook.php' => config_path('facebook.php'),
             __DIR__ . '/../../routes/instagram_webhook.php' => base_path('routes/instagram_webhook.php'),
-            __DIR__ . '/../../routes/instagram_callback.php' => base_path('routes/instagram_callback.php')
+            __DIR__ . '/../../routes/instagram_callback.php' => base_path('routes/instagram_callback.php'),
             __DIR__ . '/../../routes/facebook_webhook.php' => base_path('routes/facebook_webhook.php'),
-            __DIR__ . '/../../routes/facebook_callback.php' => base_path('routes/facebook_callback.php')
+            __DIR__ . '/../../routes/facebook_callback.php' => base_path('routes/facebook_callback.php'),
             __DIR__ . '/../../config/logging-additions.php' => config_path('logging-additions.php'),
         ];
         if (file_exists($channelsPath)) {
