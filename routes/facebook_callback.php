@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use ScriptDevelop\InstagramApiManager\Http\Controllers\Auth\InstagramAuthController;
 use ScriptDevelop\InstagramApiManager\Http\Controllers\Auth\FacebookAuthController;
 
 Route::get('/facebook/callback', [FacebookAuthController::class, 'callback'])->name('facebook.auth.callback');
