@@ -34,7 +34,7 @@ class FacebookAccountService
             'state' => $state,
         ]);
 
-        return "https://www.facebook.com/v19.0/dialog/oauth?" . $params;
+        return "https://www.facebook.com/".config('facebook.api.version')."/dialog/oauth?" . $params;
     }
 
     public function handleCallback(string $code): bool
