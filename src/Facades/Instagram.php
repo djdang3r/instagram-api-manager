@@ -2,16 +2,18 @@
 
 namespace ScriptDevelop\InstagramApiManager\Facades;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Facade;
-use ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount;
+use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
+use InvalidArgumentException;
 
 /**
- * @method static \ScriptDevelop\InstagramApiManager\Services\InstagramAccountService forAccount(InstagramBusinessAccount $account)
+ * @method static \ScriptDevelop\InstagramApiManager\Services\InstagramAccountService forAccount(Model $account)
  * @method static \ScriptDevelop\InstagramApiManager\Services\InstagramAccountService forAccountId(string $accountId)
  * @method static array|null getProfileInfo(string|null $accessToken = null)
  * @method static array|null getUserMedia(string|null $userId = null, string|null $accessToken = null)
  * @method static array|null getMediaDetails(string $mediaId, string|null $accessToken = null)
- * @method static \ScriptDevelop\InstagramApiManager\Services\InstagramAccountService account(InstagramBusinessAccount|string|null $account = null)
+ * @method static \ScriptDevelop\InstagramApiManager\Services\InstagramAccountService account(Model|string|null $account = null)
  */
 class Instagram extends Facade
 {
@@ -23,8 +25,16 @@ class Instagram extends Facade
     /**
      * Proxy para el método forAccount del servicio.
      */
-    public static function forAccount(InstagramBusinessAccount $account)
+    public static function forAccount(Model $account)
     {
+        $configuredModelClass = get_class(InstagramModelResolver::instagram_business_account()->getModel());
+
+        if (!$account instanceof $configuredModelClass) {
+            throw new InvalidArgumentException(
+                "La cuenta debe ser una instancia de [$configuredModelClass]."
+            );
+        }
+
         return self::getFacadeRoot()->forAccount($account);
     }
 
@@ -39,18 +49,18 @@ class Instagram extends Facade
     /**
      * Método helper para facilitar el uso.
      */
-    public static function account(InstagramBusinessAccount|string|null $account = null): \ScriptDevelop\InstagramApiManager\Services\InstagramAccountService
+    public static function account(Model|string|null $account = null): \ScriptDevelop\InstagramApiManager\Services\InstagramAccountService
     {
         $service = self::getFacadeRoot();
-        
-        if ($account instanceof InstagramBusinessAccount) {
+
+        if ($account instanceof Model) {
             return $service->forAccount($account);
         }
-        
+
         if (is_string($account)) {
             return $service->forAccountId($account);
         }
-        
+
         return $service;
     }
 

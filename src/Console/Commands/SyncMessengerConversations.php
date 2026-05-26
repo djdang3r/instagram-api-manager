@@ -3,7 +3,7 @@
 namespace ScriptDevelop\InstagramApiManager\Console\Commands;
 
 use Illuminate\Console\Command;
-use ScriptDevelop\InstagramApiManager\Models\FacebookPage;
+use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 
 class SyncMessengerConversations extends Command
 {
@@ -12,7 +12,7 @@ class SyncMessengerConversations extends Command
 
     public function handle(): int
     {
-        $pages = FacebookPage::whereNotNull('access_token')->get();
+        $pages = InstagramModelResolver::facebook_page()->whereNotNull('access_token')->get();
 
         foreach ($pages as $page) {
             $this->info("Sincronizando conversaciones para: {$page->name} ({$page->page_id})");

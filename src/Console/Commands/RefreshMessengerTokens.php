@@ -3,7 +3,7 @@
 namespace ScriptDevelop\InstagramApiManager\Console\Commands;
 
 use Illuminate\Console\Command;
-use ScriptDevelop\InstagramApiManager\Models\FacebookPage;
+use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 use ScriptDevelop\InstagramApiManager\Services\FacebookAccountService;
 
 class RefreshMessengerTokens extends Command
@@ -14,7 +14,7 @@ class RefreshMessengerTokens extends Command
     public function handle(): int
     {
         $service = app(FacebookAccountService::class);
-        $pages = FacebookPage::all();
+        $pages = InstagramModelResolver::facebook_page()->all();
 
         foreach ($pages as $page) {
             $this->info("Procesando página: {$page->name} ({$page->page_id})");

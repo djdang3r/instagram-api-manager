@@ -3,8 +3,7 @@
 namespace ScriptDevelop\InstagramApiManager\Services;
 
 use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
-use ScriptDevelop\InstagramApiManager\Models\MessengerConversation;
-use ScriptDevelop\InstagramApiManager\Models\MessengerMessage;
+use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -20,12 +19,6 @@ class FacebookMessageService
         $this->apiClient = app(ApiClient::class)
             ->withBaseUrl(config('facebook.api.base_url'))
             ->withVersion(config('facebook.api.version'));
-    }
-
-    public function withPageAccessToken(string $token): self
-    {
-        $this->pageAccessToken = $token;
-        return $this;
     }
 
     public function withPageAccessToken(string $token): self
@@ -53,9 +46,9 @@ class FacebookMessageService
         return $conversation->last_message_at->diffInHours(now()) < 24;
     }
 
-    protected function findOrCreateConversation(string $pageId, string $messengerUserId): MessengerConversation
+    protected function findOrCreateConversation(string $pageId, string $messengerUserId): Model
     {
-        $conversation = MessengerConversation::query()
+        $conversation = InstagramModelResolver::messenger_conversation()
             ->where('page_id', $pageId)
             ->where('messenger_user_id', $messengerUserId)
             ->whereNull('deleted_at')
@@ -65,7 +58,7 @@ class FacebookMessageService
             return $conversation;
         }
 
-        return MessengerConversation::query()->create([
+        return InstagramModelResolver::messenger_conversation()->create([
             'page_id' => $pageId,
             'messenger_user_id' => $messengerUserId,
             'last_message_at' => now(),
@@ -82,7 +75,7 @@ class FacebookMessageService
         $this->validateCredentials();
 
         $conversation = $conversationId
-            ? MessengerConversation::query()->find($conversationId)
+            ? InstagramModelResolver::messenger_conversation()->find($conversationId)
             : $this->findOrCreateConversation($this->pageId, $recipientId);
 
         $isTagged = ($messagePayload['messaging_type'] ?? '') === 'MESSAGE_TAG';
@@ -120,7 +113,7 @@ class FacebookMessageService
             $messageData['message_content'] = $messagePayload['message']['attachment']['payload']['text'] ?? null;
         }
 
-        $message = MessengerMessage::query()->create($messageData);
+        $message = InstagramModelResolver::messenger_message()->create($messageData);
 
         try {
             $response = $this->apiClient->request(
@@ -160,7 +153,7 @@ class FacebookMessageService
     {
         $this->validateCredentials();
         $conversation = $this->findOrCreateConversation($this->pageId, $recipientId);
-        $message = MessengerMessage::query()->create([
+        $message = InstagramModelResolver::messenger_message()->create([
             'conversation_id' => $conversation->id, 'message_id' => 'temp_' . uniqid(),
             'message_method' => 'outgoing', 'message_type' => 'image',
             'message_from' => $this->pageId, 'message_to' => $recipientId,
@@ -186,7 +179,7 @@ class FacebookMessageService
     {
         $this->validateCredentials();
         $conversation = $this->findOrCreateConversation($this->pageId, $recipientId);
-        $message = MessengerMessage::query()->create([
+        $message = InstagramModelResolver::messenger_message()->create([
             'conversation_id' => $conversation->id, 'message_id' => 'temp_' . uniqid(),
             'message_method' => 'outgoing', 'message_type' => 'audio',
             'message_from' => $this->pageId, 'message_to' => $recipientId,
@@ -211,7 +204,7 @@ class FacebookMessageService
     {
         $this->validateCredentials();
         $conversation = $this->findOrCreateConversation($this->pageId, $recipientId);
-        $message = MessengerMessage::query()->create([
+        $message = InstagramModelResolver::messenger_message()->create([
             'conversation_id' => $conversation->id, 'message_id' => 'temp_' . uniqid(),
             'message_method' => 'outgoing', 'message_type' => 'video',
             'message_from' => $this->pageId, 'message_to' => $recipientId,
@@ -236,7 +229,7 @@ class FacebookMessageService
     {
         $this->validateCredentials();
         $conversation = $this->findOrCreateConversation($this->pageId, $recipientId);
-        $message = MessengerMessage::query()->create([
+        $message = InstagramModelResolver::messenger_message()->create([
             'conversation_id' => $conversation->id, 'message_id' => 'temp_' . uniqid(),
             'message_method' => 'outgoing', 'message_type' => 'file',
             'message_from' => $this->pageId, 'message_to' => $recipientId,
@@ -331,7 +324,7 @@ class FacebookMessageService
     {
         $this->validateCredentials();
         $conversation = $this->findOrCreateConversation($this->pageId, $recipientId);
-        $message = MessengerMessage::query()->create([
+        $message = InstagramModelResolver::messenger_message()->create([
             'conversation_id' => $conversation->id, 'message_id' => 'temp_' . uniqid(),
             'message_method' => 'outgoing', 'message_type' => 'image',
             'message_from' => $this->pageId, 'message_to' => $recipientId,
