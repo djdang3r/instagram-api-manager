@@ -9,6 +9,35 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Added
+- **Facebook Messenger — Mensajería completa**: Implementación de todo el ecosistema de mensajería de Facebook Messenger.
+  - Nuevo `MessengerWebhookProcessor` dedicado (webhook en `/facebook-webhook`, `"object": "page"`)
+  - `MessengerMessageService` para procesamiento inbound de mensajes (texto, imagen, audio, video, archivo, sticker, quick reply, postback, reacción, read receipt, referral, message edit, optin)
+  - `FacebookMessageService` reconstruido con 14 métodos de envío: `sendTextMessage`, `sendImageMessage`, `sendAudioMessage`, `sendVideoMessage`, `sendFileMessage`, `sendStickerMessage`, `sendQuickReplies`, `sendGenericTemplate`, `sendButtonTemplate`, `sendReadReceipt`, `sendReaction`, `sendReply`, `sendMultipleImages`, `sendTaggedMessage`
+  - `uploadAttachment` para subir media reusable a servidores Meta (`/message_attachments`)
+  - 8 eventos broadcast para Messenger (canal `facebook-messages`) con soporte Laravel Reverb
+  - Ruta `/facebook/connect` con método `connect()` en `FacebookAuthController`
+  - `MessengerWebhookController` para manejo de webhooks
+  - Tabla `messenger_media_messages` para separar archivos multimedia de mensajes
+- **Migraciones**: 4 nuevas migraciones (campos Messenger, tabla media, contactos, conversaciones)
+- **Configuración de archivos multimedia**: Secciones `media` en `config/instagram.php` y `config/facebook.php` con rutas de almacenamiento configurables por `.env`
+- **Seguridad**: Validación `X-Hub-Signature-256` (SHA256) en webhooks de Instagram y Messenger vía trait `ValidatesHubSignature`
+- **Rate limiting**: `throttle:60,1` en rutas de webhook (`/instagram-webhook`, `/facebook-webhook`)
+- **Instagram — Métodos de envío faltantes**: `sendReaction`, `sendReply`, `sendMultipleImages`, `uploadAttachment` agregados a `InstagramMessageService`
+- **Soporte de archivos locales**: `sendImageMessage`, `sendAudioMessage`, `sendVideoMessage`, `sendFileMessage`/`sendDocumentMessage` y `sendMultipleImages` ahora aceptan tanto URL como archivos locales (`SplFileInfo` o ruta string). Nuevo método `sendMediaRequest()` en `ApiClient` con soporte `multipart/form-data`.
+- **Token refresh para Facebook**: `FacebookAccountService` ahora tiene `refreshLongLivedToken()` y `refreshAndStoreLongLivedToken()`
+- **Validación de ventana 24h**: `isWithin24hWindow()` en ambos servicios de mensajería previene envíos fuera de ventana sin `MESSAGE_TAG`
+
+### Changed
+- **Versión API por defecto**: `v19.0` → `v25.0` (última disponible a Mayo 2026) en `config/instagram.php` y `config/facebook.php`
+- **Unificación de ApiClient**: Un solo Guzzle Client compartido (singleton) + instancias transient de ApiClient con configuración fluida. Eliminados 8 `new ApiClient(...)` de servicios.
+- **Wizard de instalación**: Actualizado con variables de entorno de Facebook y versión corregida
+- **Broadcast Messenger**: Configuración `facebook.broadcast.channel_type` independiente de Instagram. Canal `facebook-messages` autorizado en `channels.php`
+- **Soporte de archivos locales**: `sendImageMessage`, `sendAudioMessage`, `sendVideoMessage`, `sendFileMessage`/`sendDocumentMessage` y `sendMultipleImages` ahora aceptan tanto URL como archivos locales (`SplFileInfo` o ruta string). El paquete detecta automáticamente y usa `multipart/form-data` con `filedata` para archivos locales. Nuevo método `sendMediaRequest()` en `ApiClient`.
+
+### Removed
+- **Tests obsoletos**: `tests/Feature/InstagramWebhookMessagesTest.php` eliminado (los tests se ejecutan desde el proyecto consumidor)
+
 ---
 
 ## [1.0.82] - 2026-05-08

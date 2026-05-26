@@ -17,11 +17,9 @@ class InstagramAccountService
 
     public function __construct()
     {
-        $this->apiClient = new ApiClient(
-            config('instagram.api.graph_base_url', 'https://graph.instagram.com'),
-            config('instagram.api.version', 'v19.0'),
-            (int) config('instagram.api.timeout', 30)
-        );
+        $this->apiClient = app(ApiClient::class)
+            ->withBaseUrl(config('instagram.api.graph_base_url', 'https://graph.instagram.com'))
+            ->withVersion(config('instagram.api.version'));
     }
 
     /**
@@ -191,11 +189,9 @@ class InstagramAccountService
         try {
             // Crear cliente temporal para OAuth de Instagram (sin versión)
             $oauthBaseUrl = $this->resolveInstagramOAuthBaseUrl();
-            $oauthClient = new ApiClient(
-                $oauthBaseUrl,
-                '', // Sin versión para endpoints de OAuth
-                (int) config('instagram.api.timeout', 30)
-            );
+            $oauthClient = app(ApiClient::class)
+                ->withBaseUrl($oauthBaseUrl)
+                ->withVersion('');
 
             // Intercambiar código por token de acceso - USAR form_params (x-www-form-urlencoded)
             $response = $oauthClient->request(
@@ -353,11 +349,9 @@ class InstagramAccountService
     {
         try {
             // Crear cliente para endpoint de exchange (según documentación)
-            $exchangeClient = new ApiClient(
-                config('instagram.api.graph_base_url', 'https://graph.instagram.com'),
-                '', // Sin versión para este endpoint
-                (int) config('instagram.api.timeout', 30)
-            );
+            $exchangeClient = app(ApiClient::class)
+                ->withBaseUrl(config('instagram.api.graph_base_url', 'https://graph.instagram.com'))
+                ->withVersion('');
 
             return $exchangeClient->request(
                 'GET',
@@ -415,11 +409,9 @@ class InstagramAccountService
             }
 
             // Crear cliente para endpoint de refresh (según documentación)
-            $refreshClient = new ApiClient(
-                config('instagram.api.graph_base_url', 'https://graph.instagram.com'),
-                '', // Sin versión para este endpoint
-                (int) config('instagram.api.timeout', 30)
-            );
+            $refreshClient = app(ApiClient::class)
+                ->withBaseUrl(config('instagram.api.graph_base_url', 'https://graph.instagram.com'))
+                ->withVersion('');
 
             return $refreshClient->request(
                 'GET',

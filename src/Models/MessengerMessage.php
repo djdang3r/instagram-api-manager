@@ -5,6 +5,7 @@ namespace ScriptDevelop\InstagramApiManager\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use ScriptDevelop\InstagramApiManager\Traits\GeneratesUlid;
 
 class MessengerMessage extends Model
@@ -52,5 +53,15 @@ class MessengerMessage extends Model
     public function messengerConversation(): BelongsTo
     {
         return $this->belongsTo(config('instagram.models.messenger_conversation'), 'conversation_id', 'id');
+    }
+
+    public function media(): HasMany
+    {
+        return $this->hasMany(config('instagram.models.messenger_media_message'), 'message_id', 'message_id');
+    }
+
+    public function mediaCount(): int
+    {
+        return $this->media()->count();
     }
 }

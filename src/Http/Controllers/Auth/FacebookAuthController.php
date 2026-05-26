@@ -48,4 +48,15 @@ class FacebookAuthController extends Controller
             return redirect('/')->with('error', 'Error interno del servidor');
         }
     }
+
+    /**
+     * Redirige al usuario a Facebook para autorizar la aplicación.
+     */
+    public function connect()
+    {
+        $facebookAccountService = app(FacebookAccountService::class);
+        $authUrl = $facebookAccountService->getAuthorizationUrl();
+
+        return redirect($authUrl);
+    }
 }

@@ -4,6 +4,7 @@ namespace ScriptDevelop\InstagramApiManager\Services;
 
 use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
 use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -14,11 +15,9 @@ class FacebookAccountService
 
     public function __construct()
     {
-        $this->apiClient = new ApiClient(
-            config('facebook.api.base_url'),
-            config('facebook.api.version'),
-            (int) config('facebook.api.timeout', 30)
-        );
+        $this->apiClient = app(ApiClient::class)
+            ->withBaseUrl(config('facebook.api.base_url'))
+            ->withVersion(config('facebook.api.version'));
     }
 
     public function getAuthorizationUrl(array $scopes = ['pages_show_list', 'pages_read_engagement', 'pages_messaging'], ?string $state = null): string
@@ -103,5 +102,50 @@ class FacebookAccountService
             DB::rollBack();
             return false;
         }
+    }
+
+    /**
+     * Refrescar token de larga duración de una página de Facebook.
+     */
+    public function refreshLongLivedToken(Model $page): ?array
+    {
+        try {
+            $token = $page->access_token;
+            if (!$token) {
+                Log::channel('facebook')->error('No se puede refrescar token: la página no tiene access_token');
+                return null;
+            }
+
+            $response = $this->apiClient->request(
+                'GET',
+                'oauth/access_token',
+                [],
+                null,
+                [
+                    'grant_type' => 'fb_exchange_token',
+                    'client_id' => config('facebook.meta_auth.client_id'),
+                    'client_secret' => config('facebook.meta_auth.client_secret'),
+                    'fb_exchange_token' => $token,
+                ]
+            );
+
+            return $response['access_token'] ?? null ? $response : null;
+        } catch (Exception $e) {
+            Log::channel('facebook')->error('Error refrescando token de Facebook:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    public function refreshAndStoreLongLivedToken(Model $page): bool
+    {
+        $response = $this->refreshLongLivedToken($page);
+        if (!$response || empty($response['access_token'])) {
+            return false;
+        }
+
+        $page->access_token = $response['access_token'];
+        $page->token_expires_in = $response['expires_in'] ?? null;
+        $page->token_obtained_at = now();
+        return $page->save();
     }
 }

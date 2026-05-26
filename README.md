@@ -37,11 +37,17 @@ Desde la automatización de respuestas en Direct Message (DM) hasta la gestión 
 | :--- | :--- |
 | [1. 🚀 Instalación](documentation/es/01-instalacion.md) | Guía paso a paso para instalar y preparar el entorno Laravel. |
 | [2. 🧩 Configuración](documentation/es/02-configuracion.md) | Configura tus credenciales de Meta y personaliza el comportamiento del paquete. |
-| [3. 👤 Cuentas](documentation/es/03-cuentas.md) | Gestión avanzada de perfiles, permisos OAuth e identificación de cuentas. |
-| [4. 💬 Mensajería](documentation/es/04-mensajes.md) | Envío masivo y filtrado de texto, multimedia, stickers y plantillas interactivas. |
-| [5. 🛠️ Automatización](documentation/es/05-menu-persistente.md) | Configuración de la experiencia de chat: Menús persistentes e Ice Breakers. |
-| [6. 🔗 Growth Tools](documentation/es/06-enlaces.md) | Generación dinámica de enlaces ig.me y códigos QR oficiales de Meta. |
-| [7. 📡 Webhooks](documentation/es/07-webhooks.md) | Arquitectura de eventos para recibir y procesar mensajes en tiempo real. |
+| | **📸 Instagram** |
+| [3. 👤 Cuentas](documentation/es/instagram/03-cuentas.md) | Gestión avanzada de perfiles, permisos OAuth e identificación de cuentas. |
+| [4. 💬 Mensajería](documentation/es/instagram/04-mensajes.md) | Envío masivo y filtrado de texto, multimedia, stickers y plantillas interactivas. |
+| [5. 🛠️ Automatización](documentation/es/instagram/05-menu-persistente.md) | Configuración de la experiencia de chat: Menús persistentes e Ice Breakers. |
+| [6. 🔗 Growth Tools](documentation/es/instagram/06-enlaces.md) | Generación dinámica de enlaces ig.me y códigos QR oficiales de Meta. |
+| [7. 📡 Webhooks](documentation/es/instagram/07-webhooks.md) | Arquitectura de eventos para recibir y procesar mensajes en tiempo real. |
+| | **💬 Facebook Messenger** |
+| [🔗 Autenticación](documentation/es/messenger/01-autenticacion.md) | Conexión OAuth de páginas de Facebook, permisos y registro manual. |
+| [💬 Mensajería](documentation/es/messenger/02-mensajes.md) | Envío y recepción de mensajes: texto, multimedia, templates, reacciones. |
+| [📡 Webhooks](documentation/es/messenger/03-webhooks.md) | Configuración del webhook de Messenger y formato de payloads. |
+| [📡 Eventos](documentation/es/messenger/04-eventos.md) | Broadcasting con Laravel Reverb y suscripción frontend. |
 
 ### ✨ Características Principales
 - ✅ **Arquitectura Escalable**: Diseñado para soportar desde una sola cuenta hasta cientos de perfiles comerciales simultáneamente.
@@ -71,11 +77,17 @@ From automating Direct Message (DM) responses to managing commercial profiles an
 | :--- | :--- |
 | [1. 🚀 Installation](documentation/en/01-installation.md) | Step-by-step guide to install and prepare the Laravel environment. |
 | [2. 🧩 Configuration](documentation/en/02-configuration.md) | Configure your Meta credentials and customize package behavior. |
-| [3. 👤 Accounts](documentation/en/03-accounts.md) | Advanced profile management, OAuth permissions, and account identification. |
-| [4. 💬 Messaging](documentation/en/04-messages.md) | Batch sending and filtering of text, media, stickers, and interactive templates. |
-| [5. 🛠️ Automation](documentation/en/05-persistent-menu.md) | Chat experience setup: Persistent menus and Ice Breakers. |
-| [6. 🔗 Growth Tools](documentation/en/06-links.md) | Dynamic ig.me link generation and official Meta QR codes. |
-| [7. 📡 Webhooks](documentation/en/07-webhooks.md) | Event architecture for receiving and processing messages in real-time. |
+| | **📸 Instagram** |
+| [3. 👤 Accounts](documentation/en/instagram/03-accounts.md) | Advanced profile management, OAuth permissions, and account identification. |
+| [4. 💬 Messaging](documentation/en/instagram/04-messages.md) | Batch sending and filtering of text, media, stickers, and interactive templates. |
+| [5. 🛠️ Automation](documentation/en/instagram/05-persistent-menu.md) | Chat experience setup: Persistent menus and Ice Breakers. |
+| [6. 🔗 Growth Tools](documentation/en/instagram/06-links.md) | Dynamic ig.me link generation and official Meta QR codes. |
+| [7. 📡 Webhooks](documentation/en/instagram/07-webhooks.md) | Event architecture for receiving and processing messages in real-time. |
+| | **💬 Facebook Messenger** |
+| [🔗 Authentication](documentation/en/messenger/01-authentication.md) | Facebook Page OAuth connection, permissions, and manual registration. |
+| [💬 Messaging](documentation/en/messenger/02-messages.md) | Send and receive messages: text, media, templates, reactions. |
+| [📡 Webhooks](documentation/en/messenger/03-webhooks.md) | Messenger webhook setup and payload format. |
+| [📡 Events](documentation/en/messenger/04-events.md) | Broadcasting with Laravel Reverb and frontend subscription. |
 
 ### ✨ Key Features
 - ✅ **Scalable Architecture**: Designed to support from a single account to hundreds of business profiles simultaneously.

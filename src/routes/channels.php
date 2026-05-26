@@ -9,3 +9,11 @@ if (config('instagram.broadcast.channel_type') === 'private') {
     });
 
 }
+
+if (config('facebook.broadcast.channel_type') === 'private') {
+
+    Broadcast::channel('facebook-messages', function ($user) {
+        return $user !== null;
+    });
+
+}

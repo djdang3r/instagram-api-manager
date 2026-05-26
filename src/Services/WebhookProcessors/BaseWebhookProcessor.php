@@ -8,9 +8,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use ScriptDevelop\InstagramApiManager\Contracts\WebhookProcessorInterface;
 use ScriptDevelop\InstagramApiManager\Services\InstagramMessageService;
+use ScriptDevelop\InstagramApiManager\Traits\ValidatesHubSignature;
 
 class BaseWebhookProcessor implements WebhookProcessorInterface
 {
+    use ValidatesHubSignature;
     protected InstagramMessageService $messageService;
 
     public function __construct(InstagramMessageService $messageService)
@@ -62,6 +64,10 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
      */
     public function processWebhookPayload(Request $request): JsonResponse
     {
+        if (!$this->validateHubSignature($request, 'instagram')) {
+            return response()->json(['error' => 'Invalid signature'], 403);
+        }
+
         $data = $request->all();
 
         Log::channel('instagram')->info('=== WEBHOOK DE INSTAGRAM RECIBIDO ===');

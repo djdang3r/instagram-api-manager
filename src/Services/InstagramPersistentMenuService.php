@@ -14,11 +14,9 @@ class InstagramPersistentMenuService
 
     public function __construct()
     {
-        $this->apiClient = new ApiClient(
-            config('instagram.api.graph_base_url', 'https://graph.facebook.com'),
-            config('instagram.api.version', 'v19.0'),
-            (int) config('instagram.api.timeout', 30)
-        );
+        $this->apiClient = app(ApiClient::class)
+            ->withBaseUrl(config('instagram.api.graph_base_url', 'https://graph.facebook.com'))
+            ->withVersion(config('instagram.api.version'));
     }
 
     /**

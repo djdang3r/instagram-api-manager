@@ -20,11 +20,9 @@ class InstagramMessageService
     public function __construct(?InstagramAccountService $accountService = null)
     {
         // Cliente principal para mensajería (Graph API de Facebook)
-        $this->apiClient = new ApiClient(
-            config('instagram.api.graph_base_url', 'https://graph.facebook.com'),
-            config('instagram.api.version', 'v23.0'),
-            (int) config('instagram.api.timeout', 30)
-        );
+        $this->apiClient = app(ApiClient::class)
+            ->withBaseUrl(config('instagram.api.graph_base_url', 'https://graph.facebook.com'))
+            ->withVersion(config('instagram.api.version'));
 
         // Inyectamos el servicio de cuentas para refrescar tokens
         $this->accountService = $accountService ?? app(InstagramAccountService::class);
@@ -50,6 +48,12 @@ class InstagramMessageService
         if (!$this->accessToken || !$this->instagramUserId) {
             throw new Exception('Access Token and Instagram User ID must be set.');
         }
+    }
+
+    protected function isWithin24hWindow(Model $conversation): bool
+    {
+        if (!$conversation->last_message_at) return false;
+        return $conversation->last_message_at->diffInHours(now()) < 24;
     }
 
     // ------------------------------------------------------------------------
@@ -687,13 +691,11 @@ class InstagramMessageService
                 }
 
                 $baseUrl = config('instagram.api.graph_base_url', 'https://graph.instagram.com');
-                $version = config('instagram.api.version', 'v19.0');
+                $version = config('instagram.api.version', 'v25.0');
 
-                $basicClient = new ApiClient(
-                    $baseUrl,
-                    $version,
-                    (int) config('instagram.api.timeout', 30)
-                );
+                $basicClient = app(ApiClient::class)
+                    ->withBaseUrl($baseUrl)
+                    ->withVersion($version);
 
                 $fields = 'id,username,name,profile_pic,follower_count,is_verified_user,is_user_follow_business,is_business_follow_user';
                 $query = [
@@ -1084,7 +1086,7 @@ class InstagramMessageService
                 $this->instagramUserId . '/messages',
                 [],
                 $payload,
-                ['access_token' => $this->accessToken]
+                ['access_token' => $this->accessToken], 'instagram'
             );
 
             $message->update([
@@ -1118,28 +1120,112 @@ class InstagramMessageService
         return $this->sendMessageGeneric($recipientId, $payload, 'text', $conversationId);
     }
 
-    public function sendImageMessage(string $recipientId, string $imageUrl, ?string $conversationId = null): ?array
+    public function sendImageMessage(string $recipientId, string|\SplFileInfo $imageUrl, ?string $conversationId = null): ?array
     {
-        $payload = ['recipient' => ['id' => $recipientId], 'message' => ['attachment' => ['type' => 'image', 'payload' => ['url' => $imageUrl]]]];
-        return $this->sendMessageGeneric($recipientId, $payload, 'image', $conversationId, $imageUrl);
+        $this->validateCredentials();
+        $conversation = $this->findOrCreateConversation($this->instagramUserId, $recipientId);
+        $message = InstagramModelResolver::instagram_message()->create([
+            'conversation_id' => $conversation->id, 'message_id' => 'temp_' . uniqid(),
+            'message_method' => 'outgoing', 'message_type' => 'image',
+            'message_from' => $this->instagramUserId, 'message_to' => $recipientId,
+            'message_content' => 'image', 'json_content' => ['type' => 'image'],
+            'status' => 'pending', 'created_time' => now(),
+        ]);
+        try {
+            $response = $this->apiClient->sendMediaRequest(
+                $this->instagramUserId . '/messages',
+                ['id' => $recipientId], 'image', $imageUrl,
+                [], ['access_token' => $this->accessToken]
+            );
+            $message->update(['message_id' => $response['message_id'] ?? uniqid(), 'status' => 'sent', 'sent_at' => now(), 'json_content' => $response]);
+            $conversation->update(['last_message_at' => now(), 'updated_time' => now()]);
+            return ['response' => $response, 'message' => $message, 'conversation' => $conversation];
+        } catch (Exception $e) {
+            $message->update(['status' => 'failed', 'failed_at' => now(), 'message_error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error sending image:', ['error' => $e->getMessage()]);
+            return null;
+        }
     }
 
-    public function sendAudioMessage(string $recipientId, string $audioUrl, ?string $conversationId = null): ?array
+    public function sendAudioMessage(string $recipientId, string|\SplFileInfo $audioUrl, ?string $conversationId = null): ?array
     {
-        $payload = ['recipient' => ['id' => $recipientId], 'message' => ['attachment' => ['type' => 'audio', 'payload' => ['url' => $audioUrl]]]];
-        return $this->sendMessageGeneric($recipientId, $payload, 'audio', $conversationId, $audioUrl);
+        $this->validateCredentials();
+        $conversation = $this->findOrCreateConversation($this->instagramUserId, $recipientId);
+        $message = InstagramModelResolver::instagram_message()->create([
+            'conversation_id' => $conversation->id, 'message_id' => 'temp_' . uniqid(),
+            'message_method' => 'outgoing', 'message_type' => 'audio',
+            'message_from' => $this->instagramUserId, 'message_to' => $recipientId,
+            'message_content' => 'audio', 'json_content' => ['type' => 'audio'],
+            'status' => 'pending', 'created_time' => now(),
+        ]);
+        try {
+            $response = $this->apiClient->sendMediaRequest(
+                $this->instagramUserId . '/messages',
+                ['id' => $recipientId], 'audio', $audioUrl,
+                [], ['access_token' => $this->accessToken]
+            );
+            $message->update(['message_id' => $response['message_id'] ?? uniqid(), 'status' => 'sent', 'sent_at' => now(), 'json_content' => $response]);
+            $conversation->update(['last_message_at' => now(), 'updated_time' => now()]);
+            return ['response' => $response, 'message' => $message, 'conversation' => $conversation];
+        } catch (Exception $e) {
+            $message->update(['status' => 'failed', 'failed_at' => now(), 'message_error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error sending audio:', ['error' => $e->getMessage()]);
+            return null;
+        }
     }
 
-    public function sendVideoMessage(string $recipientId, string $videoUrl, ?string $conversationId = null): ?array
+    public function sendVideoMessage(string $recipientId, string|\SplFileInfo $videoUrl, ?string $conversationId = null): ?array
     {
-        $payload = ['recipient' => ['id' => $recipientId], 'message' => ['attachment' => ['type' => 'video', 'payload' => ['url' => $videoUrl]]]];
-        return $this->sendMessageGeneric($recipientId, $payload, 'video', $conversationId, $videoUrl);
+        $this->validateCredentials();
+        $conversation = $this->findOrCreateConversation($this->instagramUserId, $recipientId);
+        $message = InstagramModelResolver::instagram_message()->create([
+            'conversation_id' => $conversation->id, 'message_id' => 'temp_' . uniqid(),
+            'message_method' => 'outgoing', 'message_type' => 'video',
+            'message_from' => $this->instagramUserId, 'message_to' => $recipientId,
+            'message_content' => 'video', 'json_content' => ['type' => 'video'],
+            'status' => 'pending', 'created_time' => now(),
+        ]);
+        try {
+            $response = $this->apiClient->sendMediaRequest(
+                $this->instagramUserId . '/messages',
+                ['id' => $recipientId], 'video', $videoUrl,
+                [], ['access_token' => $this->accessToken]
+            );
+            $message->update(['message_id' => $response['message_id'] ?? uniqid(), 'status' => 'sent', 'sent_at' => now(), 'json_content' => $response]);
+            $conversation->update(['last_message_at' => now(), 'updated_time' => now()]);
+            return ['response' => $response, 'message' => $message, 'conversation' => $conversation];
+        } catch (Exception $e) {
+            $message->update(['status' => 'failed', 'failed_at' => now(), 'message_error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error sending video:', ['error' => $e->getMessage()]);
+            return null;
+        }
     }
 
-    public function sendDocumentMessage(string $recipientId, string $documentUrl, ?string $conversationId = null): ?array
+    public function sendDocumentMessage(string $recipientId, string|\SplFileInfo $documentUrl, ?string $conversationId = null): ?array
     {
-        $payload = ['recipient' => ['id' => $recipientId], 'message' => ['attachment' => ['type' => 'file', 'payload' => ['url' => $documentUrl]]]];
-        return $this->sendMessageGeneric($recipientId, $payload, 'document', $conversationId, $documentUrl);
+        $this->validateCredentials();
+        $conversation = $this->findOrCreateConversation($this->instagramUserId, $recipientId);
+        $message = InstagramModelResolver::instagram_message()->create([
+            'conversation_id' => $conversation->id, 'message_id' => 'temp_' . uniqid(),
+            'message_method' => 'outgoing', 'message_type' => 'file',
+            'message_from' => $this->instagramUserId, 'message_to' => $recipientId,
+            'message_content' => 'file', 'json_content' => ['type' => 'file'],
+            'status' => 'pending', 'created_time' => now(),
+        ]);
+        try {
+            $response = $this->apiClient->sendMediaRequest(
+                $this->instagramUserId . '/messages',
+                ['id' => $recipientId], 'file', $documentUrl,
+                [], ['access_token' => $this->accessToken]
+            );
+            $message->update(['message_id' => $response['message_id'] ?? uniqid(), 'status' => 'sent', 'sent_at' => now(), 'json_content' => $response]);
+            $conversation->update(['last_message_at' => now(), 'updated_time' => now()]);
+            return ['response' => $response, 'message' => $message, 'conversation' => $conversation];
+        } catch (Exception $e) {
+            $message->update(['status' => 'failed', 'failed_at' => now(), 'message_error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error sending document:', ['error' => $e->getMessage()]);
+            return null;
+        }
     }
 
     public function sendStickerMessage(string $recipientId, ?string $conversationId = null): ?array
@@ -1175,10 +1261,113 @@ class InstagramMessageService
                 $this->instagramUserId . '/messages',
                 [],
                 ['recipient' => ['id' => $recipientId], 'sender_action' => 'mark_seen'],
-                ['access_token' => $this->accessToken]
+                ['access_token' => $this->accessToken], 'instagram'
             );
         } catch (Exception $e) {
             Log::channel('instagram')->error('Error sending read receipt:', ['error' => $e->getMessage(), 'recipient_id' => $recipientId]);
+            return null;
+        }
+    }
+
+    public function sendReaction(string $recipientId, string $messageId, string $reaction = '❤️'): ?array
+    {
+        $this->validateCredentials();
+        try {
+            return $this->apiClient->request(
+                'POST',
+                $this->instagramUserId . '/messages',
+                [],
+                [
+                    'recipient' => ['id' => $recipientId],
+                    'sender_action' => 'react',
+                    'payload' => ['message_id' => $messageId],
+                    'reaction' => $reaction,
+                ],
+                ['access_token' => $this->accessToken], 'instagram'
+            );
+        } catch (Exception $e) {
+            Log::channel('instagram')->error('Error sending reaction:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    public function sendReply(string $recipientId, string $replyToMessageId, array $messagePayload): ?array
+    {
+        $this->validateCredentials();
+        $payload = array_merge($messagePayload, [
+            'recipient' => ['id' => $recipientId],
+            'reply_to' => ['mid' => $replyToMessageId],
+        ]);
+
+        $messageType = 'text';
+        if (isset($messagePayload['message']['attachment'])) {
+            $messageType = $messagePayload['message']['attachment']['type'] ?? 'text';
+        }
+
+        try {
+            return $this->apiClient->request(
+                'POST',
+                $this->instagramUserId . '/messages',
+                [],
+                $payload,
+                ['access_token' => $this->accessToken], 'instagram'
+            );
+        } catch (Exception $e) {
+            Log::channel('instagram')->error('Error sending reply:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    public function sendMultipleImages(string $recipientId, array $imageUrls, ?string $conversationId = null): ?array
+    {
+        $this->validateCredentials();
+        $conversation = $this->findOrCreateConversation($this->instagramUserId, $recipientId);
+        $message = InstagramModelResolver::instagram_message()->create([
+            'conversation_id' => $conversation->id, 'message_id' => 'temp_' . uniqid(),
+            'message_method' => 'outgoing', 'message_type' => 'image',
+            'message_from' => $this->instagramUserId, 'message_to' => $recipientId,
+            'message_content' => 'multiple images', 'json_content' => ['count' => count($imageUrls)],
+            'status' => 'pending', 'created_time' => now(),
+        ]);
+        try {
+            $response = $this->apiClient->sendMediaRequest(
+                $this->instagramUserId . '/messages',
+                ['id' => $recipientId], 'image', array_slice($imageUrls, 0, 10),
+                [], ['access_token' => $this->accessToken]
+            );
+            $message->update(['message_id' => $response['message_id'] ?? uniqid(), 'status' => 'sent', 'sent_at' => now(), 'json_content' => $response]);
+            $conversation->update(['last_message_at' => now(), 'updated_time' => now()]);
+            return ['response' => $response, 'message' => $message, 'conversation' => $conversation];
+        } catch (Exception $e) {
+            $message->update(['status' => 'failed', 'failed_at' => now(), 'message_error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    public function uploadAttachment(string $url, string $type = 'image'): ?string
+    {
+        $this->validateCredentials();
+        try {
+            $response = $this->apiClient->request(
+                'POST',
+                $this->instagramUserId . '/message_attachments',
+                [],
+                [
+                    'message' => json_encode([
+                        'attachment' => [
+                            'type' => $type,
+                            'payload' => [
+                                'url' => $url,
+                                'is_reusable' => true,
+                            ],
+                        ],
+                    ]),
+                ],
+                ['access_token' => $this->accessToken], 'instagram'
+            );
+            return $response['attachment_id'] ?? null;
+        } catch (Exception $e) {
+            Log::channel('instagram')->error('Error uploading attachment:', ['error' => $e->getMessage()]);
             return null;
         }
     }

@@ -2,12 +2,17 @@
 
 namespace ScriptDevelop\InstagramApiManager\Providers;
 
+use GuzzleHttp\Client;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Route;
 use ScriptDevelop\InstagramApiManager\Contracts\WebhookProcessorInterface;
+use ScriptDevelop\InstagramApiManager\Http\Controllers\MessengerWebhookController;
+use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
 use ScriptDevelop\InstagramApiManager\Services\InstagramAccountService;
 use ScriptDevelop\InstagramApiManager\Services\InstagramMessageService;
 use ScriptDevelop\InstagramApiManager\Services\FacebookAccountService;
 use ScriptDevelop\InstagramApiManager\Services\FacebookMessageService;
+use ScriptDevelop\InstagramApiManager\Services\MessengerMessageService;
 use ScriptDevelop\InstagramApiManager\Services\InstagramPersistentMenuService;
 use ScriptDevelop\InstagramApiManager\Services\InstagramLinkService;
 use ScriptDevelop\InstagramApiManager\Services\WebhookProcessors\BaseWebhookProcessor;
@@ -22,6 +27,24 @@ class InstagramServiceProvider extends ServiceProvider
         // Registrar configuración del paquete para que se pueda acceder con config('instagram')
         $this->mergeConfigFrom(__DIR__ . '/../../config/instagram.php', 'instagram');
         $this->mergeConfigFrom(__DIR__ . '/../../config/facebook.php', 'facebook');
+
+        // Shared Guzzle HTTP client (singleton) — one connection pool for all ApiClient instances
+        $this->app->singleton(Client::class, function ($app) {
+            return new Client([
+                'timeout' => (int) config('instagram.api.timeout', 30),
+                'connect_timeout' => 10,
+            ]);
+        });
+
+        // Transient ApiClient binding — each resolution gets its own instance with its own baseUrl/version
+        $this->app->bind(ApiClient::class, function ($app) {
+            return new ApiClient(
+                config('instagram.api.graph_base_url', 'https://graph.facebook.com'),
+                config('instagram.api.version'),
+                (int) config('instagram.api.timeout', 30),
+                $app->make(Client::class)
+            );
+        });
 
         $this->app->singleton('instagram.account', function ($app) {
             return new InstagramAccountService();
@@ -45,6 +68,10 @@ class InstagramServiceProvider extends ServiceProvider
 
         $this->app->singleton('facebook.message', function () {
             return new FacebookMessageService();
+        });
+
+        $this->app->singleton('messenger.message', function ($app) {
+            return new MessengerMessageService();
         });
 
         // Registrar binding para Facade 'instagram' en caso de uso directo
@@ -128,6 +155,12 @@ class InstagramServiceProvider extends ServiceProvider
         // Cargar ruta internamente para que funcione sin publicar
         $this->loadRoutesFrom(__DIR__ . '/../../routes/instagram_callback.php');
 
+        // Registrar ruta del webhook de Facebook Messenger (interna, sin publicar)
+        Route::prefix('facebook-webhook')->middleware('throttle:60,1')->group(function () {
+            Route::match(['get', 'post'], '/', [MessengerWebhookController::class, 'handle'])
+                ->name('facebook.webhook.handle');
+        });
+
         // Publicar archivo de ruta para que el usuario pueda copiar y modificar si quiere
         $this->publishes([
             __DIR__ . '/../../routes/instagram_callback.php' => base_path('routes/instagram_callback.php'),
@@ -171,6 +204,8 @@ class InstagramServiceProvider extends ServiceProvider
             \ScriptDevelop\InstagramApiManager\Console\Commands\ProcessPendingMessages::class,
             \ScriptDevelop\InstagramApiManager\Console\Commands\SyncInstagramConversations::class,
             \ScriptDevelop\InstagramApiManager\Console\Commands\InstallInstagramApiManager::class,
+            \ScriptDevelop\InstagramApiManager\Console\Commands\RefreshMessengerTokens::class,
+            \ScriptDevelop\InstagramApiManager\Console\Commands\SyncMessengerConversations::class,
         ]);
 
         // Puedes cargar vistas o comandos si el paquete los tuviera aquí

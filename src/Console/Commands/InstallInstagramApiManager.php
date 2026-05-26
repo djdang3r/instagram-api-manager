@@ -95,9 +95,19 @@ class InstallInstagramApiManager extends Command
             $this->components->info('Enlace simbólico de storage creado.');
         }
 
+        note('Directorios de archivos multimedia (se crean automáticamente):');
+        $this->line('  storage/app/public/instagram/images/');
+        $this->line('  storage/app/public/instagram/audios/');
+        $this->line('  storage/app/public/instagram/videos/');
+        $this->line('  storage/app/public/instagram/documents/');
+        $this->line('  storage/app/public/facebook/images/');
+        $this->line('  storage/app/public/facebook/audios/');
+        $this->line('  storage/app/public/facebook/videos/');
+        $this->line('  storage/app/public/facebook/documents/');
+
         // ── 4. CSRF Exclusion ─────────────────────────────────────────────
         $excludeCsrf = confirm(
-            label: '¿Excluir rutas de Instagram de la protección CSRF?',
+            label: '¿Excluir rutas de Instagram y Messenger de la protección CSRF?',
             default: true,
             hint: 'Necesario para recibir webhooks y callbacks OAuth de Meta. Modifica bootstrap/app.php.'
         );
@@ -145,7 +155,7 @@ class InstallInstagramApiManager extends Command
         $publishChannels = confirm(
             label: '¿Publicar rutas de canales broadcast (Laravel Reverb)?',
             default: false,
-            hint: 'Copia channels.php a routes/ con la autorización de canales instagram-messages.'
+            hint: 'Copia channels.php con autorización de canales instagram-messages y facebook-messages.'
         );
 
         if ($publishChannels) {
@@ -161,9 +171,9 @@ class InstallInstagramApiManager extends Command
 
         // ── 7. Logging ────────────────────────────────────────────────────
         note('El paquete incluye configuración de logging personalizada.');
-        note('Para logs separados de Instagram, publicá manualmente:');
+        note('Para logs separados, publicá manualmente:');
         $this->line('  php artisan vendor:publish --tag=instagram-logging');
-        note('Esto agrega el canal "instagram" a config/logging.php.');
+        note('Esto agrega los canales "instagram" y "facebook" a config/logging.php.');
 
         // ── 8. Variables de entorno ───────────────────────────────────────
         outro('INSTALACIÓN COMPLETADA');
@@ -179,7 +189,7 @@ class InstallInstagramApiManager extends Command
         $this->line('  <fg=yellow># Instagram API</>');
         $this->line('  <fg=cyan>INSTAGRAM_GRAPH_BASE_URL</fg=cyan>=https://graph.instagram.com');
         $this->line('  <fg=cyan>INSTAGRAM_OAUTH_BASE_URL</fg=cyan>=https://api.instagram.com');
-        $this->line('  <fg=cyan>INSTAGRAM_API_VERSION</fg=cyan>=v23.0');
+        $this->line('  <fg=cyan>INSTAGRAM_API_VERSION</fg=cyan>=v25.0');
         $this->line('  <fg=cyan>INSTAGRAM_API_TIMEOUT</fg=cyan>=30');
         $this->line('  <fg=cyan>INSTAGRAM_API_RETRY_ATTEMPTS</fg=cyan>=3');
         $this->newLine();
@@ -190,10 +200,40 @@ class InstallInstagramApiManager extends Command
         $this->line('  <fg=cyan>INSTAGRAM_BROADCAST_CHANNEL_TYPE</fg=cyan>=public');
         $this->line('  <fg=cyan>INSTAGRAM_CUSTOM_CHANNELS</fg=cyan>=false');
         $this->newLine();
+        $this->line('  <fg=yellow># Instagram Media — opcional</>');
+        $this->line('  <fg=cyan>INSTAGRAM_MEDIA_DISK</fg=cyan>=public');
+        $this->line('  <fg=cyan>INSTAGRAM_MEDIA_PATH</fg=cyan>=instagram');
+        $this->line('  <fg=cyan>INSTAGRAM_MEDIA_MAX_SIZE</fg=cyan>=25600');
+        $this->newLine();
         $this->line('  <fg=yellow># Instagram Webhook Processor — opcional</>');
         $this->line('  <fg=cyan>INSTAGRAM_WEBHOOK_PROCESSOR</fg=cyan>=\\ScriptDevelop\\InstagramApiManager\\Services\\WebhookProcessors\\BaseWebhookProcessor');
         $this->newLine();
         $this->line('  Luego visitá <fg=cyan>/instagram/connect</> para vincular una cuenta de Instagram.');
+        $this->newLine();
+        $this->line('  <fg=yellow># Facebook / Messenger</>');
+        $this->line('  <fg=yellow># Facebook OAuth</>');
+        $this->line('  <fg=cyan>FACEBOOK_CLIENT_ID</fg=cyan>=<tu_facebook_client_id>');
+        $this->line('  <fg=cyan>FACEBOOK_CLIENT_SECRET</fg=cyan>=<tu_facebook_client_secret>');
+        $this->line('  <fg=cyan>FACEBOOK_REDIRECT_URI</fg=cyan>=https://tu-dominio.com/facebook/callback');
+        $this->newLine();
+        $this->line('  <fg=yellow># Facebook API</>');
+        $this->line('  <fg=cyan>FACEBOOK_API_BASE_URL</fg=cyan>=https://graph.facebook.com');
+        $this->line('  <fg=cyan>FACEBOOK_API_VERSION</fg=cyan>=v25.0');
+        $this->line('  <fg=cyan>FACEBOOK_API_TIMEOUT</fg=cyan>=30');
+        $this->line('  <fg=cyan>FACEBOOK_API_RETRY_ATTEMPTS</fg=cyan>=3');
+        $this->newLine();
+        $this->line('  <fg=yellow># Facebook Webhook</>');
+        $this->line('  <fg=cyan>FACEBOOK_WEBHOOK_VERIFY_TOKEN</fg=cyan>=<tu_token_secreto>');
+        $this->newLine();
+        $this->line('  <fg=yellow># Facebook Broadcast (Laravel Reverb)</>');
+        $this->line('  <fg=cyan>FACEBOOK_BROADCAST_CHANNEL_TYPE</fg=cyan>=public');
+        $this->newLine();
+        $this->line('  <fg=yellow># Facebook Media</>');
+        $this->line('  <fg=cyan>FACEBOOK_MEDIA_DISK</fg=cyan>=public');
+        $this->line('  <fg=cyan>FACEBOOK_MEDIA_PATH</fg=cyan>=facebook');
+        $this->line('  <fg=cyan>FACEBOOK_MEDIA_MAX_SIZE</fg=cyan>=25600');
+        $this->newLine();
+        $this->line('  Luego visitá <fg=cyan>/facebook/connect</> para vincular una página de Facebook.');
         $this->newLine();
 
         return self::SUCCESS;
@@ -211,23 +251,23 @@ class InstallInstagramApiManager extends Command
 
         $content = file_get_contents($bootstrapPath);
         $webhookPath = 'instagram-webhook/*';
+        $facebookWebhookPath = 'facebook-webhook/*';
         $callbackPath = 'instagram/callback';
+        $facebookConnectPath = 'facebook/connect';
 
-        $alreadyExcluded = str_contains($content, $webhookPath) && str_contains($content, $callbackPath);
+        $alreadyExcluded = str_contains($content, $webhookPath) && str_contains($content, $callbackPath)
+            && str_contains($content, $facebookWebhookPath) && str_contains($content, $facebookConnectPath);
 
         if ($alreadyExcluded) {
-            $this->components->info('Las rutas de Instagram ya están excluidas de CSRF.');
-
+            $this->components->info('Las rutas de Instagram y Messenger ya están excluidas de CSRF.');
             return;
         }
 
         $paths = [];
-        if (!str_contains($content, $webhookPath)) {
-            $paths[] = $webhookPath;
-        }
-        if (!str_contains($content, $callbackPath)) {
-            $paths[] = $callbackPath;
-        }
+        if (!str_contains($content, $webhookPath)) $paths[] = $webhookPath;
+        if (!str_contains($content, $callbackPath)) $paths[] = $callbackPath;
+        if (!str_contains($content, $facebookWebhookPath)) $paths[] = $facebookWebhookPath;
+        if (!str_contains($content, $facebookConnectPath)) $paths[] = $facebookConnectPath;
 
         $pathsStr = "'" . implode("', '", $paths) . "'";
 

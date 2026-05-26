@@ -37,6 +37,10 @@ return [
         //Mensajes messenger
         'messenger_message' => \ScriptDevelop\InstagramApiManager\Models\MessengerMessage::class,
 
+        'messenger_media_message' => \ScriptDevelop\InstagramApiManager\Models\MessengerMediaMessage::class,
+
+        'messenger_referral' => \ScriptDevelop\InstagramApiManager\Models\MessengerReferral::class,
+
         'meta_app' => \ScriptDevelop\InstagramApiManager\Models\MetaApp::class,
 
         // Modelo para autenticacion Oauth
@@ -53,7 +57,7 @@ return [
         'oauth_base_url' => env('INSTAGRAM_OAUTH_BASE_URL', 'https://api.instagram.com'),
         'graph_base_url' => env('INSTAGRAM_GRAPH_BASE_URL', 'https://graph.instagram.com'),
 
-        'version' => env('INSTAGRAM_API_VERSION', 'v19.0'),
+        'version' => env('INSTAGRAM_API_VERSION', 'v25.0'),
         'timeout' => env('INSTAGRAM_API_TIMEOUT', 30),
         'retry_attempts' => env('INSTAGRAM_API_RETRY_ATTEMPTS', 3),
     ],
@@ -72,6 +76,68 @@ return [
 
         // Procesador personalizado para webhooks (valor por defecto)
         'processor' => env('INSTAGRAM_WEBHOOK_PROCESSOR', \ScriptDevelop\InstagramApiManager\Services\WebhookProcessors\BaseWebhookProcessor::class),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Configuración de Archivos Multimedia
+    |--------------------------------------------------------------------------
+    |
+    | Configuración para el almacenamiento de archivos multimedia de Instagram.
+    | Los archivos se guardan en storage/app/public/{path}/ siguiendo el mismo
+    | patrón del paquete WhatsApp.
+    |
+    */
+    'media' => [
+        'disk' => env('INSTAGRAM_MEDIA_DISK', 'public'),
+        'base_path' => env('INSTAGRAM_MEDIA_PATH', 'instagram'),
+
+        /*
+        |----------------------------------------------------------------------
+        | Rutas de almacenamiento por tipo de archivo.
+        | Extensible: agregá nuevas claves para futuros tipos (stories, reels, etc.)
+        |----------------------------------------------------------------------
+        */
+        'storage_path' => [
+            'images' => storage_path('app/public/instagram/images'),
+            'audios' => storage_path('app/public/instagram/audios'),
+            'videos' => storage_path('app/public/instagram/videos'),
+            'documents' => storage_path('app/public/instagram/documents'),
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Tamaños máximos por tipo de archivo (en bytes).
+        | Basado en límites oficiales de Meta (Mayo 2026).
+        | Extensible: agregá nuevas claves para nuevos tipos de media.
+        |----------------------------------------------------------------------
+        */
+        'max_file_size' => [
+            'image' => 8 * 1024 * 1024,    // 8 MB (vía URL)
+            'audio' => 25 * 1024 * 1024,   // 25 MB
+            'video' => 25 * 1024 * 1024,   // 25 MB
+            'file' => 25 * 1024 * 1024,    // 25 MB
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Tipos MIME permitidos por tipo de archivo.
+        | Basado en documentación oficial de Meta.
+        | Extensible: agregá nuevas claves y MIME types según necesidad.
+        |----------------------------------------------------------------------
+        */
+        'allowed_types' => [
+            'image' => ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+            'audio' => ['audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/wav'],
+            'video' => ['video/mp4', 'video/ogg', 'video/avi', 'video/mov', 'video/webm'],
+            'file' => [
+                'text/plain', 'application/pdf',
+                'application/msword', 'application/vnd.ms-excel',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/zip',
+            ],
+        ],
     ],
 
     /*
