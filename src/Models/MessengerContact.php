@@ -21,8 +21,11 @@ class MessengerContact extends Model
         'id',
         'page_id',
         'messenger_user_id',
+        'name',
         'username',
         'profile_picture',
+        'last_interaction_at',
+        'profile_synced_at',
     ];
 
     protected $dates = [
