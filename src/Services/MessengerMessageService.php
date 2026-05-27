@@ -395,11 +395,21 @@ class MessengerMessageService
                 if ($providedFilename && Storage::disk($disk)->exists($relativePath)) {
                     $existingContent = Storage::disk($disk)->get($relativePath);
                     if (md5($existingContent) === md5($content)) {
+                        Log::channel('facebook')->info('Archivo ya existe y es idéntico, reutilizando', [
+                            'url' => $url,
+                            'path' => $relativePath,
+                        ]);
                         return $relativePath;
                     }
                 }
 
                 Storage::disk($disk)->put($relativePath, $content);
+
+                Log::channel('facebook')->info('Archivo multimedia descargado y guardado', [
+                    'url' => $url,
+                    'path' => $relativePath,
+                ]);
+
                 return $relativePath;
             }
         } catch (Exception $e) {
@@ -578,7 +588,8 @@ class MessengerMessageService
             $data
         );
 
-        if( config('facebook.media.download_profile_pictures', false) && !empty($contact->profile_picture) ) {
+        if( config('facebook.media.download_user_profile_picture', false) && !empty($contact->profile_picture) ) {
+
             $mediaPath = $this->downloadMediaFile($contact->profile_picture, 'user_profile_picture', $messengerUserId . '.jpg');
             if ($mediaPath) {
                 $contact->update(['local_profile_picture' => $mediaPath]);
