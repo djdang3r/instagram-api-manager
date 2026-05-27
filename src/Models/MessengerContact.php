@@ -24,6 +24,7 @@ class MessengerContact extends Model
         'name',
         'username',
         'profile_picture',
+        'local_profile_picture',
         'last_interaction_at',
         'profile_synced_at',
     ];
