@@ -37,4 +37,16 @@ class MessengerContact extends Model
     {
         return $this->belongsTo(config('instagram.models.facebook_page'), 'page_id', 'page_id');
     }
+
+    public function conversations(): HasMany
+    {
+        return $this->hasMany(config('instagram.models.messenger_conversation'), 'messenger_user_id', 'messenger_user_id');
+    }
+
+    public function latestConversation(): HasOne
+    {
+        return $this->hasOne(config('instagram.models.messenger_conversation'), 'messenger_user_id', 'messenger_user_id')
+            ->whereNull('deleted_at')
+            ->orderByDesc('created_at');
+    }
 }
