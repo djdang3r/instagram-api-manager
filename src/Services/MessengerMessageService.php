@@ -389,6 +389,7 @@ class MessengerMessageService
             $filename = $filename ?? uniqid('msg_') . '.' . $ext;
             $fullPath = "{$storagePath}/{$filename}";
             $relativePath = str_replace(storage_path('app/public/'), '', $fullPath);
+            $publicPath = '/storage/' . ltrim($relativePath, '/');
 
             $content = @file_get_contents($url);
             if ($content && strlen($content) <= $maxSize) {
@@ -397,9 +398,9 @@ class MessengerMessageService
                     if (md5($existingContent) === md5($content)) {
                         Log::channel('facebook')->info('Archivo ya existe y es idéntico, reutilizando', [
                             'url' => $url,
-                            'path' => $relativePath,
+                            'path' => $publicPath,
                         ]);
-                        return $relativePath;
+                        return $publicPath;
                     }
                 }
 
@@ -407,10 +408,10 @@ class MessengerMessageService
 
                 Log::channel('facebook')->info('Archivo multimedia descargado y guardado', [
                     'url' => $url,
-                    'path' => $relativePath,
+                    'path' => $publicPath,
                 ]);
 
-                return $relativePath;
+                return $publicPath;
             }
         } catch (Exception $e) {
             Log::channel('facebook')->warning('⚠️ No se pudo descargar archivo multimedia', [
