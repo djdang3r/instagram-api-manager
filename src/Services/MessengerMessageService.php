@@ -6,6 +6,7 @@ use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
 use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Exception;
 
 class MessengerMessageService
@@ -369,13 +370,13 @@ class MessengerMessageService
         }
     }
 
-    protected function downloadMediaFile(string $url, string $type): ?string
+    protected function downloadMediaFile(string $url, string $type, $filename=null): ?string
     {
         try {
             $disk = config('facebook.media.disk', 'public');
             $maxSize = (int) config("facebook.media.max_file_size.{$type}", 8 * 1024 * 1024);
 
-            $folderMap = ['image' => 'images', 'video' => 'videos', 'audio' => 'audios', 'file' => 'documents'];
+            $folderMap = ['image' => 'images', 'video' => 'videos', 'audio' => 'audios', 'file' => 'documents', 'user_profile_picture' => 'profile_pictures'];
             $subfolder = $folderMap[$type] ?? 'documents';
             $storagePath = config("facebook.media.storage_path.{$subfolder}", storage_path("app/public/facebook/{$subfolder}"));
 
@@ -384,13 +385,21 @@ class MessengerMessageService
             }
 
             $ext = $type === 'audio' ? 'mp3' : ($type === 'video' ? 'mp4' : 'jpg');
-            $filename = uniqid('msg_') . '.' . $ext;
+            $providedFilename = $filename !== null;
+            $filename = $filename ?? uniqid('msg_') . '.' . $ext;
             $fullPath = "{$storagePath}/{$filename}";
             $relativePath = str_replace(storage_path('app/public/'), '', $fullPath);
 
             $content = @file_get_contents($url);
             if ($content && strlen($content) <= $maxSize) {
-                \Illuminate\Support\Facades\Storage::disk($disk)->put($relativePath, $content);
+                if ($providedFilename && Storage::disk($disk)->exists($relativePath)) {
+                    $existingContent = Storage::disk($disk)->get($relativePath);
+                    if (md5($existingContent) === md5($content)) {
+                        return $relativePath;
+                    }
+                }
+
+                Storage::disk($disk)->put($relativePath, $content);
                 return $relativePath;
             }
         } catch (Exception $e) {
@@ -569,6 +578,17 @@ class MessengerMessageService
             $data
         );
 
+        if( config('facebook.media.download_profile_pictures', false) && !empty($contact->profile_picture) ) {
+            $mediaPath = $this->downloadMediaFile($contact->profile_picture, 'user_profile_picture', $messengerUserId . '.jpg');
+            if ($mediaPath) {
+                $contact->update(['local_profile_picture' => $mediaPath]);
+                Log::channel('facebook')->info('Foto de perfil descargada y guardada', [
+                    'user_id' => $messengerUserId,
+                    'local_path' => $mediaPath,
+                ]);
+            }
+        }
+
         Log::channel('facebook')->info('✅ Contacto actualizado', [
             'user_id' => $messengerUserId,
             'name' => $data['name'] ?? 'N/A',
@@ -590,13 +610,15 @@ class MessengerMessageService
                 ->withBaseUrl(config('facebook.api.base_url'))
                 ->withVersion(config('facebook.api.version'));
 
+            // Nota Cuau: La documentación https://developers.facebook.com/documentation/business-messaging/messenger-platform/identity/user-profile indica que:
+            // profile_pic: La URL de la foto del perfil. La URL caducará.
             $response = $profileClient->request(
                 'GET',
                 $messengerUserId,
                 [],
                 null,
                 [
-                    'fields' => 'name,first_name,last_name,profile_pic',
+                    'fields' => 'name,first_name,last_name,profile_pic,locale,timezone,gender',
                     'access_token' => $token,
                 ]
             );

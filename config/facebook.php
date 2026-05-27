@@ -86,6 +86,8 @@ return [
                 'application/zip',
             ],
         ],
+
+        'download_user_profile_picture' => env('FACEBOOK_DOWNLOAD_USER_PROFILE_PICTURE', false),
     ],
 
     /*
