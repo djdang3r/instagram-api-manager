@@ -520,7 +520,7 @@ class MessengerMessageService
             InstagramModelResolver::messenger_message()
                 ->where('conversation_id', $conversation->id)
                 ->where('created_time', '<=', date('Y-m-d H:i:s', $read['watermark'] / 1000))
-                ->where('status', 'sent')
+                ->whereIn('status', ['sent', 'delivered'])
                 ->update(['status' => 'read', 'read_at' => $date]);
         }
 
