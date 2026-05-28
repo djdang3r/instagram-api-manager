@@ -27,6 +27,12 @@ return new class extends Migration
                 'msgr_msgs_conv_method_read_created_idx'
             );
         });
+
+        if (Schema::hasColumn('messenger_conversations', 'conversation_id')) {
+            Schema::table('messenger_conversations', function (Blueprint $table) {
+                $table->string('conversation_id')->nullable()->change();
+            });
+        }
     }
 
     public function down(): void
@@ -36,5 +42,11 @@ return new class extends Migration
             $table->dropIndex('msgr_msgs_conv_method_created_time_idx');
             $table->dropIndex('msgr_msgs_conv_method_read_created_idx');
         });
+
+        if (Schema::hasColumn('messenger_conversations', 'conversation_id')) {
+            Schema::table('messenger_conversations', function (Blueprint $table) {
+                $table->string('conversation_id')->nullable(false)->change();
+            });
+        }
     }
 };
