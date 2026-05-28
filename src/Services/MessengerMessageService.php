@@ -353,7 +353,8 @@ class MessengerMessageService
         foreach ($message['attachments'] as $attachment) {
             if (isset($attachment['type'], $attachment['payload']['url'])) {
                 $mediaUrl = (string) $attachment['payload']['url'];
-                $mediaUrlHash = hash('sha256', $mediaUrl);
+                $mediaUrlHashBase = $this->urlWithoutQuery($mediaUrl);
+                $mediaUrlHash = hash('sha256', $mediaUrlHashBase);
 
                 $alreadyStored = InstagramModelResolver::messenger_media_message()
                     ->where('message_id', '=', $savedMessage->message_id)
@@ -364,6 +365,7 @@ class MessengerMessageService
                         'message_id' => $savedMessage->message_id,
                         'type' => $attachment['type'],
                         'media_url' => $mediaUrl,
+                    'media_url_hash_base' => $mediaUrlHashBase,
                         'alreadyStored' => $alreadyStored,
                     ]);
 
@@ -393,6 +395,21 @@ class MessengerMessageService
                 ]);
             }
         }
+    }
+
+    protected function urlWithoutQuery(string $url): string
+    {
+        $parts = parse_url($url);
+        if (!is_array($parts)) {
+            return $url;
+        }
+
+        $scheme = isset($parts['scheme']) ? $parts['scheme'] . '://' : '';
+        $host = $parts['host'] ?? '';
+        $port = isset($parts['port']) ? ':' . $parts['port'] : '';
+        $path = $parts['path'] ?? '';
+
+        return $scheme . $host . $port . $path;
     }
 
     protected function downloadMediaFile(string $url, string $type, $filename=null): ?string
