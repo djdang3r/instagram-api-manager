@@ -384,7 +384,9 @@ class MessengerMessageService
                 mkdir($storagePath, 0755, true);
             }
 
-            $ext = $type === 'audio' ? 'mp3' : ($type === 'video' ? 'mp4' : 'jpg');
+            $urlExtension = $this->extractUrlExtension($url);
+            $ext = $urlExtension ?? ($type === 'audio' ? 'mp3' : ($type === 'video' ? 'mp4' : 'jpg'));
+
             $providedFilename = $filename !== null;
             $filename = $filename ?? uniqid('msg_') . '.' . $ext;
             $fullPath = "{$storagePath}/{$filename}";
@@ -419,6 +421,21 @@ class MessengerMessageService
             ]);
         }
         return null;
+    }
+
+    protected function extractUrlExtension(string $url): ?string
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        if (!is_string($path) || $path === '') {
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        if ($extension === '') {
+            return null;
+        }
+
+        return preg_match('/^[a-z0-9]{1,10}$/', $extension) ? $extension : null;
     }
 
     // ------------------------------------------------------------------------
