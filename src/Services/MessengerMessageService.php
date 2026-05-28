@@ -523,6 +523,38 @@ class MessengerMessageService
                 ->whereIn('status', ['sent', 'delivered'])
                 ->update(['status' => 'read', 'read_at' => $date]);
         }
+        if (isset($read['mid'])) {
+            $targetMessage = InstagramModelResolver::messenger_message()
+                ->select('id', 'conversation_id', 'created_time')
+                ->where('message_id', $read['mid'])
+                ->first();
+
+            if ($targetMessage) {
+                InstagramModelResolver::messenger_message()
+                    ->where('conversation_id', $targetMessage->conversation_id)
+                    ->where('message_method', 'outgoing')
+                    ->where('created_time', '<=', $targetMessage->created_time)
+                    ->where(function ($query) {
+                        $query->whereNull('read_at')
+                            ->orWhereIn('status', ['sent', 'delivered']);
+                    })
+                    ->update(['status' => 'read', 'read_at' => $date]);
+
+                $updatedMessage = InstagramModelResolver::messenger_message()
+                    ->where('message_id', $read['mid'])
+                    ->first();
+            } else {
+                // Fallback: si no existe el mensaje objetivo, se actualiza solo por MID.
+                InstagramModelResolver::messenger_message()
+                    ->where('message_id', $read['mid'])
+                    ->whereNull('read_at')
+                    ->update(['status' => 'read', 'read_at' => $date]);
+
+                $updatedMessage = InstagramModelResolver::messenger_message()
+                    ->where('message_id', $read['mid'])
+                    ->first();
+            }
+        }
 
         if (isset($read['mid'])) {
             InstagramModelResolver::messenger_message()
