@@ -21,12 +21,6 @@ return new class extends Migration
                 'msgr_msgs_conv_status_created_time_idx'
             );
 
-            // Optimiza batch de mensajes pendientes (where status + message_method).
-            $table->index(
-                ['status', 'message_method'],
-                'msgr_msgs_status_method_idx'
-            );
-
             // Optimiza condición whereNull(read_at) en la actualización de lecturas por conversación.
             $table->index(
                 ['conversation_id', 'message_method', 'read_at', 'created_time'],
@@ -40,7 +34,6 @@ return new class extends Migration
         Schema::table('messenger_messages', function (Blueprint $table) {
             $table->dropIndex('msgr_msgs_conv_status_created_time_idx');
             $table->dropIndex('msgr_msgs_conv_method_created_time_idx');
-            $table->dropIndex('msgr_msgs_status_method_idx');
             $table->dropIndex('msgr_msgs_conv_method_read_created_idx');
         });
     }
