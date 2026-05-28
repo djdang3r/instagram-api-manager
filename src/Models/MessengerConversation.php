@@ -27,6 +27,10 @@ class MessengerConversation extends Model
         'last_message_at',
     ];
 
+    protected $casts = [
+        'last_message_at' => 'datetime',
+    ];
+
     protected $dates = ['last_message_at', 'created_at', 'updated_at', 'deleted_at'];
 
     public function facebookPage(): BelongsTo

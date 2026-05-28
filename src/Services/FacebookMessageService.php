@@ -5,6 +5,7 @@ namespace ScriptDevelop\InstagramApiManager\Services;
 use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
 use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Exception;
 
@@ -42,8 +43,21 @@ class FacebookMessageService
 
     protected function isWithin24hWindow(Model $conversation): bool
     {
-        if (!$conversation->last_message_at) return false;
-        return $conversation->last_message_at->diffInHours(now()) < 24;
+        $lastMessageAt = $conversation->last_message_at;
+
+        if (empty($lastMessageAt)) {
+            return false;
+        }
+
+        if (is_string($lastMessageAt)) {
+            try {
+                $lastMessageAt = Carbon::parse($lastMessageAt);
+            } catch (Exception $e) {
+                return false;
+            }
+        }
+
+        return $lastMessageAt->diffInHours(now()) < 24;
     }
 
     protected function findOrCreateConversation(string $pageId, string $messengerUserId): Model
