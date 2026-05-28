@@ -24,6 +24,7 @@ class MessengerMediaMessage extends Model
         'message_id',
         'media_type',
         'media_url',
+        'media_url_hash',
         'local_path',
         'json',
     ];

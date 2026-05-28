@@ -352,11 +352,20 @@ class MessengerMessageService
 
         foreach ($message['attachments'] as $attachment) {
             if (isset($attachment['type'], $attachment['payload']['url'])) {
+                $mediaUrl = (string) $attachment['payload']['url'];
+                $mediaUrlHash = hash('sha256', $mediaUrl);
+
                 $alreadyStored = InstagramModelResolver::messenger_media_message()
-                    ->where('message_id', $savedMessage->message_id)
-                    ->where('media_type', $attachment['type'])
-                    ->where('media_url', $attachment['payload']['url'])
+                    ->where('message_id', '=', $savedMessage->message_id)
+                    ->where('media_type', '=', $attachment['type'])
+                    ->where('media_url_hash', '=', $mediaUrlHash)
                     ->exists();
+                Log::channel('facebook')->info('Revisar si existe registro', [
+                        'message_id' => $savedMessage->message_id,
+                        'type' => $attachment['type'],
+                        'media_url' => $mediaUrl,
+                        'alreadyStored' => $alreadyStored,
+                    ]);
 
                 if ($alreadyStored) {
                     Log::channel('facebook')->info('Adjunto duplicado detectado, se omite descarga/guardado', [
@@ -372,7 +381,8 @@ class MessengerMessageService
                 InstagramModelResolver::messenger_media_message()->create([
                     'message_id' => $savedMessage->message_id,
                     'media_type' => $attachment['type'],
-                    'media_url' => $attachment['payload']['url'],
+                    'media_url' => $mediaUrl,
+                    'media_url_hash' => $mediaUrlHash,
                     'local_path' => $mediaPath,
                     'json' => $attachment,
                 ]);
