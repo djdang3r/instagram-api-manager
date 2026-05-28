@@ -352,6 +352,21 @@ class MessengerMessageService
 
         foreach ($message['attachments'] as $attachment) {
             if (isset($attachment['type'], $attachment['payload']['url'])) {
+                $alreadyStored = InstagramModelResolver::messenger_media_message()
+                    ->where('message_id', $savedMessage->message_id)
+                    ->where('media_type', $attachment['type'])
+                    ->where('media_url', $attachment['payload']['url'])
+                    ->exists();
+
+                if ($alreadyStored) {
+                    Log::channel('facebook')->info('Adjunto duplicado detectado, se omite descarga/guardado', [
+                        'message_id' => $savedMessage->message_id,
+                        'type' => $attachment['type'],
+                        'url' => $attachment['payload']['url'],
+                    ]);
+                    continue;
+                }
+
                 $mediaPath = $this->downloadMediaFile($attachment['payload']['url'], $attachment['type']);
 
                 InstagramModelResolver::messenger_media_message()->create([
