@@ -36,11 +36,41 @@ class MetaApp extends Model
     // Cifrar app_access_token automáticamente al guardar
     public function setAppAccessTokenAttribute($value)
     {
-        $this->attributes['app_access_token'] = $value ? encrypt($value) : null;
+        if ($value !== null) {
+            $this->attributes['app_access_token'] = encrypt($value);
+        }
     }
 
     // Descifrar app_access_token automáticamente al obtener
     public function getAppAccessTokenAttribute($value)
+    {
+        return $value ? decrypt($value) : null;
+    }
+
+    //Cifrar verify_token automáticamente al guardar
+    public function setVerifyTokenAttribute($value)
+    {
+        if ($value !== null) {
+            $this->attributes['verify_token'] = encrypt($value);
+        }
+    }
+
+    //Descrifrar verify_token automáticamente al obtener
+    public function getVerifyTokenAttribute($value)
+    {
+        return $value ? decrypt($value) : null;
+    }
+
+    //Cifrar app_secret automáticamente al guardar
+    public function setAppSecretAttribute($value)
+    {
+        if ($value !== null) {
+            $this->attributes['app_secret'] = encrypt($value);
+        }
+    }
+
+    //Descifrar app_secret automáticamente al obtener
+    public function getAppSecretAttribute($value)
     {
         return $value ? decrypt($value) : null;
     }

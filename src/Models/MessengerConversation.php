@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use ScriptDevelop\InstagramApiManager\Traits\GeneratesUlid;
 
 class MessengerConversation extends Model
@@ -26,6 +27,10 @@ class MessengerConversation extends Model
         'last_message_at',
     ];
 
+    protected $casts = [
+        'last_message_at' => 'datetime',
+    ];
+
     protected $dates = ['last_message_at', 'created_at', 'updated_at', 'deleted_at'];
 
     public function facebookPage(): BelongsTo
@@ -36,5 +41,25 @@ class MessengerConversation extends Model
     public function messengerMessages(): HasMany
     {
         return $this->hasMany(config('instagram.models.messenger_message'), 'conversation_id', 'id');
+    }
+
+    /**
+     * Obtiene el último mensaje de la conversación
+     * @return HasOne
+     */
+    public function latestMessage(): HasOne
+    {
+        return $this->hasOne(config('instagram.models.messenger_message'), 'conversation_id', 'id')
+            ->orderByDesc('created_time')
+            ->orderByDesc('created_at');
+    }
+
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(
+            config('instagram.models.messenger_contact'),
+            'messenger_user_id',
+            'messenger_user_id'
+        );
     }
 }

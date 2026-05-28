@@ -5,6 +5,8 @@ namespace ScriptDevelop\InstagramApiManager\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use ScriptDevelop\InstagramApiManager\Traits\GeneratesUlid;
 
 class MessengerContact extends Model
@@ -21,8 +23,12 @@ class MessengerContact extends Model
         'id',
         'page_id',
         'messenger_user_id',
+        'name',
         'username',
         'profile_picture',
+        'local_profile_picture',
+        'last_interaction_at',
+        'profile_synced_at',
     ];
 
     protected $dates = [
@@ -32,5 +38,17 @@ class MessengerContact extends Model
     public function facebookPage(): BelongsTo
     {
         return $this->belongsTo(config('instagram.models.facebook_page'), 'page_id', 'page_id');
+    }
+
+    public function conversations(): HasMany
+    {
+        return $this->hasMany(config('instagram.models.messenger_conversation'), 'messenger_user_id', 'messenger_user_id');
+    }
+
+    public function latestConversation(): HasOne
+    {
+        return $this->hasOne(config('instagram.models.messenger_conversation'), 'messenger_user_id', 'messenger_user_id')
+            ->whereNull('deleted_at')
+            ->orderByDesc('created_at');
     }
 }

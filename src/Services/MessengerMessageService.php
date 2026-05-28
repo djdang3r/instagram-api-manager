@@ -3,14 +3,10 @@
 namespace ScriptDevelop\InstagramApiManager\Services;
 
 use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
-use ScriptDevelop\InstagramApiManager\Models\FacebookPage;
-use ScriptDevelop\InstagramApiManager\Models\MessengerContact;
-use ScriptDevelop\InstagramApiManager\Models\MessengerConversation;
-use ScriptDevelop\InstagramApiManager\Models\MessengerMediaMessage;
-use ScriptDevelop\InstagramApiManager\Models\MessengerMessage;
-use ScriptDevelop\InstagramApiManager\Models\MessengerReferral;
+use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Exception;
 
 class MessengerMessageService
@@ -88,7 +84,7 @@ class MessengerMessageService
             'is_echo' => $isEcho,
         ]);
 
-        $page = FacebookPage::where('page_id', $pageId)->first();
+        $page = InstagramModelResolver::facebook_page()->where('page_id', $pageId)->first();
         if (!$page) {
             Log::channel('facebook')->error('❌ PÁGINA DE FACEBOOK NO ENCONTRADA', [
                 'page_id' => $pageId,
@@ -158,8 +154,7 @@ class MessengerMessageService
     // ------------------------------------------------------------------------
     public function findOrCreateConversation(string $pageId, string $messengerUserId): Model
     {
-        $conversation = MessengerConversation::query()
-            ->where('page_id', $pageId)
+        $conversation = InstagramModelResolver::messenger_conversation()->where('page_id', $pageId)
             ->where('messenger_user_id', $messengerUserId)
             ->whereNull('deleted_at')
             ->first();
@@ -168,7 +163,7 @@ class MessengerMessageService
             return $conversation;
         }
 
-        return MessengerConversation::query()->create([
+        return InstagramModelResolver::messenger_conversation()->create([
             'page_id' => $pageId,
             'messenger_user_id' => $messengerUserId,
             'last_message_at' => now(),
@@ -258,7 +253,7 @@ class MessengerMessageService
         $message = $messageData['message'];
         $messageId = $message['mid'] ?? uniqid();
 
-        $dbMessage = MessengerMessage::query()->where('message_id', $messageId)->first();
+        $dbMessage = InstagramModelResolver::messenger_message()->where('message_id', $messageId)->first();
 
         if ($dbMessage) {
             $date = isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now();
@@ -322,7 +317,7 @@ class MessengerMessageService
             $messageDataInsert['message_context_id'] = $message['reply_to']['mid'] ?? null;
         }
 
-        $savedMessage = MessengerMessage::query()->create($messageDataInsert);
+        $savedMessage = InstagramModelResolver::messenger_message()->create($messageDataInsert);
         Log::channel('facebook')->info('✅ Mensaje guardado en BD', [
             'id' => $savedMessage->id,
             'message_id' => $savedMessage->message_id,
@@ -357,12 +352,39 @@ class MessengerMessageService
 
         foreach ($message['attachments'] as $attachment) {
             if (isset($attachment['type'], $attachment['payload']['url'])) {
+                $mediaUrl = (string) $attachment['payload']['url'];
+                $mediaUrlHashBase = $this->urlWithoutQuery($mediaUrl);
+                $mediaUrlHash = hash('sha256', $mediaUrlHashBase);
+
+                $alreadyStored = InstagramModelResolver::messenger_media_message()
+                    ->where('message_id', '=', $savedMessage->message_id)
+                    ->where('media_type', '=', $attachment['type'])
+                    ->where('media_url_hash', '=', $mediaUrlHash)
+                    ->exists();
+                Log::channel('facebook')->info('Revisar si existe registro', [
+                        'message_id' => $savedMessage->message_id,
+                        'type' => $attachment['type'],
+                        'media_url' => $mediaUrl,
+                    'media_url_hash_base' => $mediaUrlHashBase,
+                        'alreadyStored' => $alreadyStored,
+                    ]);
+
+                if ($alreadyStored) {
+                    Log::channel('facebook')->info('Adjunto duplicado detectado, se omite descarga/guardado', [
+                        'message_id' => $savedMessage->message_id,
+                        'type' => $attachment['type'],
+                        'url' => $attachment['payload']['url'],
+                    ]);
+                    continue;
+                }
+
                 $mediaPath = $this->downloadMediaFile($attachment['payload']['url'], $attachment['type']);
 
-                MessengerMediaMessage::query()->create([
+                InstagramModelResolver::messenger_media_message()->create([
                     'message_id' => $savedMessage->message_id,
                     'media_type' => $attachment['type'],
-                    'media_url' => $attachment['payload']['url'],
+                    'media_url' => $mediaUrl,
+                    'media_url_hash' => $mediaUrlHash,
                     'local_path' => $mediaPath,
                     'json' => $attachment,
                 ]);
@@ -375,13 +397,28 @@ class MessengerMessageService
         }
     }
 
-    protected function downloadMediaFile(string $url, string $type): ?string
+    protected function urlWithoutQuery(string $url): string
+    {
+        $parts = parse_url($url);
+        if (!is_array($parts)) {
+            return $url;
+        }
+
+        $scheme = isset($parts['scheme']) ? $parts['scheme'] . '://' : '';
+        $host = $parts['host'] ?? '';
+        $port = isset($parts['port']) ? ':' . $parts['port'] : '';
+        $path = $parts['path'] ?? '';
+
+        return $scheme . $host . $port . $path;
+    }
+
+    protected function downloadMediaFile(string $url, string $type, $filename=null): ?string
     {
         try {
             $disk = config('facebook.media.disk', 'public');
             $maxSize = (int) config("facebook.media.max_file_size.{$type}", 8 * 1024 * 1024);
 
-            $folderMap = ['image' => 'images', 'video' => 'videos', 'audio' => 'audios', 'file' => 'documents'];
+            $folderMap = ['image' => 'images', 'video' => 'videos', 'audio' => 'audios', 'file' => 'documents', 'user_profile_picture' => 'profile_pictures'];
             $subfolder = $folderMap[$type] ?? 'documents';
             $storagePath = config("facebook.media.storage_path.{$subfolder}", storage_path("app/public/facebook/{$subfolder}"));
 
@@ -389,15 +426,36 @@ class MessengerMessageService
                 mkdir($storagePath, 0755, true);
             }
 
-            $ext = $type === 'audio' ? 'mp3' : ($type === 'video' ? 'mp4' : 'jpg');
-            $filename = uniqid('msg_') . '.' . $ext;
+            $urlExtension = $this->extractUrlExtension($url);
+            $ext = $urlExtension ?? ($type === 'audio' ? 'mp3' : ($type === 'video' ? 'mp4' : 'jpg'));
+
+            $providedFilename = $filename !== null;
+            $filename = $filename ?? uniqid('msg_') . '.' . $ext;
             $fullPath = "{$storagePath}/{$filename}";
             $relativePath = str_replace(storage_path('app/public/'), '', $fullPath);
+            $publicPath = '/storage/' . ltrim($relativePath, '/');
 
             $content = @file_get_contents($url);
             if ($content && strlen($content) <= $maxSize) {
-                \Illuminate\Support\Facades\Storage::disk($disk)->put($relativePath, $content);
-                return $relativePath;
+                if ($providedFilename && Storage::disk($disk)->exists($relativePath)) {
+                    $existingContent = Storage::disk($disk)->get($relativePath);
+                    if (md5($existingContent) === md5($content)) {
+                        Log::channel('facebook')->info('Archivo ya existe y es idéntico, reutilizando', [
+                            'url' => $url,
+                            'path' => $publicPath,
+                        ]);
+                        return $publicPath;
+                    }
+                }
+
+                Storage::disk($disk)->put($relativePath, $content);
+
+                Log::channel('facebook')->info('Archivo multimedia descargado y guardado', [
+                    'url' => $url,
+                    'path' => $publicPath,
+                ]);
+
+                return $publicPath;
             }
         } catch (Exception $e) {
             Log::channel('facebook')->warning('⚠️ No se pudo descargar archivo multimedia', [
@@ -407,18 +465,33 @@ class MessengerMessageService
         return null;
     }
 
+    protected function extractUrlExtension(string $url): ?string
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        if (!is_string($path) || $path === '') {
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        if ($extension === '') {
+            return null;
+        }
+
+        return preg_match('/^[a-z0-9]{1,10}$/', $extension) ? $extension : null;
+    }
+
     // ------------------------------------------------------------------------
     // 6. Procesadores de eventos específicos
     // ------------------------------------------------------------------------
     protected function processPostback(Model $conversation, array $postback, string $senderId, string $recipientId, $timestamp = null): ?Model
     {
         $messageId = $postback['mid'] ?? 'postback_' . uniqid();
-        if (MessengerMessage::query()->where('message_id', $messageId)->exists()) {
+        if (InstagramModelResolver::messenger_message()->where('message_id', $messageId)->exists()) {
             Log::channel('facebook')->info('Postback duplicado ignorado', ['message_id' => $messageId]);
-            return MessengerMessage::query()->where('message_id', $messageId)->first();
+            return InstagramModelResolver::messenger_message()->where('message_id', $messageId)->first();
         }
 
-        $savedMessage = MessengerMessage::query()->create([
+        $savedMessage = InstagramModelResolver::messenger_message()->create([
             'conversation_id' => $conversation->id,
             'message_id' => $messageId,
             'message_method' => 'incoming',
@@ -442,7 +515,7 @@ class MessengerMessageService
 
     protected function processReaction(Model $conversation, array $reaction, string $senderId, string $recipientId): ?Model
     {
-        $reactedMessage = MessengerMessage::query()
+        $reactedMessage = InstagramModelResolver::messenger_message()
             ->where('message_id', $reaction['mid'] ?? '')
             ->first();
 
@@ -480,7 +553,7 @@ class MessengerMessageService
             'referral_timestamp' => now(),
         ]);
 
-        MessengerReferral::query()->create([
+        InstagramModelResolver::messenger_referral()->create([
             'conversation_id' => $conversation->id,
             'messenger_user_id' => $senderId,
             'page_id' => $recipientId,
@@ -503,15 +576,47 @@ class MessengerMessageService
         $date = $messageData['timestamp'] ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now();
 
         if (isset($read['watermark'])) {
-            MessengerMessage::query()
+            InstagramModelResolver::messenger_message()
                 ->where('conversation_id', $conversation->id)
                 ->where('created_time', '<=', date('Y-m-d H:i:s', $read['watermark'] / 1000))
-                ->where('status', 'sent')
+                ->whereIn('status', ['sent', 'delivered'])
                 ->update(['status' => 'read', 'read_at' => $date]);
+        }
+        if (isset($read['mid'])) {
+            $targetMessage = InstagramModelResolver::messenger_message()
+                ->select('id', 'conversation_id', 'created_time')
+                ->where('message_id', $read['mid'])
+                ->first();
+
+            if ($targetMessage) {
+                InstagramModelResolver::messenger_message()
+                    ->where('conversation_id', $targetMessage->conversation_id)
+                    ->where('message_method', 'outgoing')
+                    ->where('created_time', '<=', $targetMessage->created_time)
+                    ->where(function ($query) {
+                        $query->whereNull('read_at')
+                            ->orWhereIn('status', ['sent', 'delivered']);
+                    })
+                    ->update(['status' => 'read', 'read_at' => $date]);
+
+                $updatedMessage = InstagramModelResolver::messenger_message()
+                    ->where('message_id', $read['mid'])
+                    ->first();
+            } else {
+                // Fallback: si no existe el mensaje objetivo, se actualiza solo por MID.
+                InstagramModelResolver::messenger_message()
+                    ->where('message_id', $read['mid'])
+                    ->whereNull('read_at')
+                    ->update(['status' => 'read', 'read_at' => $date]);
+
+                $updatedMessage = InstagramModelResolver::messenger_message()
+                    ->where('message_id', $read['mid'])
+                    ->first();
+            }
         }
 
         if (isset($read['mid'])) {
-            MessengerMessage::query()
+            InstagramModelResolver::messenger_message()
                 ->where('message_id', $read['mid'])
                 ->whereNull('read_at')
                 ->update(['status' => 'read', 'read_at' => $date]);
@@ -529,7 +634,7 @@ class MessengerMessageService
             return null;
         }
 
-        $message = MessengerMessage::query()->where('message_id', $mid)->first();
+        $message = InstagramModelResolver::messenger_message()->where('message_id', $mid)->first();
         if ($message) {
             $message->update([
                 'message_content' => $messageEdit['text'] ?? $message->message_content,
@@ -570,10 +675,22 @@ class MessengerMessageService
             $data['profile_synced_at'] = now();
         }
 
-        $contact = MessengerContact::query()->updateOrCreate(
+        $contact = InstagramModelResolver::messenger_contact()->updateOrCreate(
             ['page_id' => $page->page_id, 'messenger_user_id' => $messengerUserId],
             $data
         );
+
+        if( config('facebook.media.download_user_profile_picture', false) && !empty($contact->profile_picture) ) {
+
+            $mediaPath = $this->downloadMediaFile($contact->profile_picture, 'user_profile_picture', $messengerUserId . '.jpg');
+            if ($mediaPath) {
+                $contact->update(['local_profile_picture' => $mediaPath]);
+                Log::channel('facebook')->info('Foto de perfil descargada y guardada', [
+                    'user_id' => $messengerUserId,
+                    'local_path' => $mediaPath,
+                ]);
+            }
+        }
 
         Log::channel('facebook')->info('✅ Contacto actualizado', [
             'user_id' => $messengerUserId,
@@ -596,13 +713,15 @@ class MessengerMessageService
                 ->withBaseUrl(config('facebook.api.base_url'))
                 ->withVersion(config('facebook.api.version'));
 
+            // Nota Cuau: La documentación https://developers.facebook.com/documentation/business-messaging/messenger-platform/identity/user-profile indica que:
+            // profile_pic: La URL de la foto del perfil. La URL caducará.
             $response = $profileClient->request(
                 'GET',
                 $messengerUserId,
                 [],
                 null,
                 [
-                    'fields' => 'name,first_name,last_name,profile_pic',
+                    'fields' => 'name,first_name,last_name,profile_pic,locale,timezone,gender',
                     'access_token' => $token,
                 ]
             );
@@ -691,7 +810,7 @@ class MessengerMessageService
         // Update by watermark: all messages before this timestamp were delivered
         if (isset($delivery['watermark'])) {
             $watermarkDate = date('Y-m-d H:i:s', $delivery['watermark'] / 1000);
-            MessengerMessage::query()
+            InstagramModelResolver::messenger_message()
                 ->where('message_from', $pageId)
                 ->where('status', 'sent')
                 ->where('sent_at', '<=', $watermarkDate)
@@ -705,7 +824,7 @@ class MessengerMessageService
 
         // Update by mids: specific message IDs delivered
         if (isset($delivery['mids']) && is_array($delivery['mids'])) {
-            MessengerMessage::query()
+            InstagramModelResolver::messenger_message()
                 ->whereIn('message_id', $delivery['mids'])
                 ->whereNull('delivered_at')
                 ->update(['status' => 'delivered', 'delivered_at' => $date]);

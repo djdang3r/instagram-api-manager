@@ -66,7 +66,7 @@ class InstagramConversation extends Model
             ->orderByDesc('created_at');
     }
 
-    public function contact()
+    public function contact(): BelongsTo
     {
         return $this->belongsTo(
             config('instagram.models.instagram_contact'),

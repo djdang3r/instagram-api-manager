@@ -155,11 +155,17 @@ class InstagramServiceProvider extends ServiceProvider
         // Cargar ruta internamente para que funcione sin publicar
         $this->loadRoutesFrom(__DIR__ . '/../../routes/instagram_callback.php');
 
-        // Registrar ruta del webhook de Facebook Messenger (interna, sin publicar)
-        Route::prefix('facebook-webhook')->middleware('throttle:60,1')->group(function () {
-            Route::match(['get', 'post'], '/', [MessengerWebhookController::class, 'handle'])
-                ->name('facebook.webhook.handle');
-        });
+        $this->loadRoutesFrom(__DIR__ . '/../../routes/facebook_callback.php');
+        $this->publishes([
+            __DIR__ . '/../../routes/facebook_callback.php' => base_path('routes/facebook_callback.php'),
+        ], 'facebook-callback-routes');
+
+
+        // Cargar y publicar rutas del webhook FB Messenger
+        $this->loadRoutesFrom(__DIR__ . '/../../routes/facebook_webhook.php');
+        $this->publishes([
+            __DIR__ . '/../../routes/facebook_webhook.php' => base_path('routes/facebook_webhook.php'),
+        ], 'facebook-webhook-routes');
 
         // Publicar archivo de ruta para que el usuario pueda copiar y modificar si quiere
         $this->publishes([
@@ -190,6 +196,9 @@ class InstagramServiceProvider extends ServiceProvider
             __DIR__ . '/../../config/instagram.php' => config_path('instagram.php'),
             __DIR__ . '/../../config/facebook.php' => config_path('facebook.php'),
             __DIR__ . '/../../routes/instagram_webhook.php' => base_path('routes/instagram_webhook.php'),
+            __DIR__ . '/../../routes/instagram_callback.php' => base_path('routes/instagram_callback.php'),
+            __DIR__ . '/../../routes/facebook_webhook.php' => base_path('routes/facebook_webhook.php'),
+            __DIR__ . '/../../routes/facebook_callback.php' => base_path('routes/facebook_callback.php'),
             __DIR__ . '/../../config/logging-additions.php' => config_path('logging-additions.php'),
         ];
         if (file_exists($channelsPath)) {

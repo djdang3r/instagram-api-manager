@@ -34,7 +34,7 @@ class FacebookAccountService
             'state' => $state,
         ]);
 
-        return "https://www.facebook.com/v19.0/dialog/oauth?" . $params;
+        return "https://www.facebook.com/".config('facebook.api.version')."/dialog/oauth?" . $params;
     }
 
     public function handleCallback(string $code): bool
@@ -64,34 +64,101 @@ class FacebookAccountService
 
             $accessToken = $tokenResponse['access_token'];
 
-            // Obtener páginas del usuario
+            if( !$accessToken ) {
+                Log::channel('facebook')->error('Facebook OAuth: access_token vacío', ['response' => $tokenResponse]);
+                DB::rollBack();
+                return false;
+            }
+
+            $metaApp = InstagramModelResolver::meta_app()->updateOrCreate(
+                ['app_id' => config('facebook.meta_auth.client_id')],
+                [
+                    'app_secret'       => config('facebook.meta_auth.client_secret'),
+                    'verify_token'     => config('facebook.webhook.verify_token'),
+                    'app_access_token' => $accessToken,
+                    'is_active'        => true,
+                ]
+            );
+
+            $fields = 'id,name,access_token,tasks,instagram_business_account';
+
+            // Obtener páginas del usuario (incluyendo paginación completa)
             $pagesResponse = $this->apiClient->request(
                 'GET',
                 'me/accounts',
                 [],
                 null,
                 [
-                    'fields' => 'id,name,access_token,tasks,instagram_business_account',
-                    'access_token' => $accessToken
+                    'fields' => $fields,
+                    'access_token' => $accessToken,
                 ]
             );
 
-            if (empty($pagesResponse['data'])) {
+            $savedPages = 0;
+            $iterations = 0;
+            $maxIterations = 200;
+
+            while (!empty($pagesResponse['data']) && $iterations < $maxIterations) {
+                foreach ($pagesResponse['data'] as $page) {
+                    InstagramModelResolver::facebook_page()->updateOrCreate(
+                        ['page_id' => $page['id']],
+                        [
+                            'meta_app_id'                  => $metaApp->id,
+                            'name'                         => $page['name'] ?? '',
+                            'access_token'                 => $page['access_token'] ?? '',
+                            'tasks'                        => $page['tasks'] ?? [],
+                            'instagram_business_account'   => $page['instagram_business_account']['id'] ?? null,
+                        ]
+                    );
+
+                    $savedPages++;
+                }
+
+                $nextPageUrl = $pagesResponse['paging']['next'] ?? null;
+                $afterCursor = $pagesResponse['paging']['cursors']['after'] ?? null;
+
+                if (!$nextPageUrl && !$afterCursor) {
+                    Log::channel('facebook')->info('No hay más páginas de Facebook para paginar');
+                    break;
+                }
+
+                if ($nextPageUrl) {
+                    $pagesResponse = $this->apiClient->request(
+                        'GET',
+                        $nextPageUrl,
+                        [],
+                        null,
+                        [],
+                        [],
+                        true
+                    );
+                } else {
+                    $pagesResponse = $this->apiClient->request(
+                        'GET',
+                        'me/accounts',
+                        [],
+                        null,
+                        [
+                            'fields' => $fields,
+                            'access_token' => $accessToken,
+                            'after' => $afterCursor,
+                        ]
+                    );
+                }
+
+                $iterations++;
+            }
+
+            if ($savedPages === 0) {
                 Log::channel('facebook')->warning('No se obtuvieron páginas de Facebook');
                 DB::rollBack();
                 return false;
             }
 
-            foreach ($pagesResponse['data'] as $page) {
-                InstagramModelResolver::facebook_page()->updateOrCreate(
-                    ['page_id' => $page['id']],
-                    [
-                        'name' => $page['name'] ?? '',
-                        'access_token' => $page['access_token'] ?? '',
-                        'tasks' => $page['tasks'] ?? [],
-                        'instagram_business_account' => $page['instagram_business_account']['id'] ?? null,
-                    ]
-                );
+            if ($iterations >= $maxIterations) {
+                Log::channel('facebook')->warning('Se alcanzó el límite de iteraciones al paginar páginas de Facebook', [
+                    'max_iterations' => $maxIterations,
+                ]);
             }
 
             DB::commit();

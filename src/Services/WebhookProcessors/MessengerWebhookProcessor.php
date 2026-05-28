@@ -7,9 +7,9 @@ use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use ScriptDevelop\InstagramApiManager\Contracts\WebhookProcessorInterface;
-use ScriptDevelop\InstagramApiManager\Models\FacebookPage;
 use ScriptDevelop\InstagramApiManager\Services\MessengerMessageService;
 use ScriptDevelop\InstagramApiManager\Traits\ValidatesHubSignature;
+use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 
 class MessengerWebhookProcessor implements WebhookProcessorInterface
 {
@@ -71,7 +71,7 @@ class MessengerWebhookProcessor implements WebhookProcessorInterface
                     $pageId = $entry['id'] ?? null;
                     if (!$pageId) continue;
 
-                    $page = FacebookPage::where('page_id', $pageId)->first();
+                    $page = InstagramModelResolver::facebook_page()->where('page_id', $pageId)->first();
                     if (!$page) {
                         Log::channel('facebook')->warning('Página no encontrada para entry', ['page_id' => $pageId]);
                         continue;

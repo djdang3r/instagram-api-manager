@@ -34,6 +34,7 @@ class MessengerMessage extends Model
         'read_at',
         'edited_at',
         'failed_at',
+        'created_time',
         'code_error',
         'title_error',
         'message_error',
