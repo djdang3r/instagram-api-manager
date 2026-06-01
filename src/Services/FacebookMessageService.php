@@ -151,7 +151,13 @@ class FacebookMessageService
         } catch (Exception $e) {
             $message->update(['status' => 'failed', 'failed_at' => now(), 'message_error' => $e->getMessage()]);
             Log::channel('facebook')->error("Error sending {$messageType}:", ['error' => $e->getMessage()]);
-            return null;
+            return [
+                'response' => null,
+                'message' => $message,
+                'conversation' => $conversation,
+                'error' => $e->getMessage(),
+                'error_code' => $e->getCode(),
+            ];
         }
     }
 

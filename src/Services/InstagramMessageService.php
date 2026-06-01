@@ -1110,7 +1110,13 @@ class InstagramMessageService
                 'message_error' => $e->getMessage()
             ]);
             Log::channel('instagram')->error("Error enviando mensaje de {$messageType}:", ['error' => $e->getMessage(), 'recipient_id' => $recipientId]);
-            return null;
+            return [
+                'response' => null,
+                'message' => $message,
+                'conversation' => $conversation,
+                'error' => $e->getMessage(),
+                'error_code' => $e->getCode(),
+            ];
         }
     }
 
