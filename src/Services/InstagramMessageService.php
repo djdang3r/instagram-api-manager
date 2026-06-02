@@ -1086,7 +1086,7 @@ class InstagramMessageService
                 $this->instagramUserId . '/messages',
                 [],
                 $payload,
-                ['access_token' => $this->accessToken], 'instagram'
+                ['access_token' => $this->accessToken],
             );
 
             $message->update([
