@@ -14,6 +14,10 @@ class FacebookAuthController extends Controller
      */
     public function callback(Request $request)
     {
+        $custom_redirect_success_url = $this->getValidRedirectUrl('facebook.meta_auth.custom_redirect_success_url');
+        $custom_redirect_error_url = $this->getValidRedirectUrl('facebook.meta_auth.custom_redirect_error_url');
+        $custom_redirect_warning_url = $this->getValidRedirectUrl('facebook.meta_auth.custom_redirect_warning_url');
+
         $code = $request->get('code');
         $error = $request->get('error');
         $errorReason = $request->get('error_reason');
@@ -26,11 +30,11 @@ class FacebookAuthController extends Controller
                 'description' => $errorDescription
             ]);
 
-            return redirect('/')->with('error', "Error de autorización: $errorDescription");
+            return redirect($custom_redirect_error_url)->with('error', "Error de autorización: $errorDescription");
         }
 
         if (!$code) {
-            return redirect('/')->with('error', 'No se recibió código de autorización');
+            return redirect($custom_redirect_error_url)->with('error', 'No se recibió código de autorización');
         }
 
         try {
@@ -38,14 +42,14 @@ class FacebookAuthController extends Controller
             $result = $facebookAccountService->handleCallback($code);
 
             if (!$result) {
-                return redirect('/')->with('error', 'No se pudieron obtener las páginas de Facebook');
+                return redirect($custom_redirect_error_url)->with('error', 'No se pudieron obtener las páginas de Facebook');
             }
 
-            return redirect('/')->with('success', 'Autenticación completada y páginas obtenidas');
+            return redirect($custom_redirect_success_url)->with('success', 'Autenticación completada y páginas obtenidas');
 
         } catch (\Exception $e) {
             Log::channel('facebook')->error('Excepción en callback Facebook:', ['error' => $e->getMessage()]);
-            return redirect('/')->with('error', 'Error interno del servidor');
+            return redirect($custom_redirect_error_url)->with('error', 'Error interno del servidor');
         }
     }
 
@@ -58,5 +62,27 @@ class FacebookAuthController extends Controller
         $authUrl = $facebookAccountService->getAuthorizationUrl();
 
         return redirect($authUrl);
+    }
+
+    /**
+     * Obtiene una URL de configuración y valida que sea una URL absoluta válida.
+     * Si no lo es, retorna url('/').
+     */
+    private function getValidRedirectUrl(string $configKey): string
+    {
+        $defaultUrl = url('/');
+        $configuredUrl = config($configKey, $defaultUrl);
+
+        if (!is_string($configuredUrl)) {
+            return $defaultUrl;
+        }
+
+        $configuredUrl = trim($configuredUrl);
+
+        if (filter_var($configuredUrl, FILTER_VALIDATE_URL) === false) {
+            return $defaultUrl;
+        }
+
+        return $configuredUrl;
     }
 }

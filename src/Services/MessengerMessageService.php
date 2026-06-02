@@ -268,7 +268,7 @@ class MessengerMessageService
             $updateData = [
                 'status' => $status,
                 'delivered_at' => $date,
-                'message_content' => $message['text'] ?? null,
+                'message_content' => $message['text'] ?? $dbMessage->message_content,
                 'json_content' => $message,
             ];
 

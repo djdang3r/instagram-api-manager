@@ -135,6 +135,9 @@ return [
         'client_id' => env('FACEBOOK_CLIENT_ID'),
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
         'redirect_uri' => env('FACEBOOK_REDIRECT_URI'),
+        'custom_redirect_success_url' => env('FACEBOOK_CUSTOM_REDIRECT_SUCCESS_URL', null),
+        'custom_redirect_error_url' => env('FACEBOOK_CUSTOM_REDIRECT_ERROR_URL', null),
+        'custom_redirect_warning_url' => env('FACEBOOK_CUSTOM_REDIRECT_WARNING_URL', null),
     ],
 
 ];

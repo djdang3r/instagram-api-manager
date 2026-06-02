@@ -20,7 +20,7 @@ class FacebookAccountService
             ->withVersion(config('facebook.api.version'));
     }
 
-    public function getAuthorizationUrl(array $scopes = ['pages_show_list', 'pages_read_engagement', 'pages_messaging'], ?string $state = null): string
+    public function getAuthorizationUrl(array $scopes = ['pages_show_list', 'pages_read_engagement', 'pages_messaging', 'pages_manage_metadata'], ?string $state = null): string
     {
         $clientId = config('facebook.meta_auth.client_id');
         $redirectUri = config('facebook.meta_auth.redirect_uri') ?: route('facebook.auth.callback');
