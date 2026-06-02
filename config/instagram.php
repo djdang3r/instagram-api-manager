@@ -187,5 +187,8 @@ return [
         'client_id' => env('INSTAGRAM_CLIENT_ID'),
         'client_secret' => env('INSTAGRAM_CLIENT_SECRET'),
         'redirect_uri' => env('INSTAGRAM_REDIRECT_URI'),
+        'custom_redirect_success_url' => env('INSTAGRAM_CUSTOM_REDIRECT_SUCCESS_URL', null),
+        'custom_redirect_error_url' => env('INSTAGRAM_CUSTOM_REDIRECT_ERROR_URL', null),
+        'custom_redirect_warning_url' => env('INSTAGRAM_CUSTOM_REDIRECT_WARNING_URL', null),
     ]
 ];
