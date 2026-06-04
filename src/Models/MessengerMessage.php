@@ -75,9 +75,15 @@ class MessengerMessage extends Model
         return $this->media()->count();
     }
 
-    public function replies()
+    public function replies(): HasMany
     {
-        // Relación uno a muchos: este mensaje tiene múltiples réplicas
+        // Hijos: filas cuyo message_context_id referencia el message_id de este mensaje.
         return $this->hasMany(config('instagram.models.messenger_message'), 'message_id', 'message_context_id');
+    }
+
+    public function replyToMessage(): BelongsTo
+    {
+        // Padre: este mensaje responde al registro cuyo message_id == message_context_id.
+        return $this->belongsTo(config('instagram.models.messenger_message'), 'message_context_id', 'message_id');
     }
 }
