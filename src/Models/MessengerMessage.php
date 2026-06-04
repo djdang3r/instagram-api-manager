@@ -74,4 +74,10 @@ class MessengerMessage extends Model
     {
         return $this->media()->count();
     }
+
+    public function replies()
+    {
+        // Relación uno a muchos: este mensaje tiene múltiples réplicas
+        return $this->hasMany(config('instagram.models.messenger_message'), 'message_id', 'message_context_id');
+    }
 }
