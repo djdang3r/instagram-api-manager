@@ -53,6 +53,7 @@ class MessengerMessage extends Model
     protected $casts = [
         'json_content' => 'array',
         'json' => 'array',
+        'attachments' => 'array',
     ];
 
     protected $dates = [
