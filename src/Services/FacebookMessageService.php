@@ -127,6 +127,11 @@ class FacebookMessageService
             $messageData['message_content'] = $messagePayload['message']['attachment']['payload']['text'] ?? null;
         }
 
+        if( $messagePayload['reply_to'] ?? false ) {
+            $messageData['message_context'] = 'reply';
+            $messageData['message_context_id'] = $messagePayload['reply_to']['mid'] ?? null;
+        }
+
         $message = InstagramModelResolver::messenger_message()->create($messageData);
 
         try {
