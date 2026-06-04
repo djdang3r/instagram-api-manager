@@ -573,14 +573,26 @@ class MessengerMessageService
     protected function processRead(Model $conversation, array $messageData, string $senderId, string $recipientId): ?Model
     {
         $read = $messageData['read'] ?? null;
-        $date = $messageData['timestamp'] ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now();
+        $date = isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now();
+        $updatedMessage = null;
 
         if (isset($read['watermark'])) {
+            $watermarkTime = date('Y-m-d H:i:s', $read['watermark'] / 1000);
+
             InstagramModelResolver::messenger_message()
                 ->where('conversation_id', $conversation->id)
-                ->where('created_time', '<=', date('Y-m-d H:i:s', $read['watermark'] / 1000))
+                ->where('created_time', '<=', $watermarkTime)
                 ->whereIn('status', ['sent', 'delivered'])
                 ->update(['status' => 'read', 'read_at' => $date]);
+
+            if (!isset($read['mid'])) {
+                $updatedMessage = InstagramModelResolver::messenger_message()
+                    ->where('conversation_id', $conversation->id)
+                    ->where('created_time', '<=', $watermarkTime)
+                    ->where('status', '=', 'read')
+                    ->orderByDesc('created_time')
+                    ->first();
+            }
         }
         if (isset($read['mid'])) {
             $targetMessage = InstagramModelResolver::messenger_message()
@@ -615,15 +627,8 @@ class MessengerMessageService
             }
         }
 
-        if (isset($read['mid'])) {
-            InstagramModelResolver::messenger_message()
-                ->where('message_id', $read['mid'])
-                ->whereNull('read_at')
-                ->update(['status' => 'read', 'read_at' => $date]);
-        }
-
         Log::channel('facebook')->info('Read receipt procesado', ['conversation_id' => $conversation->id]);
-        return null;
+        return $updatedMessage;
     }
 
     protected function processMessageEdit(Model $conversation, array $messageEdit, string $senderId, string $recipientId): ?Model
@@ -806,6 +811,7 @@ class MessengerMessageService
         if (!$pageId) return;
 
         $date = now();
+        $updatedMessage = null;
 
         // Update by watermark: all messages before this timestamp were delivered
         if (isset($delivery['watermark'])) {
@@ -816,6 +822,17 @@ class MessengerMessageService
                 ->where('sent_at', '<=', $watermarkDate)
                 ->whereNull('delivered_at')
                 ->update(['status' => 'delivered', 'delivered_at' => $date]);
+
+            if( !isset($delivery['mids']) ) {
+                $updatedMessage = InstagramModelResolver::messenger_message()
+                    ->where('message_from', $pageId)
+                    ->where('status', 'sent')
+                    ->where('sent_at', '<=', $watermarkDate)
+                    ->whereNotNull('delivered_at')
+                    ->where('status', '=', 'delivered')
+                    ->orderByDesc('created_time')
+                    ->first();
+            }
 
             Log::channel('facebook')->info('✅ Message delivery por watermark', [
                 'page_id' => $pageId, 'watermark' => $delivery['watermark'],
@@ -829,6 +846,13 @@ class MessengerMessageService
                 ->whereNull('delivered_at')
                 ->update(['status' => 'delivered', 'delivered_at' => $date]);
 
+            $updatedMessage = InstagramModelResolver::messenger_message()
+                ->whereIn('message_id', $delivery['mids'])
+                ->whereNotNull('delivered_at')
+                ->where('status', '=', 'delivered')
+                ->orderByDesc('created_time')
+                ->first();
+
             Log::channel('facebook')->info('✅ Message delivery por mids', [
                 'count' => count($delivery['mids']),
             ]);
@@ -836,7 +860,7 @@ class MessengerMessageService
 
         // Broadcast event
         $this->dispatchBroadcastEvent($messaging, [
-            'message' => null,
+            'message' => $updatedMessage,
             'conversation' => null,
         ]);
     }
