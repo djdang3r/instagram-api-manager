@@ -27,7 +27,15 @@ class MessengerMessage extends Model
         'message_from',
         'message_to',
         'message_content',
+        'message_context',
+        'message_context_id',
+        'quick_reply_payload',
+        'postback_payload',
+        'template_payload',
         'json_content',
+        'attachments',
+        'reactions',
+        'caption',
         'status',
         'sent_at',
         'delivered_at',
@@ -45,6 +53,7 @@ class MessengerMessage extends Model
     protected $casts = [
         'json_content' => 'array',
         'json' => 'array',
+        'attachments' => 'array',
     ];
 
     protected $dates = [
@@ -64,5 +73,17 @@ class MessengerMessage extends Model
     public function mediaCount(): int
     {
         return $this->media()->count();
+    }
+
+    public function replies(): HasMany
+    {
+        // Hijos: filas cuyo message_context_id referencia el message_id de este mensaje.
+        return $this->hasMany(config('instagram.models.messenger_message'), 'message_id', 'message_context_id');
+    }
+
+    public function replyToMessage(): BelongsTo
+    {
+        // Padre: este mensaje responde al registro cuyo message_id == message_context_id.
+        return $this->belongsTo(config('instagram.models.messenger_message'), 'message_context_id', 'message_id');
     }
 }

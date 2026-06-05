@@ -945,7 +945,7 @@ class InstagramMessageService
     protected function processRead(Model $conversation, array $messageData, string $senderId, string $recipientId): ?Model
     {
         $read = $messageData['read'] ?? null;
-        $date = $messageData['timestamp'] ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now();
+        $date = isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp'] / 1000) : now();
         $updatedMessage = null;
 
         if (isset($read['watermark'])) {
@@ -1086,7 +1086,7 @@ class InstagramMessageService
                 $this->instagramUserId . '/messages',
                 [],
                 $payload,
-                ['access_token' => $this->accessToken], 'instagram'
+                ['access_token' => $this->accessToken],
             );
 
             $message->update([
