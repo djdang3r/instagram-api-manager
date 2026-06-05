@@ -1316,7 +1316,7 @@ class InstagramMessageService
                 $this->instagramUserId . '/messages',
                 [],
                 $payload,
-                ['access_token' => $this->accessToken], 'instagram'
+                ['access_token' => $this->accessToken],
             );
         } catch (Exception $e) {
             Log::channel('instagram')->error('Error sending reply:', ['error' => $e->getMessage()]);
