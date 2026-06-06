@@ -12,8 +12,15 @@ return new class extends Migration
             // Guardar URL completa para deduplicar correctamente.
             $table->text('media_url')->nullable()->change();
             $table->string('media_type', 15)->change();
-            $table->string('media_url_hash', 64)->nullable()->after('media_url');
+        });
 
+        if (!Schema::hasColumn('messenger_media_messages', 'media_url_hash')) {
+            Schema::table('messenger_media_messages', function (Blueprint $table) {
+                $table->string('media_url_hash', 64)->nullable()->after('media_url');
+            });
+        }
+
+        Schema::table('messenger_media_messages', function (Blueprint $table) {
             // Índice compuesto para deduplicación por mensaje + tipo + hash de URL.
             // Evitamos indexar media_url completo para no romper por límites de longitud.
             $table->index(
@@ -27,8 +34,15 @@ return new class extends Migration
     {
         Schema::table('messenger_media_messages', function (Blueprint $table) {
             $table->dropIndex('msgr_media_msg_id_type_url_hash_idx');
-            $table->dropColumn('media_url_hash');
+        });
 
+        if (Schema::hasColumn('messenger_media_messages', 'media_url_hash')) {
+            Schema::table('messenger_media_messages', function (Blueprint $table) {
+                $table->dropColumn('media_url_hash');
+            });
+        }
+
+        Schema::table('messenger_media_messages', function (Blueprint $table) {
             // Volver al largo histórico previo.
             $table->string('media_url')->nullable()->change();
             $table->string('media_type')->change();

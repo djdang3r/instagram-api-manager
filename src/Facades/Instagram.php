@@ -87,4 +87,19 @@ class Instagram extends Facade
     {
         return app('instagram.link');
     }
+
+    public static function comment(): \ScriptDevelop\InstagramApiManager\Services\InstagramCommentService
+    {
+        return app('instagram.comment');
+    }
+
+    public static function publishing(): \ScriptDevelop\InstagramApiManager\Services\InstagramContentPublishingService
+    {
+        return app('instagram.publishing');
+    }
+
+    public static function insights(): \ScriptDevelop\InstagramApiManager\Services\InstagramInsightsService
+    {
+        return app('instagram.insights');
+    }
 }

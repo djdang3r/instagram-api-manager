@@ -74,7 +74,7 @@ class InstagramAccountService
     /**
      * Obtener medios del usuario
      */
-    public function getUserMedia(?string $userId = null, ?string $accessToken = null): ?array
+    public function getUserMedia(?string $userId = null, ?string $accessToken = null, int $limit = 100): ?array
     {
         $userId = $userId ?? $this->currentAccount?->instagram_business_account_id;
         $accessToken = $accessToken ?? $this->currentAccount?->access_token;
@@ -84,16 +84,27 @@ class InstagramAccountService
         }
 
         try {
-            return $this->apiClient->request(
-                'GET',
-                $userId . '/media',
-                [],
-                null,
-                [
+            $allMedia = [];
+            $after = null;
+
+            do {
+                $query = [
                     'access_token' => $accessToken,
-                    'fields' => 'id,caption,media_type,media_url,thumbnail_url,timestamp,permalink,children{media_url,media_type}'
-                ]
-            );
+                    'fields' => 'id,caption,media_type,media_url,thumbnail_url,timestamp,permalink,children{media_url,media_type}',
+                    'limit' => min($limit, 100),
+                ];
+                if ($after) $query['after'] = $after;
+
+                $response = $this->apiClient->request('GET', $userId . '/media', [], null, $query);
+
+                foreach ($response['data'] ?? [] as $media) {
+                    $allMedia[] = $media;
+                }
+
+                $after = $response['paging']['cursors']['after'] ?? null;
+            } while ($after && count($allMedia) < $limit);
+
+            return ['data' => $allMedia, 'paging' => $response['paging'] ?? null, 'total' => count($allMedia)];
         } catch (Exception $e) {
             Log::channel('instagram')->error('Error obteniendo medios del usuario:', ['error' => $e->getMessage()]);
             return null;
@@ -477,6 +488,34 @@ class InstagramAccountService
         } catch (Exception $e) {
             Log::channel('instagram')->error('Error vinculando cuenta con página de Facebook:', ['error' => $e->getMessage()]);
             return false;
+        }
+    }
+
+    public function searchHashtag(string $hashtag, ?string $igUserId = null): ?array
+    {
+        $igUserId = $igUserId ?? $this->currentAccount?->instagram_business_account_id;
+        try {
+            return $this->apiClient->request('GET', 'ig_hashtag_search', [], null, [
+                'user_id' => $igUserId,
+                'q' => ltrim($hashtag, '#'),
+                'access_token' => $this->currentAccount?->access_token,
+            ]);
+        } catch (Exception $e) {
+            Log::channel('instagram')->error('Error searching hashtag:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    public function getHashtagMedia(string $hashtagId, ?string $accessToken = null): ?array
+    {
+        $accessToken = $accessToken ?? $this->currentAccount?->access_token;
+        try {
+            return $this->apiClient->request('GET', "{$hashtagId}/recent_media", [], null, [
+                'fields' => 'id,media_type,media_url,caption,permalink',
+                'access_token' => $accessToken,
+            ]);
+        } catch (Exception $e) {
+            return null;
         }
     }
 }

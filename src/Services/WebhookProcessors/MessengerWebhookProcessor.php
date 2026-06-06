@@ -8,8 +8,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use ScriptDevelop\InstagramApiManager\Contracts\WebhookProcessorInterface;
 use ScriptDevelop\InstagramApiManager\Services\MessengerMessageService;
-use ScriptDevelop\InstagramApiManager\Traits\ValidatesHubSignature;
 use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
+use ScriptDevelop\InstagramApiManager\Traits\ValidatesHubSignature;
 
 class MessengerWebhookProcessor implements WebhookProcessorInterface
 {
@@ -58,9 +58,10 @@ class MessengerWebhookProcessor implements WebhookProcessorInterface
 
         $data = $request->all();
 
-        Log::channel('facebook')->info('=== WEBHOOK DE MESSENGER RECIBIDO ===');
+        $correlationId = $request->header('X-Request-ID') ?? (string) \Illuminate\Support\Str::uuid();
+        Log::channel('facebook')->info('=== WEBHOOK DE MESSENGER RECIBIDO ===', ['correlation_id' => $correlationId]);
 
-        if ($data['object'] !== 'page') {
+        if (($data['object'] ?? '') !== 'page') {
             Log::channel('facebook')->warning('Webhook no es de tipo page', ['object' => $data['object'] ?? 'unknown']);
             return response()->json(['success' => true], 200);
         }

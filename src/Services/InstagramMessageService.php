@@ -50,7 +50,7 @@ class InstagramMessageService
         }
     }
 
-    protected function isWithin24hWindow(Model $conversation): bool
+    protected function isWithin24hWindow(\ScriptDevelop\InstagramApiManager\Models\InstagramConversation $conversation): bool
     {
         if (!$conversation->last_message_at) return false;
         return $conversation->last_message_at->diffInHours(now()) < 24;
@@ -115,35 +115,37 @@ class InstagramMessageService
         $this->withAccessToken($businessAccount->access_token)
             ->withInstagramUserId($businessAccount->instagram_business_account_id);
 
-        $conversation = $this->findOrCreateConversation(
-            $businessAccount->instagram_business_account_id,
-            $contactUserId
-        );
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($messageData, $businessAccount, $contactUserId, $isEcho) {
+            $conversation = $this->findOrCreateConversation(
+                $businessAccount->instagram_business_account_id,
+                $contactUserId
+            );
 
-        $this->updateConversationStats($conversation, $isEcho);
+            $this->updateConversationStats($conversation, $isEcho);
 
-        $eventResult = $this->handleEventByType($messageData, $conversation, $contactUserId, $businessAccount, $isEcho);
+            $eventResult = $this->handleEventByType($messageData, $conversation, $contactUserId, $businessAccount, $isEcho);
 
-        if (!empty($eventResult['conversation']) && $eventResult['conversation'] instanceof Model) {
-            $conversation = $eventResult['conversation'];
-        }
+            if (!empty($eventResult['conversation']) && $eventResult['conversation'] instanceof Model) {
+                $conversation = $eventResult['conversation'];
+            }
 
-        if ($this->shouldUpdateContact($messageData)) {
-            $this->updateOrCreateContact($contactUserId, $businessAccount);
-        }
+            if ($this->shouldUpdateContact($messageData)) {
+                $this->updateOrCreateContact($contactUserId, $businessAccount);
+            }
 
-        $this->dispatchBroadcastEvent($messageData, [
-            'message' => $eventResult['message'] ?? null,
-            'conversation' => $conversation,
-        ]);
+            $this->dispatchBroadcastEvent($messageData, [
+                'message' => $eventResult['message'] ?? null,
+                'conversation' => $conversation,
+            ]);
 
-        Log::channel('instagram')->info('✅ PROCESAMIENTO COMPLETADO');
-        Log::channel('instagram')->info('═══════════════════════════════════════════════════════');
+            Log::channel('instagram')->info('✅ PROCESAMIENTO COMPLETADO');
+            Log::channel('instagram')->info('═══════════════════════════════════════════════════════');
 
-        return [
-            'message' => $eventResult['message'] ?? null,
-            'conversation' => $conversation,
-        ];
+            return [
+                'message' => $eventResult['message'] ?? null,
+                'conversation' => $conversation,
+            ];
+        });
     }
 
     // ------------------------------------------------------------------------
@@ -676,6 +678,15 @@ class InstagramMessageService
      */
     protected function fetchContactProfile(string $instagramUserId, Model $businessAccount): array
     {
+        $cacheKey = "instagram_contact_profile:{$instagramUserId}";
+        $cacheEnabled = config('instagram.cache.contact_profile_enabled', true);
+        $cachedTtl = (int) config('instagram.cache.contact_profile_ttl', 3600);
+
+        if ($cacheEnabled && $cached = \Illuminate\Support\Facades\Cache::get($cacheKey)) {
+            Log::channel('instagram')->info('✅ Perfil obtenido de cache', ['user_id' => $instagramUserId]);
+            return $cached;
+        }
+
         $maxAttempts = 2;
         $attempt = 0;
 
@@ -733,6 +744,9 @@ class InstagramMessageService
                 ]);
 
                 if (is_array($response) && !isset($response['error'])) {
+                    if ($cacheEnabled) {
+                        \Illuminate\Support\Facades\Cache::put($cacheKey, $response, $cachedTtl);
+                    }
                     Log::channel('instagram')->info('✅ Perfil obtenido correctamente', [
                         'user_id' => $instagramUserId,
                         'username' => $response['username'] ?? null,
@@ -1374,6 +1388,77 @@ class InstagramMessageService
             return $response['attachment_id'] ?? null;
         } catch (Exception $e) {
             Log::channel('instagram')->error('Error uploading attachment:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    public function sendPrivateReply(string $commentId, string $message): ?array
+    {
+        $this->validateCredentials();
+        try {
+            return $this->apiClient->request(
+                'POST',
+                $this->instagramUserId . '/messages',
+                [],
+                ['recipient' => ['comment_id' => $commentId], 'message' => ['text' => $message]],
+                ['access_token' => $this->accessToken]
+            );
+        } catch (Exception $e) {
+            Log::channel('instagram')->error('Error sending private reply:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    public function syncConversations(string $accessToken, string $igUserId, int $limit = 100): ?array
+    {
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            $client = app(\ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient::class)
+                ->withBaseUrl(config('instagram.api.graph_base_url', 'https://graph.instagram.com'))
+                ->withVersion(config('instagram.api.version'));
+
+            $allConversations = [];
+            $after = null;
+
+            do {
+                $query = ['fields' => 'id,participants', 'access_token' => $accessToken, 'limit' => min($limit, 100)];
+                if ($after) $query['after'] = $after;
+
+                $response = $client->request('GET', "{$igUserId}/conversations", [], null, $query);
+
+                foreach ($response['data'] ?? [] as $conv) {
+                    $allConversations[] = $conv;
+                    $participants = $conv['participants']['data'] ?? [];
+                    foreach ($participants as $participant) {
+                        if ($participant['id'] !== $igUserId) {
+                            $conversation = InstagramModelResolver::instagram_conversation()
+                                ->where('instagram_business_account_id', $igUserId)
+                                ->where('instagram_user_id', $participant['id'])
+                                ->whereNull('deleted_at')
+                                ->first();
+
+                            if (!$conversation) {
+                                InstagramModelResolver::instagram_conversation()->create([
+                                    'instagram_business_account_id' => $igUserId,
+                                    'instagram_user_id' => $participant['id'],
+                                    'updated_time' => now(),
+                                    'unread_count' => 0,
+                                ]);
+                            } else {
+                                $conversation->update(['updated_time' => now()]);
+                            }
+                        }
+                    }
+                }
+
+                $after = $response['paging']['cursors']['after'] ?? null;
+            } while ($after && count($allConversations) < $limit);
+
+            \Illuminate\Support\Facades\DB::commit();
+            return ['data' => $allConversations, 'total' => count($allConversations)];
+        } catch (Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            Log::channel('instagram')->error('Error syncing conversations:', ['error' => $e->getMessage()]);
             return null;
         }
     }

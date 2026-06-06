@@ -24,7 +24,6 @@ class InstagramProfile extends Model
 
         // Información básica
         'profile_name',
-        'user_id',
         'username',
         'profile_picture',
         'bio',

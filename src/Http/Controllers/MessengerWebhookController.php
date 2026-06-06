@@ -11,6 +11,13 @@ class MessengerWebhookController extends Controller
 {
     public function handle(Request $request)
     {
+        if (config('facebook.webhook.async', false) && $request->isMethod('post')) {
+            \ScriptDevelop\InstagramApiManager\Jobs\ProcessWebhookJob::dispatch(
+                $request->all(), 'facebook', $request->header('X-Hub-Signature-256')
+            );
+            return response()->json(['success' => true], 200);
+        }
+
         try {
             $processor = new MessengerWebhookProcessor(app(MessengerMessageService::class));
             return $processor->handle($request);

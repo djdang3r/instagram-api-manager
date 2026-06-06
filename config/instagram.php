@@ -14,31 +14,38 @@ return [
     */
     'models' => [
         'facebook_page' => \ScriptDevelop\InstagramApiManager\Models\FacebookPage::class,
+        'facebook_page_stats' => \ScriptDevelop\InstagramApiManager\Models\FacebookPageStats::class,
+        'facebook_post' => \ScriptDevelop\InstagramApiManager\Models\FacebookPost::class,
+        'facebook_comment' => \ScriptDevelop\InstagramApiManager\Models\FacebookComment::class,
+        'facebook_media' => \ScriptDevelop\InstagramApiManager\Models\FacebookMedia::class,
 
         'instagram_business_account' => \ScriptDevelop\InstagramApiManager\Models\InstagramBusinessAccount::class,
+        'instagram_account_stats' => \ScriptDevelop\InstagramApiManager\Models\InstagramAccountStats::class,
 
+        'instagram_profile' => \ScriptDevelop\InstagramApiManager\Models\InstagramProfile::class,
         'instagram_contact' => \ScriptDevelop\InstagramApiManager\Models\InstagramContact::class,
-
         'instagram_conversation' => \ScriptDevelop\InstagramApiManager\Models\InstagramConversation::class,
 
         //Mensajes
         'instagram_message' => \ScriptDevelop\InstagramApiManager\Models\InstagramMessage::class,
-
         'instagram_media_message' => \ScriptDevelop\InstagramApiManager\Models\InstagramMediaMessage::class,
-
-        'instagram_profile' => \ScriptDevelop\InstagramApiManager\Models\InstagramProfile::class,
-
         'instagram_referral' => \ScriptDevelop\InstagramApiManager\Models\InstagramReferral::class,
 
-        'messenger_contact' => \ScriptDevelop\InstagramApiManager\Models\MessengerContact::class,
+        // Comentarios y contenido
+        'instagram_comment' => \ScriptDevelop\InstagramApiManager\Models\InstagramComment::class,
+        'instagram_post' => \ScriptDevelop\InstagramApiManager\Models\InstagramPost::class,
+        'instagram_story' => \ScriptDevelop\InstagramApiManager\Models\InstagramStory::class,
+        'instagram_media_post' => \ScriptDevelop\InstagramApiManager\Models\InstagramMediaPost::class,
+        'instagram_media_stats' => \ScriptDevelop\InstagramApiManager\Models\InstagramMediaStats::class,
 
+        // Messenger
+        'messenger_contact' => \ScriptDevelop\InstagramApiManager\Models\MessengerContact::class,
         'messenger_conversation' => \ScriptDevelop\InstagramApiManager\Models\MessengerConversation::class,
+        'messenger_insights' => \ScriptDevelop\InstagramApiManager\Models\MessengerInsights::class,
 
         //Mensajes messenger
         'messenger_message' => \ScriptDevelop\InstagramApiManager\Models\MessengerMessage::class,
-
         'messenger_media_message' => \ScriptDevelop\InstagramApiManager\Models\MessengerMediaMessage::class,
-
         'messenger_referral' => \ScriptDevelop\InstagramApiManager\Models\MessengerReferral::class,
 
         'meta_app' => \ScriptDevelop\InstagramApiManager\Models\MetaApp::class,
@@ -73,9 +80,22 @@ return [
     */
     'webhook' => [
         'verify_token' => env('INSTAGRAM_WEBHOOK_VERIFY_TOKEN', 'default_token'),
-
-        // Procesador personalizado para webhooks (valor por defecto)
         'processor' => env('INSTAGRAM_WEBHOOK_PROCESSOR', \ScriptDevelop\InstagramApiManager\Services\WebhookProcessors\BaseWebhookProcessor::class),
+        'async' => env('INSTAGRAM_WEBHOOK_ASYNC', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Configuración de Rate Limiting
+    |--------------------------------------------------------------------------
+    |
+    | Controla el límite de peticiones al webhook de Instagram.
+    | GET (verificación): 10 peticiones/min. POST (procesamiento): configurable.
+    |
+    */
+    'rate_limit' => [
+        'max_attempts' => env('INSTAGRAM_RATE_LIMIT', 60),
+        'decay_minutes' => env('INSTAGRAM_RATE_LIMIT_DECAY', 1),
     ],
 
     /*
@@ -173,6 +193,8 @@ return [
         'referral' => \ScriptDevelop\InstagramApiManager\Events\InstagramReferralReceived::class,
         'read' => \ScriptDevelop\InstagramApiManager\Events\InstagramReadReceived::class,
         'message_edit' => \ScriptDevelop\InstagramApiManager\Events\InstagramMessageEdited::class,
+        'comment' => \ScriptDevelop\InstagramApiManager\Events\InstagramCommentReceived::class,
+        'mention' => \ScriptDevelop\InstagramApiManager\Events\InstagramMentionReceived::class,
     ],
 
     /*
@@ -190,5 +212,38 @@ return [
         'custom_redirect_success_url' => env('INSTAGRAM_CUSTOM_REDIRECT_SUCCESS_URL', null),
         'custom_redirect_error_url' => env('INSTAGRAM_CUSTOM_REDIRECT_ERROR_URL', null),
         'custom_redirect_warning_url' => env('INSTAGRAM_CUSTOM_REDIRECT_WARNING_URL', null),
-    ]
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Configuración de Comentarios
+    |--------------------------------------------------------------------------
+    */
+    'comments' => [
+        'enabled' => env('INSTAGRAM_COMMENTS_ENABLED', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Configuración de Publicación de Contenido
+    |--------------------------------------------------------------------------
+    */
+    'publishing' => [
+        'max_caption_length' => 2200,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Configuración de Cache
+    |--------------------------------------------------------------------------
+    |
+    | TTL en segundos para cachear perfiles de contacto.
+    | 3600 = 1 hora. 0 = deshabilitado (cada mensaje consulta la API).
+    |
+    */
+    'cache' => [
+        'contact_profile_enabled' => env('INSTAGRAM_CONTACT_CACHE_ENABLED', true),
+        'contact_profile_ttl' => env('INSTAGRAM_CONTACT_CACHE_TTL', 3600),
+    ],
+
 ];

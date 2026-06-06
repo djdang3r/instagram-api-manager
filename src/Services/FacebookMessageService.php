@@ -4,6 +4,7 @@ namespace ScriptDevelop\InstagramApiManager\Services;
 
 use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
 use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
+use ScriptDevelop\InstagramApiManager\Models\MessengerConversation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -41,7 +42,7 @@ class FacebookMessageService
         }
     }
 
-    protected function isWithin24hWindow(Model $conversation): bool
+    protected function isWithin24hWindow(MessengerConversation $conversation): bool
     {
         $lastMessageAt = $conversation->last_message_at;
 
@@ -134,36 +135,44 @@ class FacebookMessageService
 
         $message = InstagramModelResolver::messenger_message()->create($messageData);
 
-        try {
-            $response = $this->apiClient->request(
-                'POST',
-                $this->pageId . '/messages',
-                [],
-                $payload,
-                ['access_token' => $this->pageAccessToken]
-            );
+        $maxRetries = (int) config('facebook.api.retry_attempts', 3);
+        $attempt = 0;
+        $lastException = null;
 
-            $message->update([
-                'message_id' => $response['message_id'] ?? $response['id'] ?? uniqid(),
-                'status' => 'sent',
-                'sent_at' => now(),
-                'json_content' => $response,
-            ]);
+        while ($attempt < $maxRetries) {
+            $attempt++;
+            try {
+                $response = $this->apiClient->request(
+                    'POST', $this->pageId . '/messages', [], $payload,
+                    ['access_token' => $this->pageAccessToken]
+                );
 
-            $conversation->update(['last_message_at' => now()]);
+                $message->update([
+                    'message_id' => $response['message_id'] ?? $response['id'] ?? uniqid(),
+                    'status' => 'sent', 'sent_at' => now(), 'json_content' => $response,
+                ]);
+                $conversation->update(['last_message_at' => now()]);
 
-            return ['response' => $response, 'message' => $message, 'conversation' => $conversation];
-        } catch (Exception $e) {
-            $message->update(['status' => 'failed', 'failed_at' => now(), 'message_error' => $e->getMessage()]);
-            Log::channel('facebook')->error("Error sending {$messageType}:", ['error' => $e->getMessage()]);
-            return [
-                'response' => null,
-                'message' => $message,
-                'conversation' => $conversation,
-                'error' => $e->getMessage(),
-                'error_code' => $e->getCode(),
-            ];
+                return ['response' => $response, 'message' => $message, 'conversation' => $conversation];
+            } catch (Exception $e) {
+                $lastException = $e;
+                $isRateLimit = str_contains($e->getMessage(), '613');
+
+                if ($isRateLimit && $attempt < $maxRetries) {
+                    $delay = pow(2, $attempt);
+                    Log::channel('facebook')->warning("Rate limit 613 — reintento {$attempt}/{$maxRetries} en {$delay}s");
+                    sleep($delay);
+                    continue;
+                }
+                break;
+            }
         }
+
+        $message->update(['status' => 'failed', 'failed_at' => now(), 'message_error' => $lastException?->getMessage()]);
+        if ($lastException) {
+            Log::channel('facebook')->error("Error sending {$messageType}:", ['error' => $lastException->getMessage()]);
+        }
+        return null;
     }
 
     public function sendTextMessage(string $recipientId, string $text, string $messagingType = 'RESPONSE', ?string $conversationId = null): ?array
@@ -393,5 +402,31 @@ class FacebookMessageService
         $messagePayload['tag'] = $tag;
         $msgType = $messagePayload['message']['attachment']['type'] ?? 'text';
         return $this->sendMessageGeneric($recipientId, $messagePayload, $msgType);
+    }
+
+    public function requestOneTimeNotification(string $recipientId, string $title, string $payload): ?string
+    {
+        $this->validateCredentials();
+        try {
+            $response = $this->apiClient->request('POST', 'me/one_time_notif_token', [], [
+                'recipient' => ['id' => $recipientId],
+                'title' => $title,
+                'payload' => $payload,
+            ], ['access_token' => $this->pageAccessToken]);
+            return $response['one_time_notif_token'] ?? null;
+        } catch (Exception $e) {
+            Log::channel('facebook')->error('Error requesting one-time notification:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    public function sendOneTimeNotification(string $recipientId, string $token, string $message): ?array
+    {
+        return $this->sendMessageGeneric($recipientId, [
+            'messaging_type' => 'MESSAGE_TAG',
+            'tag' => 'ONE_TIME_NOTIF',
+            'one_time_notif_token' => $token,
+            'message' => ['text' => $message],
+        ], 'text');
     }
 }

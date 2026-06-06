@@ -22,9 +22,6 @@ class MessengerMessageService
             ->withVersion(config('facebook.api.version'));
     }
 
-    // ------------------------------------------------------------------------
-    // Configuración de credenciales
-    // ------------------------------------------------------------------------
     public function withPageAccessToken(string $token): self
     {
         $this->pageAccessToken = $token;
@@ -44,9 +41,6 @@ class MessengerMessageService
         }
     }
 
-    // ------------------------------------------------------------------------
-    // ENTRY POINT
-    // ------------------------------------------------------------------------
     public function processWebhookMessage(array $messaging): array
     {
         Log::channel('facebook')->info('🔄 INICIANDO PROCESAMIENTO DE MENSAJE DE MESSENGER');
@@ -61,9 +55,6 @@ class MessengerMessageService
         }
     }
 
-    // ------------------------------------------------------------------------
-    // PROCESAMIENTO PRINCIPAL
-    // ------------------------------------------------------------------------
     protected function processMessage(array $messageData): array
     {
         Log::channel('facebook')->info('═══════════════════════════════════════════════════════');
@@ -97,36 +88,42 @@ class MessengerMessageService
 
         $this->withPageAccessToken($page->access_token)->withPageId($page->page_id);
 
-        $conversation = $this->findOrCreateConversation($page->page_id, $contactUserId);
-        $this->updateConversationStats($conversation, $isEcho);
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($messageData, $page, $contactUserId, $isEcho) {
+            $conversation = $this->findOrCreateConversation($page->page_id, $contactUserId);
+            $this->updateConversationStats($conversation, $isEcho);
 
-        $eventResult = $this->handleEventByType($messageData, $conversation, $contactUserId, $page, $isEcho);
+            $eventResult = $this->handleEventByType($messageData, $conversation, $contactUserId, $page, $isEcho);
 
-        if (!empty($eventResult['conversation']) && $eventResult['conversation'] instanceof Model) {
-            $conversation = $eventResult['conversation'];
-        }
+            if (!empty($eventResult['conversation']) && $eventResult['conversation'] instanceof Model) {
+                $conversation = $eventResult['conversation'];
+            }
 
-        if ($this->shouldUpdateContact($messageData)) {
-            $this->updateOrCreateContact($contactUserId, $page);
-        }
+            if ($this->shouldUpdateContact($messageData)) {
+                $contact = $this->updateOrCreateContact($contactUserId, $page);
 
-        $this->dispatchBroadcastEvent($messageData, [
-            'message' => $eventResult['message'] ?? null,
-            'conversation' => $conversation,
-        ]);
+                if (empty($contact->name)) {
+                    $nameFromPayload = $messageData['sender']['name'] ?? null;
+                    if ($nameFromPayload) {
+                        $contact->update(['name' => $nameFromPayload]);
+                    }
+                }
+            }
 
-        Log::channel('facebook')->info('✅ PROCESAMIENTO COMPLETADO');
-        Log::channel('facebook')->info('═══════════════════════════════════════════════════════');
+            $this->dispatchBroadcastEvent($messageData, [
+                'message' => $eventResult['message'] ?? null,
+                'conversation' => $conversation,
+            ]);
 
-        return [
-            'message' => $eventResult['message'] ?? null,
-            'conversation' => $conversation,
-        ];
+            Log::channel('facebook')->info('✅ PROCESAMIENTO COMPLETADO');
+            Log::channel('facebook')->info('═══════════════════════════════════════════════════════');
+
+            return [
+                'message' => $eventResult['message'] ?? null,
+                'conversation' => $conversation,
+            ];
+        });
     }
 
-    // ------------------------------------------------------------------------
-    // 1. Extraer contexto del mensaje
-    // ------------------------------------------------------------------------
     protected function extractMessageContext(array $messageData): array
     {
         $isEcho = isset($messageData['message']['is_echo']) && $messageData['message']['is_echo'] === true;
@@ -140,21 +137,10 @@ class MessengerMessageService
         return [$senderId, $recipientId, $isEcho];
     }
 
-    protected function extractMid(array $messageData): ?string
-    {
-        return $messageData['message_edit']['mid']
-            ?? $messageData['read']['mid']
-            ?? $messageData['reaction']['mid']
-            ?? $messageData['message']['mid']
-            ?? null;
-    }
-
-    // ------------------------------------------------------------------------
-    // 2. Conversación
-    // ------------------------------------------------------------------------
     public function findOrCreateConversation(string $pageId, string $messengerUserId): Model
     {
-        $conversation = InstagramModelResolver::messenger_conversation()->where('page_id', $pageId)
+        $conversation = InstagramModelResolver::messenger_conversation()
+            ->where('page_id', $pageId)
             ->where('messenger_user_id', $messengerUserId)
             ->whereNull('deleted_at')
             ->first();
@@ -171,9 +157,6 @@ class MessengerMessageService
         ]);
     }
 
-    // ------------------------------------------------------------------------
-    // 3. Actualizar conversación
-    // ------------------------------------------------------------------------
     protected function updateConversationStats(Model $conversation, bool $isEcho): void
     {
         $conversation->update([
@@ -182,9 +165,6 @@ class MessengerMessageService
         ]);
     }
 
-    // ------------------------------------------------------------------------
-    // 4. Manejar tipo de evento
-    // ------------------------------------------------------------------------
     protected function handleEventByType(array $messageData, Model $conversation, string $contactUserId, Model $page, bool $isEcho): array
     {
         if (isset($messageData['message'])) {
@@ -245,9 +225,6 @@ class MessengerMessageService
         return ['message' => null, 'conversation' => null];
     }
 
-    // ------------------------------------------------------------------------
-    // 5. Procesar mensaje entrante
-    // ------------------------------------------------------------------------
     protected function processIncomingMessage(Model $conversation, array $messageData, string $senderId, string $recipientId): ?Model
     {
         $message = $messageData['message'];
@@ -416,38 +393,22 @@ class MessengerMessageService
     {
         try {
             $disk = config('facebook.media.disk', 'public');
+            $basePath = config('facebook.media.base_path', 'facebook');
             $maxSize = (int) config("facebook.media.max_file_size.{$type}", 8 * 1024 * 1024);
 
             $folderMap = ['image' => 'images', 'video' => 'videos', 'audio' => 'audios', 'file' => 'documents', 'user_profile_picture' => 'profile_pictures'];
             $subfolder = $folderMap[$type] ?? 'documents';
-            $storagePath = config("facebook.media.storage_path.{$subfolder}", storage_path("app/public/facebook/{$subfolder}"));
 
-            if (!is_dir($storagePath)) {
-                mkdir($storagePath, 0755, true);
+            $ext = $this->extractUrlExtension($url);
+            if ($ext === null) {
+                $ext = $type === 'audio' ? 'mp3' : ($type === 'video' ? 'mp4' : 'jpg');
             }
-
-            $urlExtension = $this->extractUrlExtension($url);
-            $ext = $urlExtension ?? ($type === 'audio' ? 'mp3' : ($type === 'video' ? 'mp4' : 'jpg'));
-
-            $providedFilename = $filename !== null;
-            $filename = $filename ?? uniqid('msg_') . '.' . $ext;
-            $fullPath = "{$storagePath}/{$filename}";
-            $relativePath = str_replace(storage_path('app/public/'), '', $fullPath);
+            $filename = uniqid('msg_') . '.' . $ext;
+            $relativePath = "{$basePath}/{$subfolder}/{$filename}";
             $publicPath = '/storage/' . ltrim($relativePath, '/');
 
             $content = @file_get_contents($url);
             if ($content && strlen($content) <= $maxSize) {
-                if ($providedFilename && Storage::disk($disk)->exists($relativePath)) {
-                    $existingContent = Storage::disk($disk)->get($relativePath);
-                    if (md5($existingContent) === md5($content)) {
-                        Log::channel('facebook')->info('Archivo ya existe y es idéntico, reutilizando', [
-                            'url' => $url,
-                            'path' => $publicPath,
-                        ]);
-                        return $publicPath;
-                    }
-                }
-
                 Storage::disk($disk)->put($relativePath, $content);
 
                 Log::channel('facebook')->info('Archivo multimedia descargado y guardado', [
@@ -465,19 +426,21 @@ class MessengerMessageService
         return null;
     }
 
+    /**
+     * Extracts the file extension from a URL's path, ignoring query parameters.
+     * Returns lowercase extension without dot, or null if none found.
+     */
     protected function extractUrlExtension(string $url): ?string
     {
         $path = parse_url($url, PHP_URL_PATH);
-        if (!is_string($path) || $path === '') {
+        if (!$path) {
             return null;
         }
-
-        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-        if ($extension === '') {
+        $ext = pathinfo($path, PATHINFO_EXTENSION);
+        if ($ext === '' || strlen($ext) > 5) {
             return null;
         }
-
-        return preg_match('/^[a-z0-9]{1,10}$/', $extension) ? $extension : null;
+        return strtolower($ext);
     }
 
     // ------------------------------------------------------------------------
@@ -653,9 +616,6 @@ class MessengerMessageService
         return $message;
     }
 
-    // ------------------------------------------------------------------------
-    // 7. Contacto
-    // ------------------------------------------------------------------------
     protected function shouldUpdateContact(array $messageData): bool
     {
         return !isset($messageData['read'])
@@ -707,6 +667,14 @@ class MessengerMessageService
 
     protected function fetchContactProfile(string $messengerUserId, Model $page): array
     {
+        $cacheEnabled = config('facebook.cache.contact_profile_enabled', true);
+        $cacheKey = "facebook_contact_profile:{$messengerUserId}";
+        $cachedTtl = (int) config('facebook.cache.contact_profile_ttl', 3600);
+
+        if ($cacheEnabled && $cached = \Illuminate\Support\Facades\Cache::get($cacheKey)) {
+            return $cached;
+        }
+
         try {
             $token = $page->access_token;
             if (empty($token)) {
@@ -732,6 +700,9 @@ class MessengerMessageService
             );
 
             if (is_array($response) && !isset($response['error'])) {
+                if ($cacheEnabled) {
+                    \Illuminate\Support\Facades\Cache::put($cacheKey, $response, $cachedTtl);
+                }
                 Log::channel('facebook')->info('✅ Perfil obtenido', [
                     'user_id' => $messengerUserId,
                     'name' => $response['name'] ?? null,
@@ -739,7 +710,10 @@ class MessengerMessageService
                 return $response;
             }
 
-            Log::channel('facebook')->warning('⚠️ Perfil de contacto vacío o denegado (requiere Business Asset User Profile Access)');
+            $fallback = $this->fetchContactNameFromMessage($messengerUserId, $page);
+            if ($fallback) return $fallback;
+
+            Log::channel('facebook')->warning('⚠️ Perfil de contacto vacío (requiere Business Asset User Profile Access)');
             return [];
 
         } catch (Exception $e) {
@@ -751,9 +725,37 @@ class MessengerMessageService
         }
     }
 
-    // ------------------------------------------------------------------------
-    // 8. Broadcast
-    // ------------------------------------------------------------------------
+    protected function fetchContactNameFromMessage(string $messengerUserId, Model $page): array
+    {
+        try {
+            $lastMessage = InstagramModelResolver::messenger_message()
+                ->where('message_to', $page->page_id)
+                ->where('message_from', $messengerUserId)
+                ->orderByDesc('created_at')
+                ->first();
+
+            if ($lastMessage && $lastMessage->message_id) {
+                $client = app(ApiClient::class)
+                    ->withBaseUrl(config('facebook.api.base_url'))
+                    ->withVersion(config('facebook.api.version'));
+
+                $response = $client->request('GET', $lastMessage->message_id, [], null, [
+                    'fields' => 'from',
+                    'access_token' => $page->access_token,
+                ]);
+
+                $name = $response['from']['name'] ?? null;
+                if ($name) {
+                    Log::channel('facebook')->info('✅ Nombre obtenido vía fallback (message from)', ['name' => $name]);
+                    return ['name' => $name];
+                }
+            }
+        } catch (Exception $e) {
+            Log::channel('facebook')->debug('Fallback de nombre no disponible');
+        }
+        return [];
+    }
+
     protected function dispatchBroadcastEvent(array $messaging, array $processedData = []): void
     {
         $eventType = $this->resolveEventType($messaging);
@@ -770,6 +772,13 @@ class MessengerMessageService
             'message' => $processedData['message'] ?? null,
             'conversation' => $processedData['conversation'] ?? null,
         ];
+
+        if (isset($processedData['delivery'])) {
+            $payload['delivery'] = $processedData['delivery'];
+        }
+        if (isset($processedData['messages'])) {
+            $payload['messages'] = $processedData['messages'];
+        }
 
         try {
             event(new $eventClass($payload));
@@ -799,9 +808,6 @@ class MessengerMessageService
         return null;
     }
 
-    // ------------------------------------------------------------------------
-    // 9. Message delivery
-    // ------------------------------------------------------------------------
     public function processDelivery(array $messaging): void
     {
         $delivery = $messaging['delivery'] ?? null;
@@ -813,7 +819,6 @@ class MessengerMessageService
         $date = now();
         $updatedMessage = null;
 
-        // Update by watermark: all messages before this timestamp were delivered
         if (isset($delivery['watermark'])) {
             $watermarkDate = date('Y-m-d H:i:s', $delivery['watermark'] / 1000);
             InstagramModelResolver::messenger_message()
@@ -839,7 +844,6 @@ class MessengerMessageService
             ]);
         }
 
-        // Update by mids: specific message IDs delivered
         if (isset($delivery['mids']) && is_array($delivery['mids'])) {
             InstagramModelResolver::messenger_message()
                 ->whereIn('message_id', $delivery['mids'])
@@ -858,10 +862,68 @@ class MessengerMessageService
             ]);
         }
 
-        // Broadcast event
-        $this->dispatchBroadcastEvent($messaging, [
-            'message' => $updatedMessage,
-            'conversation' => null,
-        ]);
+        if (config('facebook.broadcast.delivery_per_message', false) && isset($delivery['mids'])) {
+            foreach ($delivery['mids'] as $mid) {
+                $msg = InstagramModelResolver::messenger_message()->where('message_id', $mid)->first();
+                $this->dispatchBroadcastEvent($messaging, [
+                    'message' => $msg, 'conversation' => null, 'delivery' => $delivery,
+                ]);
+            }
+        } else {
+            $deliveredMessages = collect();
+            if (isset($delivery['mids']) && is_array($delivery['mids'])) {
+                $deliveredMessages = InstagramModelResolver::messenger_message()->whereIn('message_id', $delivery['mids'])->get();
+            }
+            $this->dispatchBroadcastEvent($messaging, [
+                'message' => null, 'conversation' => null,
+                'delivery' => $delivery, 'messages' => $deliveredMessages,
+            ]);
+        }
+    }
+
+    public function syncConversations(string $pageId, string $accessToken, int $limit = 100): ?array
+    {
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            $client = app(ApiClient::class)
+                ->withBaseUrl(config('facebook.api.base_url'))
+                ->withVersion(config('facebook.api.version'));
+
+            $allConversations = [];
+            $after = null;
+
+            do {
+                $query = [
+                    'fields' => 'id,participants',
+                    'access_token' => $accessToken,
+                    'limit' => min($limit, 100),
+                ];
+                if ($after) $query['after'] = $after;
+
+                $response = $client->request('GET', "{$pageId}/conversations", [], null, $query);
+
+                foreach ($response['data'] ?? [] as $conv) {
+                    $allConversations[] = $conv;
+                    $participants = $conv['participants']['data'] ?? [];
+                    foreach ($participants as $participant) {
+                        if ($participant['id'] !== $pageId) {
+                            InstagramModelResolver::messenger_conversation()->updateOrCreate(
+                                ['conversation_id' => $conv['id']],
+                                ['page_id' => $pageId, 'messenger_user_id' => $participant['id'], 'last_message_at' => now()]
+                            );
+                        }
+                    }
+                }
+
+                $after = $response['paging']['cursors']['after'] ?? null;
+            } while ($after && count($allConversations) < $limit);
+
+            \Illuminate\Support\Facades\DB::commit();
+            return ['data' => $allConversations, 'total' => count($allConversations)];
+        } catch (Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            Log::channel('facebook')->error('Error syncing conversations:', ['error' => $e->getMessage()]);
+            return null;
+        }
     }
 }

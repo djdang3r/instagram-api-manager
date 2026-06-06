@@ -129,9 +129,26 @@ class InstallInstagramApiManager extends Command
                     '--tag'   => 'instagram-webhook-routes',
                     '--force' => $this->option('force'),
                 ]);
-            }, 'Publicando ruta de webhook...');
+            }, 'Publicando ruta de webhook Instagram...');
 
             $this->components->info('Ruta de webhook publicada en routes/instagram_webhook.php');
+        }
+
+        $publishFbWebhookRoute = confirm(
+            label: '¿Publicar ruta de webhook Messenger (facebook-webhook) para personalizarla?',
+            default: false,
+            hint: 'Copia facebook_webhook.php a routes/. Si no, se usa la ruta interna del paquete.'
+        );
+
+        if ($publishFbWebhookRoute) {
+            spin(function () {
+                $this->callSilent('vendor:publish', [
+                    '--tag'   => 'facebook-webhook-routes',
+                    '--force' => $this->option('force'),
+                ]);
+            }, 'Publicando ruta de webhook Messenger...');
+
+            $this->components->info('Ruta de webhook Messenger publicada en routes/facebook_webhook.php');
         }
 
         $publishCallbackRoute = confirm(
@@ -170,10 +187,13 @@ class InstallInstagramApiManager extends Command
         }
 
         // ── 7. Logging ────────────────────────────────────────────────────
-        note('El paquete incluye configuración de logging personalizada.');
-        note('Para logs separados, publicá manualmente:');
+        note('El paquete incluye configuración de logging con toggle por plataforma.');
+        note('Para activar/desactivar logs desde .env, publicá manualmente:');
         $this->line('  php artisan vendor:publish --tag=instagram-logging');
-        note('Esto agrega los canales "instagram" y "facebook" a config/logging.php.');
+        note('Esto copia config/logging-additions.php con los canales:');
+        $this->line('  - instagram (toggle: INSTAGRAM_LOGGING_ENABLED)');
+        $this->line('  - facebook  (toggle: FACEBOOK_LOGGING_ENABLED)');
+        note('Luego copiá los canales a tu config/logging.php.');
 
         // ── 8. Variables de entorno ───────────────────────────────────────
         outro('INSTALACIÓN COMPLETADA');
@@ -207,6 +227,11 @@ class InstallInstagramApiManager extends Command
         $this->newLine();
         $this->line('  <fg=yellow># Instagram Webhook Processor — opcional</>');
         $this->line('  <fg=cyan>INSTAGRAM_WEBHOOK_PROCESSOR</fg=cyan>=\\ScriptDevelop\\InstagramApiManager\\Services\\WebhookProcessors\\BaseWebhookProcessor');
+        $this->line('  <fg=yellow># Procesamiento asíncrono de webhooks (requiere colas Laravel)</>');
+        $this->line('  <fg=cyan>INSTAGRAM_WEBHOOK_ASYNC</fg=cyan>=false');
+        $this->line('  <fg=yellow># Cache de perfil de contacto</>');
+        $this->line('  <fg=cyan>INSTAGRAM_CONTACT_CACHE_ENABLED</fg=cyan>=true');
+        $this->line('  <fg=cyan>INSTAGRAM_CONTACT_CACHE_TTL</fg=cyan>=3600');
         $this->newLine();
         $this->line('  Luego visitá <fg=cyan>/instagram/connect</> para vincular una cuenta de Instagram.');
         $this->newLine();
@@ -224,6 +249,7 @@ class InstallInstagramApiManager extends Command
         $this->newLine();
         $this->line('  <fg=yellow># Facebook Webhook</>');
         $this->line('  <fg=cyan>FACEBOOK_WEBHOOK_VERIFY_TOKEN</fg=cyan>=<tu_token_secreto>');
+        $this->line('  <fg=cyan>FACEBOOK_WEBHOOK_ASYNC</fg=cyan>=false');
         $this->newLine();
         $this->line('  <fg=yellow># Facebook Broadcast (Laravel Reverb)</>');
         $this->line('  <fg=cyan>FACEBOOK_BROADCAST_CHANNEL_TYPE</fg=cyan>=public');
@@ -233,8 +259,17 @@ class InstallInstagramApiManager extends Command
         $this->line('  <fg=cyan>FACEBOOK_MEDIA_PATH</fg=cyan>=facebook');
         $this->line('  <fg=cyan>FACEBOOK_MEDIA_MAX_SIZE</fg=cyan>=25600');
         $this->newLine();
+        $this->line('  <fg=yellow># Logging — Activar/desactivar logs por plataforma</>');
+        $this->line('  <fg=cyan>INSTAGRAM_LOGGING_ENABLED</fg=cyan>=true');
+        $this->line('  <fg=cyan>FACEBOOK_LOGGING_ENABLED</fg=cyan>=true');
+        $this->newLine();
         $this->line('  Luego visitá <fg=cyan>/facebook/connect</> para vincular una página de Facebook.');
         $this->newLine();
+        $this->line('  <fg=yellow>⚡ Recomendación: Agregá al scheduler de Laravel</>');
+        $this->line('  <fg=cyan>// En routes/console.php o App\\Console\\Kernel.php</>');
+        $this->line('  <fg=cyan>$schedule->command(\'instagram:refresh-tokens\')->daily();</>');
+        $this->line('  <fg=cyan>$schedule->command(\'messenger:refresh-tokens\')->daily();</>');
+        $this->line('  <fg=cyan>$schedule->command(\'messenger:sync-conversations\')->hourly();</>');
 
         return self::SUCCESS;
     }

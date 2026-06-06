@@ -4,6 +4,7 @@ namespace ScriptDevelop\InstagramApiManager\Traits;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Log;
 
 trait ValidatesHubSignature
 {
@@ -39,5 +40,44 @@ trait ValidatesHubSignature
         }
 
         return true;
+    }
+
+    /**
+     * Detecta si una excepción es por token inválido/expirado (error 190 de Meta).
+     */
+    protected function isTokenError(\Exception $e): bool
+    {
+        $msg = $e->getMessage();
+        return str_contains($msg, '190')
+            || str_contains($msg, 'Error validating access token')
+            || str_contains($msg, 'Invalid OAuth');
+    }
+
+    /**
+     * Intenta refrescar el token de una cuenta/página cuando se detecta error 190.
+     */
+    protected function tryRefreshToken(string $accountId, string $platform = 'instagram'): void
+    {
+        try {
+            if ($platform === 'instagram') {
+                $account = \ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver::instagram_business_account()
+                    ->where('instagram_business_account_id', $accountId)
+                    ->first();
+                if ($account) {
+                    app(\ScriptDevelop\InstagramApiManager\Services\InstagramAccountService::class)
+                        ->refreshAndStoreLongLivedToken($account);
+                }
+            } elseif ($platform === 'facebook') {
+                $page = \ScriptDevelop\InstagramApiManager\Models\FacebookPage::where('page_id', $accountId)->first();
+                if ($page) {
+                    app(\ScriptDevelop\InstagramApiManager\Services\FacebookAccountService::class)
+                        ->refreshAndStoreLongLivedToken($page);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::channel($platform)->warning('No se pudo refrescar token automáticamente', [
+                'account_id' => $accountId, 'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

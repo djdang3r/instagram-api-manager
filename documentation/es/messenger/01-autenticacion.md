@@ -122,6 +122,28 @@ FacebookPage::create([
 | **Ruta de conexión** | `/instagram/connect` | `/facebook/connect` |
 | **Callback** | `/instagram/callback` | `/facebook/callback` |
 
+## 🔗 Enlaces m.me
+
+Los enlaces `m.me` permiten a los usuarios iniciar un chat con tu página directamente desde un link. Ideales para campañas, botones web y QR.
+
+```php
+use ScriptDevelop\InstagramApiManager\Facades\Facebook;
+
+// Enlace simple
+$link = Facebook::link()->generateMmeLink('PAGE_ID');
+// → https://m.me/NombrePagina
+
+// Enlace con parámetro de referencia (para追踪 campañas)
+$link = Facebook::link()->generateMmeLink('PAGE_ID', 'campana_verano');
+// → https://m.me/NombrePagina?ref=campana_verano
+
+// Código QR para el enlace
+$qrUrl = Facebook::link()->generateMmeQrCode('PAGE_ID', 'campana_verano', 300);
+// → URL de Google Charts con el QR
+```
+
+> 💡 El parámetro `ref` llega en el webhook como evento `MessengerReferralReceived`. Ideal para medir qué campaña generó la conversación.
+
 ## ❌ Errores Comunes
 
 | Error | Causa | Solución |
