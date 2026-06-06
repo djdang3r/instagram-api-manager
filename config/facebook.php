@@ -1,6 +1,40 @@
 <?php
 
 return [
+    'cache' => [
+        'contact_profile_enabled' => env('FACEBOOK_CONTACT_CACHE_ENABLED', true),
+        'contact_profile_ttl' => env('FACEBOOK_CONTACT_CACHE_TTL', 3600),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Configuración de Enlaces m.me
+    |--------------------------------------------------------------------------
+    */
+    /*
+    |--------------------------------------------------------------------------
+    | Configuración de Enlaces m.me
+    |--------------------------------------------------------------------------
+    |
+    | URL base para generar enlaces m.me que inician conversaciones
+    | en Messenger con parámetros de referencia para tracking.
+    |
+    */
+    'links' => [
+        'base_url' => env('FACEBOOK_MME_BASE_URL', 'https://m.me'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Configuración del Perfil de Messenger
+    |--------------------------------------------------------------------------
+    */
+    'profile' => [
+        'greeting' => [
+            ['locale' => 'default', 'text' => '¡Bienvenido! ¿En qué podemos ayudarte?'],
+        ],
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Facebook API Configuration
@@ -101,6 +135,17 @@ return [
     */
     'broadcast' => [
         'channel_type' => env('FACEBOOK_BROADCAST_CHANNEL_TYPE', 'public'),
+        'delivery_per_message' => env('FACEBOOK_BROADCAST_DELIVERY_PER_MESSAGE', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Configuración de Rate Limiting para Webhook
+    |--------------------------------------------------------------------------
+    */
+    'rate_limit' => [
+        'max_attempts' => env('FACEBOOK_WEBHOOK_RATE_LIMIT_MAX_ATTEMPTS', 60),
+        'decay_minutes' => env('FACEBOOK_WEBHOOK_RATE_LIMIT_DECAY_MINUTES', 1),
     ],
 
     /*

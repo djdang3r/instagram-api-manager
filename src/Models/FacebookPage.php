@@ -66,4 +66,29 @@ class FacebookPage extends Model
     {
         return $this->hasMany(config('instagram.models.messenger_contact'), 'page_id', 'page_id');
     }
+
+    public function pageStats(): HasMany
+    {
+        return $this->hasMany(config('instagram.models.facebook_page_stats'), 'page_id', 'page_id');
+    }
+
+    public function posts(): HasMany
+    {
+        return $this->hasMany(config('instagram.models.facebook_post'), 'page_id', 'page_id');
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(config('instagram.models.facebook_comment'), 'page_id', 'page_id');
+    }
+
+    public function media(): HasMany
+    {
+        return $this->hasMany(config('instagram.models.facebook_media'), 'page_id', 'page_id');
+    }
+
+    public function messengerInsights(): HasMany
+    {
+        return $this->hasMany(config('instagram.models.messenger_insights'), 'page_id', 'page_id');
+    }
 }

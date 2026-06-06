@@ -48,5 +48,22 @@ $pages = Instagram::account()->getUserManagedPages($accessToken);
 - `InstagramProfile`: Almacena detalles públicos del perfil del usuario.
 - `InstagramContact`: Gestiona los usuarios de Instagram que interactúan con tu cuenta.
 
+## 🔍 Búsqueda de Hashtags
+
+```php
+use ScriptDevelop\InstagramApiManager\Facades\Instagram;
+
+// Buscar un hashtag
+$result = Instagram::account()
+    ->forAccountId('ACCOUNT_ID')
+    ->searchHashtag('lanzamiento');
+
+// Obtener publicaciones recientes con ese hashtag
+$media = Instagram::account()->getHashtagMedia('HASHTAG_ID');
+```
+
+> 💡 Requiere Instagram Public Content Access (App Review).
+
 ---
+
 [◄◄ Configuración](02-configuracion.md) | [Gestión de Mensajes ►►](04-mensajes.md)

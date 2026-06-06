@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use ScriptDevelop\InstagramApiManager\Contracts\WebhookProcessorInterface;
 use ScriptDevelop\InstagramApiManager\Services\InstagramMessageService;
+use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 use ScriptDevelop\InstagramApiManager\Traits\ValidatesHubSignature;
 
 class BaseWebhookProcessor implements WebhookProcessorInterface
@@ -20,9 +21,6 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
         $this->messageService = $messageService;
     }
 
-    /**
-     * Maneja la solicitud del webhook: GET para verificación, POST para procesamiento.
-     */
     public function handle(Request $request): Response|JsonResponse
     {
         if ($request->isMethod('get')) {
@@ -36,9 +34,6 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
         return response('Method Not Allowed', 405);
     }
 
-    /**
-     * Verificación del webhook (GET) — Meta envía hub.mode, hub.challenge, hub.verify_token.
-     */
     public function verifyWebhook(Request $request): Response
     {
         $challenge = $request->get('hub_challenge');
@@ -58,10 +53,6 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
         return response('Forbidden', 403);
     }
 
-    /**
-     * Procesa el payload del webhook (POST).
-     * Itera entries → messaging, delega al InstagramMessageService, y dispara eventos broadcast.
-     */
     public function processWebhookPayload(Request $request): JsonResponse
     {
         if (!$this->validateHubSignature($request, 'instagram')) {
@@ -70,7 +61,8 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
 
         $data = $request->all();
 
-        Log::channel('instagram')->info('=== WEBHOOK DE INSTAGRAM RECIBIDO ===');
+        $correlationId = $request->header('X-Request-ID') ?? (string) \Illuminate\Support\Str::uuid();
+        Log::channel('instagram')->info('=== WEBHOOK DE INSTAGRAM RECIBIDO ===', ['correlation_id' => $correlationId]);
         Log::channel('instagram')->info('Datos brutos del webhook:', $data);
 
         try {
@@ -82,7 +74,7 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
 
                     if (isset($entry['messaging']) && is_array($entry['messaging'])) {
                         foreach ($entry['messaging'] as $messaging) {
-                            Log::channel('instagram')->info('📨 MENSAJE RECIBIDO EN EL WEBHOOK', [
+                            Log::channel('instagram')->info('MENSAJE RECIBIDO EN EL WEBHOOK', [
                                 'sender_id'    => $messaging['sender']['id'] ?? null,
                                 'recipient_id' => $messaging['recipient']['id'] ?? null,
                                 'timestamp'    => $messaging['timestamp'] ?? null,
@@ -90,11 +82,35 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
                                 'message_type' => $this->determineMessageType($messaging),
                             ]);
 
-                            // Procesar y almacenar el mensaje usando el servicio existente
-                            $processedData = $this->messageService->processWebhookMessage($messaging);
+                            try {
+                                $processedData = $this->messageService->processWebhookMessage($messaging);
+                            } catch (\Exception $e) {
+                                if ($this->isTokenError($e) && !empty($entry['id'])) {
+                                    Log::channel('instagram')->warning('Error 190 detectado, intentando refrescar token...', [
+                                        'entry_id' => $entry['id'],
+                                    ]);
+                                    $this->tryRefreshToken($entry['id'], 'instagram');
+                                }
+                                throw $e;
+                            }
                         }
-                    } else {
-                        Log::channel('instagram')->warning('No hay mensajes en esta entrada del webhook');
+                    }
+
+                    if (isset($entry['changes']) && is_array($entry['changes'])) {
+                        foreach ($entry['changes'] as $change) {
+                            $field = $change['field'] ?? null;
+                            $value = $change['value'] ?? [];
+
+                            if ($field === 'comments') {
+                                $this->handleCommentChange($change);
+                            } elseif ($field === 'mentions') {
+                                $this->handleMentionChange($change);
+                            }
+                        }
+                    }
+
+                    if (!isset($entry['messaging']) && !isset($entry['changes'])) {
+                        Log::channel('instagram')->warning('No hay mensajes ni cambios en esta entrada');
                     }
                 }
             } else {
@@ -105,7 +121,7 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
             return response()->json(['success' => true], 200);
 
         } catch (\Exception $e) {
-            Log::channel('instagram')->error('❌ ERROR PROCESANDO WEBHOOK:', [
+            Log::channel('instagram')->error('ERROR PROCESANDO WEBHOOK:', [
                 'error'   => $e->getMessage(),
                 'file'    => $e->getFile(),
                 'line'    => $e->getLine(),
@@ -116,9 +132,169 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
         }
     }
 
-    /**
-     * Determinar el tipo de mensaje para logging y despacho de eventos.
-     */
+    protected function handleCommentChange(array $change): void
+    {
+        $value = $change['value'] ?? [];
+
+        $commentId = $value['comment_id'] ?? null;
+        $mediaId = $value['media']['id'] ?? null;
+        $from = $value['from'] ?? [];
+        $text = $value['text'] ?? null;
+        $createdTime = isset($value['created_timestamp'])
+            ? date('Y-m-d H:i:s', $value['created_timestamp'] / 1000)
+            : now();
+
+        Log::channel('instagram')->info('COMENTARIO RECIBIDO', [
+            'comment_id' => $commentId,
+            'from' => $from['username'] ?? null,
+            'media_id' => $mediaId,
+        ]);
+
+        if ($commentId) {
+            $this->saveCommentWebhook($commentId, $mediaId, $from, $text, $createdTime, $value);
+        }
+
+        event(new \ScriptDevelop\InstagramApiManager\Events\InstagramCommentReceived([
+            'comment_id' => $commentId,
+            'media_id' => $mediaId,
+            'text' => $text,
+            'from' => $from,
+        ]));
+    }
+
+    protected function saveCommentWebhook(string $commentId, ?string $mediaId, array $from, ?string $text, string $createdTime, array $rawData): void
+    {
+        try {
+            $existing = InstagramModelResolver::instagram_comment()
+                ->where('comment_id', $commentId)
+                ->first();
+
+            if ($existing) {
+                Log::channel('instagram')->debug('Comment already exists, skipping', ['comment_id' => $commentId]);
+                return;
+            }
+
+            $businessAccountId = $this->resolveBusinessAccountIdFromMedia($mediaId);
+
+            InstagramModelResolver::instagram_comment()->create([
+                'comment_id' => $commentId,
+                'instagram_business_account_id' => $businessAccountId,
+                'instagram_media_id' => $mediaId,
+                'instagram_user_id' => $from['id'] ?? null,
+                'text' => $text,
+                'username' => $from['username'] ?? null,
+                'profile_picture_url' => $from['profile_picture_url'] ?? null,
+                'created_time' => $createdTime,
+                'message_type' => 'comment',
+                'raw_data' => $rawData,
+            ]);
+
+            Log::channel('instagram')->info('Comment saved to database', ['comment_id' => $commentId]);
+        } catch (\Exception $e) {
+            Log::channel('instagram')->error('Error saving comment webhook', [
+                'comment_id' => $commentId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    protected function handleMentionChange(array $change): void
+    {
+        $value = $change['value'] ?? [];
+
+        $commentId = $value['comment_id'] ?? null;
+        $mediaId = $value['media_id'] ?? null;
+        $text = $value['text'] ?? null;
+        $from = $value['from'] ?? [];
+        $createdTime = isset($value['created_timestamp'])
+            ? date('Y-m-d H:i:s', $value['created_timestamp'] / 1000)
+            : now();
+
+        Log::channel('instagram')->info('MENCION RECIBIDA', [
+            'comment_id' => $commentId,
+            'media_id' => $mediaId,
+        ]);
+
+        if ($commentId) {
+            $this->saveMentionWebhook($commentId, $mediaId, $from, $text, $createdTime, $value);
+        }
+
+        event(new \ScriptDevelop\InstagramApiManager\Events\InstagramMentionReceived([
+            'comment_id' => $commentId,
+            'media_id' => $mediaId,
+            'text' => $text,
+            'from' => $from,
+        ]));
+    }
+
+    protected function saveMentionWebhook(string $commentId, ?string $mediaId, array $from, ?string $text, string $createdTime, array $rawData): void
+    {
+        try {
+            $existing = InstagramModelResolver::instagram_comment()
+                ->where('comment_id', $commentId)
+                ->first();
+
+            if ($existing) {
+                Log::channel('instagram')->debug('Mention comment already exists, skipping', ['comment_id' => $commentId]);
+                return;
+            }
+
+            $businessAccountId = $this->resolveBusinessAccountIdFromMedia($mediaId);
+
+            InstagramModelResolver::instagram_comment()->create([
+                'comment_id' => $commentId,
+                'instagram_business_account_id' => $businessAccountId,
+                'instagram_media_id' => $mediaId,
+                'instagram_user_id' => $from['id'] ?? null,
+                'text' => $text,
+                'username' => $from['username'] ?? null,
+                'profile_picture_url' => $from['profile_picture_url'] ?? null,
+                'created_time' => $createdTime,
+                'message_type' => 'mention',
+                'raw_data' => $rawData,
+            ]);
+
+            Log::channel('instagram')->info('Mention saved to database', ['comment_id' => $commentId]);
+        } catch (\Exception $e) {
+            Log::channel('instagram')->error('Error saving mention webhook', [
+                'comment_id' => $commentId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    protected function resolveBusinessAccountIdFromMedia(?string $mediaId): ?string
+    {
+        if (!$mediaId) {
+            return null;
+        }
+
+        try {
+            $post = InstagramModelResolver::instagram_post()
+                ->where('media_id', $mediaId)
+                ->first();
+
+            if ($post) {
+                return $post->instagram_business_account_id;
+            }
+
+            $mediaPost = InstagramModelResolver::instagram_media_post()
+                ->where('media_id', $mediaId)
+                ->first();
+
+            if ($mediaPost) {
+                return $mediaPost->instagram_business_account_id;
+            }
+        } catch (\Exception $e) {
+            Log::channel('instagram')->warning('Could not resolve business account ID from media', [
+                'media_id' => $mediaId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return null;
+    }
+
     protected function determineMessageType(array $messaging): string
     {
         if (isset($messaging['message'])) {
@@ -142,4 +318,16 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
         return 'unknown';
     }
 
+    protected function isTokenError(\Exception $e): bool
+    {
+        $message = strtolower($e->getMessage());
+        return str_contains($message, 'error validating access token')
+            || str_contains($message, 'token')
+            || $e->getCode() === 190;
+    }
+
+    protected function tryRefreshToken(string $entryId, string $type): void
+    {
+        Log::channel('instagram')->info('Token refresh not implemented in webhook processor');
+    }
 }

@@ -3,8 +3,13 @@
 use Illuminate\Support\Facades\Route;
 use ScriptDevelop\InstagramApiManager\Http\Controllers\MessengerWebhookController;
 
-// Registrar ruta del webhook de Facebook Messenger (interna, sin publicar)
-Route::prefix('facebook-webhook')->middleware('throttle:60,1')->group(function () {
-    Route::match(['get', 'post'], '/', [MessengerWebhookController::class, 'handle'])
+$fbLimit = config('facebook.rate_limit.max_attempts', 60) . ',' . config('facebook.rate_limit.decay_minutes', 1);
+
+Route::prefix('facebook-webhook')->group(function () use ($fbLimit) {
+    Route::get('/', [MessengerWebhookController::class, 'handle'])
+        ->middleware('throttle:10,1')
+        ->name('facebook.webhook.verify');
+    Route::post('/', [MessengerWebhookController::class, 'handle'])
+        ->middleware("throttle:{$fbLimit}")
         ->name('facebook.webhook.handle');
 });

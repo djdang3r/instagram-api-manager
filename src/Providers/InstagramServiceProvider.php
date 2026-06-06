@@ -4,15 +4,20 @@ namespace ScriptDevelop\InstagramApiManager\Providers;
 
 use GuzzleHttp\Client;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Route;
 use ScriptDevelop\InstagramApiManager\Contracts\WebhookProcessorInterface;
-use ScriptDevelop\InstagramApiManager\Http\Controllers\MessengerWebhookController;
 use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
 use ScriptDevelop\InstagramApiManager\Services\InstagramAccountService;
+use ScriptDevelop\InstagramApiManager\Services\InstagramCommentService;
+use ScriptDevelop\InstagramApiManager\Services\InstagramContentPublishingService;
+use ScriptDevelop\InstagramApiManager\Services\InstagramInsightsService;
 use ScriptDevelop\InstagramApiManager\Services\InstagramMessageService;
 use ScriptDevelop\InstagramApiManager\Services\FacebookAccountService;
 use ScriptDevelop\InstagramApiManager\Services\FacebookMessageService;
+use ScriptDevelop\InstagramApiManager\Services\MessengerHandoverService;
+use ScriptDevelop\InstagramApiManager\Services\MessengerInsightsService;
+use ScriptDevelop\InstagramApiManager\Services\MessengerLinkService;
 use ScriptDevelop\InstagramApiManager\Services\MessengerMessageService;
+use ScriptDevelop\InstagramApiManager\Services\MessengerProfileService;
 use ScriptDevelop\InstagramApiManager\Services\InstagramPersistentMenuService;
 use ScriptDevelop\InstagramApiManager\Services\InstagramLinkService;
 use ScriptDevelop\InstagramApiManager\Services\WebhookProcessors\BaseWebhookProcessor;
@@ -54,6 +59,18 @@ class InstagramServiceProvider extends ServiceProvider
             return new InstagramMessageService();
         });
 
+        $this->app->singleton('instagram.comment', function ($app) {
+            return new InstagramCommentService();
+        });
+
+        $this->app->singleton('instagram.publishing', function ($app) {
+            return new InstagramContentPublishingService();
+        });
+
+        $this->app->singleton('instagram.insights', function ($app) {
+            return new InstagramInsightsService();
+        });
+
         $this->app->singleton('instagram.persistent_menu', function ($app) {
             return new InstagramPersistentMenuService();
         });
@@ -74,6 +91,22 @@ class InstagramServiceProvider extends ServiceProvider
             return new MessengerMessageService();
         });
 
+        $this->app->singleton('facebook.profile', function ($app) {
+            return new MessengerProfileService();
+        });
+
+        $this->app->singleton('facebook.link', function ($app) {
+            return new MessengerLinkService();
+        });
+
+        $this->app->singleton('facebook.insights', function ($app) {
+            return new MessengerInsightsService();
+        });
+
+        $this->app->singleton('facebook.handover', function ($app) {
+            return new MessengerHandoverService();
+        });
+
         // Registrar binding para Facade 'instagram' en caso de uso directo
         $this->app->singleton('instagram', function ($app) {
             return new class {
@@ -89,6 +122,18 @@ class InstagramServiceProvider extends ServiceProvider
                 {
                     return app('instagram.persistent_menu');
                 }
+                public function comment()
+                {
+                    return app('instagram.comment');
+                }
+                public function publishing()
+                {
+                    return app('instagram.publishing');
+                }
+                public function insights()
+                {
+                    return app('instagram.insights');
+                }
             };
         });
 
@@ -101,6 +146,22 @@ class InstagramServiceProvider extends ServiceProvider
                 public function message()
                 {
                     return app('facebook.message');
+                }
+                public function profile()
+                {
+                    return app('facebook.profile');
+                }
+                public function link()
+                {
+                    return app('facebook.link');
+                }
+                public function insights()
+                {
+                    return app('facebook.insights');
+                }
+                public function handover()
+                {
+                    return app('facebook.handover');
                 }
             };
         });
@@ -215,6 +276,10 @@ class InstagramServiceProvider extends ServiceProvider
             \ScriptDevelop\InstagramApiManager\Console\Commands\InstallInstagramApiManager::class,
             \ScriptDevelop\InstagramApiManager\Console\Commands\RefreshMessengerTokens::class,
             \ScriptDevelop\InstagramApiManager\Console\Commands\SyncMessengerConversations::class,
+            \ScriptDevelop\InstagramApiManager\Console\Commands\SyncInstagramComments::class,
+            \ScriptDevelop\InstagramApiManager\Console\Commands\SyncInstagramStats::class,
+            \ScriptDevelop\InstagramApiManager\Console\Commands\SyncMessengerInsights::class,
+            \ScriptDevelop\InstagramApiManager\Console\Commands\TestInstagramWebhook::class,
         ]);
 
         // Puedes cargar vistas o comandos si el paquete los tuviera aquí

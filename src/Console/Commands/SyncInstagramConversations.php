@@ -19,12 +19,13 @@ class SyncInstagramConversations extends Command
             $this->info("Syncing conversations for account: {$account->instagram_business_account_id}");
             
             try {
-                app(InstagramMessageService::class)
+                $result = app(InstagramMessageService::class)
                     ->withAccessToken($account->access_token)
                     ->withInstagramUserId($account->instagram_business_account_id)
                     ->syncConversations($account->access_token, $account->instagram_business_account_id);
                 
-                $this->info("Successfully synced conversations for account: {$account->instagram_business_account_id}");
+                $count = $result['total'] ?? 0;
+                $this->info("✅ {$count} conversaciones sincronizadas para: {$account->instagram_business_account_id}");
             } catch (\Exception $e) {
                 $this->error("Error syncing conversations for account {$account->instagram_business_account_id}: {$e->getMessage()}");
             }

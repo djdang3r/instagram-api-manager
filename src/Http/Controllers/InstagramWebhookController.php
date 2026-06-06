@@ -30,6 +30,13 @@ class InstagramWebhookController extends Controller
 
     public function handle(Request $request)
     {
+        if (config('instagram.webhook.async', false) && $request->isMethod('post')) {
+            \ScriptDevelop\InstagramApiManager\Jobs\ProcessWebhookJob::dispatch(
+                $request->all(), 'instagram', $request->header('X-Hub-Signature-256')
+            );
+            return response()->json(['success' => true], 200);
+        }
+
         try {
             return $this->processor->handle($request);
         } catch (\Exception $e) {

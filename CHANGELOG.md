@@ -7,7 +7,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
-## [Unreleased]
+## [1.1.0] - 2026-06-06
+
+Release de integración: combina los 46 commits del colaborador (`vientoquesurcalosmares`, PRs #11-#14) con el WIP del usuario (44 archivos untracked + 25 modificados). Cierra bugs P0/P1 de ambos lados, completa documentación y CHANGELOG.
 
 ### Added
 - **Facebook Messenger — Mensajería completa**: Implementación de todo el ecosistema de mensajería de Facebook Messenger.
@@ -37,6 +39,67 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ### Removed
 - **Tests obsoletos**: `tests/Feature/InstagramWebhookMessagesTest.php` eliminado (los tests se ejecutan desde el proyecto consumidor)
+
+### Fixed
+- **`config/logging-additions.php` faltante**: El archivo de configuración de logging referenciado por el ServiceProvider no existía, causando error en `vendor:publish --tag=instagram-logging`. Creado con canales `instagram` y `facebook` usando stack driver con toggle vía `.env` (`INSTAGRAM_LOGGING_ENABLED`, `FACEBOOK_LOGGING_ENABLED`).
+- **Ruta webhook Messenger no publicable**: La ruta `/facebook-webhook` estaba hardcodeada en el ServiceProvider, impidiendo su personalización. Movida a archivo `routes/facebook_webhook.php` con tag `facebook-webhook-routes` para `vendor:publish`.
+- **Wizard de instalación**: Agregada opción de publicar ruta Messenger, explicación de canales de logging con toggle, y variables `.env` de logging en output final.
+
+### Added (nuevas features 1.1.0)
+- **Integración completa con collaborator PRs #11-#14**:
+  - **Custom redirect URLs**: 3 nuevas claves por plataforma en `config/facebook.php` y `config/instagram.php` (`*_CUSTOM_REDIRECT_SUCCESS_URL`, `*_CUSTOM_REDIRECT_ERROR_URL`, `*_CUSTOM_REDIRECT_WARNING_URL`) para redirigir después del OAuth
+  - **Encriptación de credenciales en `MetaApp`**: Mutators de Laravel Crypt para `access_token`, `verify_token` y `app_secret` — nada en plaintext
+  - **Paginación completa de `me/accounts`**: `FacebookAccountService::handleCallback()` itera con `while` loop para soportar >25 páginas
+  - **Download automático de profile picture**: `MessengerMessageService::updateOrCreateContact()` con cache local de fotos de perfil (toggle vía `FACEBOOK_DOWNLOAD_USER_PROFILE_PICTURE`)
+  - **Relaciones `replies()` y `replyToMessage()`** en `MessengerMessage` para navegación de hilos
+  - **Índices de performance `processRead`**: 3 índices compuestos en `messenger_messages` (`conv+method+created_time`, `conv+status+created_time`, `conv+method+read_at+created_time`) + campo `conversation_id` ahora nullable en `messenger_conversations`
+  - **Dedup por `media_url_hash` SHA256**: índice compuesto en `messenger_media_messages` evita descargar media duplicada
+  - **`pages_manage_metadata` scope** en OAuth URL — necesario para suscribir webhooks después
+  - **Refactor a `InstagramModelResolver`**: 6 archivos migrados de modelos directos a resolver dinámico (configurable via `config('instagram.models.*')`)
+- **7 nuevos service bindings** registrados en `InstagramServiceProvider`:
+  - `instagram.comment` → `InstagramCommentService`
+  - `instagram.publishing` → `InstagramContentPublishingService`
+  - `instagram.insights` → `InstagramInsightsService`
+  - `facebook.profile` → `MessengerProfileService`
+  - `facebook.link` → `MessengerLinkService`
+  - `facebook.insights` → `MessengerInsightsService`
+  - `facebook.handover` → `MessengerHandoverService`
+- **12 nuevos modelos**: `FacebookComment`, `FacebookMedia`, `FacebookPageStats`, `FacebookPost`, `InstagramAccountStats`, `InstagramComment`, `InstagramMediaPost`, `InstagramMediaStats`, `InstagramPost`, `InstagramStory`, `MessengerInsights` (+ `ProcessWebhookJob` para async webhook processing)
+- **11 nuevas migraciones** (2026_05_27_000009..19): `instagram_account_stats`, `instagram_media_stats`, `facebook_page_stats`, `messenger_insights`, `instagram_comments`, `instagram_posts`, `instagram_stories`, `instagram_media_posts`, `facebook_posts`, `facebook_comments`, `facebook_media`
+- **3 nuevas migraciones del collaborator** (2026_05_27_000001 + 2026_05_28_000001..2): `local_profile_picture`, `process_read_indexes`, `dedup_lookup_index`
+- **3 nuevos comandos Artisan** registrados: `SyncInstagramComments`, `SyncInstagramStats`, `SyncMessengerInsights` (+ `TestInstagramWebhook` que ya existía)
+- **2 nuevos eventos broadcast**: `InstagramCommentReceived`, `InstagramMentionReceived` (con `ShouldBroadcastNow`)
+- **Facades extendidas**: `Facebook::profile()`, `Facebook::link()`, `Facebook::insights()`, `Facebook::handover()` + `Instagram::comment()`, `Instagram::publishing()`, `Instagram::insights()`
+- **Config keys adicionales**:
+  - `facebook.rate_limit` con `max_attempts` y `decay_minutes` (formato Laravel estándar)
+  - `facebook.broadcast.delivery_per_message` (bool, default `false`)
+- **Documentación completa nueva** (español + mirror a inglés):
+  - 9 nuevos documentos en `documentation/es/instagram/` y `documentation/es/messenger/` (Comments, Mentions, Publishing, Insights, Profile, Notifications, Handover)
+  - Actualización de `01-instalacion.md` con todas las formas de instalación (composer, wizard, manual)
+  - Actualización de `02-configuracion.md` con tabla completa de config keys
+  - Actualización de `messenger/01-autenticacion.md` con custom redirect URLs
+  - Actualización de `messenger/03-webhooks.md` con nuevos webhook fields 2026
+
+### Changed (1.1.0)
+- **7 conflictos merge resueltos** entre los 46 commits del collaborator y el WIP del usuario: `config/facebook.php`, `config/instagram.php`, `SyncMessengerConversations.php`, `InstagramServiceProvider.php`, `FacebookMessageService.php`, `MessengerMessageService.php`, `MessengerWebhookProcessor.php` + `routes/facebook_webhook.php`
+- **`routes/facebook_webhook.php`** recuperado de `stash@{0}^3` (versión WIP del usuario, superior al del remoto) — GET/POST separados, throttle dinámico desde config, nombres de ruta separados
+- **`MessengerLinkService`** migrado a `InstagramModelResolver` (consistencia con resto del paquete)
+- **Rate limiting reforzado**: rutas de webhook separadas GET (10/min para verificación Meta) y POST (configurable), formato Laravel estándar `max_attempts`+`decay_minutes`
+
+### Fixed (1.1.0)
+- **`->indexed()` en 11 migrations** (CRITICAL P0): `$table->xxx()->indexed()` no es método de Laravel Schema Builder — fatal en `php artisan migrate` con `BadMethodCallException`. Reemplazado con `->index()` (24 casos) o eliminado tras `->unique()` (7 casos).
+- **`ProcessWebhookJob::handle()` duplicado**: PHP fatal "Cannot redeclare handle()". Conservado el primer handle (con null check para soportar "sin firma" en queue).
+- **`isWithin24hWindow` type-hint genérico `Model`**: Cambiado a `InstagramConversation` en `InstagramMessageService` y `MessengerConversation` en `FacebookMessageService` (type safety).
+- **`downloadMediaFile` preservación de extensión**: El commit `69ddc32` del collaborator decía "preservar extensión" pero el código no lo hacía. Implementado método helper `extractUrlExtension()` que parsea la URL (sin query params) y usa la extensión real del archivo.
+- **`googleapis.com/chart` API deprecada (2012)**: Reemplazada en `InstagramLinkService::generateIgMeQrCode()` y `MessengerLinkService::generateMmeQrCode()` — ahora retornan `null` con PHPDoc `@deprecated`. Usuario debe implementar su propio QR provider.
+- **Migración `local_profile_picture` no idempotente**: Refactorizada con `Schema::hasColumn()` fuera del closure (siguiendo el patrón de v1.0.81).
+- **Migración `dedup_lookup_index` no idempotente**: Refactorizada con `Schema::hasColumn()` antes de agregar `media_url_hash`.
+- **`like_count` column type**: Cambiado de `string` a `integer` en `2026_05_27_000013_create_instagram_comments_table.php` (data integrity).
+- **Inconsistencia `MessengerLinkService`**: Removido import de `FacebookPage` directo — ahora usa `InstagramModelResolver::facebook_page()` (consistencia con `MessengerMessageService`).
+
+### Known Issues (diferido a 1.1.1+)
+- **Foreign key constraints faltantes** en las 11 migraciones nuevas. Las columnas `instagram_business_account_id`, `page_id`, `post_id`, `media_id`, `comment_id`, etc. NO tienen FKs declaradas. Decisión de release: diferido a 1.1.1+ para evitar cambios de schema riesgosos en este release. Agregar manualmente o vía `Wave 6 Task 6.2` en próximo sprint.
+- **Sin tests en el paquete**: El paquete se testea desde un proyecto Laravel consumidor. Decisión confirmada por el usuario (no se incluirá `tests/` ni `phpunit.xml`).
 
 ---
 
@@ -143,7 +206,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
-[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.82...HEAD
+[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.82...v1.1.0
 [1.0.82]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.81...v1.0.82
 [1.0.81]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.80...v1.0.81
 [1.0.80]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.79...v1.0.80

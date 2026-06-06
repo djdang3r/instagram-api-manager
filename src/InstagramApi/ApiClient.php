@@ -77,15 +77,21 @@ class ApiClient
                 throw new \RuntimeException("Failed to open file: {$filePath}");
             }
 
-            return $this->request('POST', $endpoint, [], [
-                'multipart' => [
-                    ['name' => 'recipient', 'contents' => json_encode($recipient)],
-                    ['name' => 'message', 'contents' => json_encode([
-                        'attachment' => ['type' => $mediaType, 'payload' => ['is_reusable' => true]],
-                    ])],
-                    ['name' => 'filedata', 'contents' => $stream, 'filename' => basename($filePath)],
-                ],
-            ], $query);
+            try {
+                return $this->request('POST', $endpoint, [], [
+                    'multipart' => [
+                        ['name' => 'recipient', 'contents' => json_encode($recipient)],
+                        ['name' => 'message', 'contents' => json_encode([
+                            'attachment' => ['type' => $mediaType, 'payload' => ['is_reusable' => true]],
+                        ])],
+                        ['name' => 'filedata', 'contents' => $stream, 'filename' => basename($filePath)],
+                    ],
+                ], $query);
+            } finally {
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
+            }
         }
 
         return $this->request('POST', $endpoint, [], array_merge([
@@ -134,6 +140,25 @@ class ApiClient
         if (!in_array($mime, $allowedTypes)) {
             throw new \RuntimeException("MIME type '{$mime}' not allowed for {$mediaType} on {$platform}. Allowed: " . implode(', ', $allowedTypes));
         }
+    }
+
+    /**
+     * Mapea códigos de error de Meta a mensajes legibles.
+     */
+    public static function mapApiError(int $code, string $default): string
+    {
+        return match($code) {
+            190 => 'Token inválido o expirado',
+            200 => 'Permiso denegado',
+            368 => 'Acción bloqueada por políticas de Meta',
+            551 => 'Usuario no disponible',
+            613 => 'Rate limit excedido — reducir frecuencia de envíos',
+            1545041 => 'Ventana de 24h cerrada — usar MESSAGE_TAG',
+            2207005 => 'Formato de imagen no soportado (JPEG únicamente)',
+            2207010 => 'Caption demasiado largo (máx 2,200 caracteres)',
+            2207042 => 'Límite diario de publicaciones alcanzado (50/día)',
+            default => $default,
+        };
     }
 
     /**

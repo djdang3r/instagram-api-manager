@@ -19,14 +19,14 @@ class InstagramLinkService
 
     /**
      * Generar un código QR para un enlace ig.me
+     *
+     * @deprecated Google Charts API is deprecated since 2012. Returns null. Implement a custom QR provider.
      */
-    public function generateIgMeQrCode(Model $account, string $ref = null, int $size = 300): string
+    public function generateIgMeQrCode(Model $account, string $ref = null, int $size = 300): ?string
     {
         $url = $this->generateIgMeLink($account, $ref);
-        $encodedUrl = urlencode($url);
-        
-        // Usar el servicio de Google Charts API para generar QR
-        return "https://chart.googleapis.com/chart?cht=qr&chs={$size}x{$size}&chl={$encodedUrl}";
+        Log::warning('generateIgMeQrCode: Google Charts API is deprecated, returning null', ['url' => $url]);
+        return null;
     }
 
     /**

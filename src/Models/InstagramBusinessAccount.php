@@ -31,7 +31,7 @@ class InstagramBusinessAccount extends Model
         'token_expires_in',
         'permissions',
         'tasks',
-        'token_obtained_at', // Nuevo campo para rastrear cuándo se obtuvo el token
+        'token_obtained_at',
     ];
 
     protected $casts = [
@@ -84,14 +84,41 @@ class InstagramBusinessAccount extends Model
         return $this->hasMany(config('instagram.models.instagram_conversation'), 'instagram_business_account_id', 'instagram_business_account_id');
     }
 
-    public function instagramContacts(): HasMany
+public function instagramContacts(): HasMany
     {
         return $this->hasMany(config('instagram.models.instagram_contact'), 'instagram_business_account_id', 'instagram_business_account_id');
     }
 
-    /**
-     * Método para verificar si la cuenta está vinculada a una página de Facebook
-     */
+    public function accountStats(): HasMany
+    {
+        return $this->hasMany(config('instagram.models.instagram_account_stats'), 'instagram_business_account_id', 'instagram_business_account_id');
+    }
+
+    public function posts(): HasMany
+    {
+        return $this->hasMany(config('instagram.models.instagram_post'), 'instagram_business_account_id', 'instagram_business_account_id');
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(config('instagram.models.instagram_comment'), 'instagram_business_account_id', 'instagram_business_account_id');
+    }
+
+    public function stories(): HasMany
+    {
+        return $this->hasMany(config('instagram.models.instagram_story'), 'instagram_business_account_id', 'instagram_business_account_id');
+    }
+
+    public function mediaPosts(): HasMany
+    {
+        return $this->hasMany(config('instagram.models.instagram_media_post'), 'instagram_business_account_id', 'instagram_business_account_id');
+    }
+
+    public function mediaStats(): HasMany
+    {
+        return $this->hasMany(config('instagram.models.instagram_media_stats'), 'instagram_business_account_id', 'instagram_business_account_id');
+    }
+
     public function isLinkedToFacebook(): bool
     {
         return !empty($this->facebook_page_id);
