@@ -4,7 +4,6 @@ namespace ScriptDevelop\InstagramApiManager\Services;
 
 use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
 use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
-use ScriptDevelop\InstagramApiManager\Models\MessengerConversation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -42,7 +41,7 @@ class FacebookMessageService
         }
     }
 
-    protected function isWithin24hWindow(MessengerConversation $conversation): bool
+    protected function isWithin24hWindow(Model $conversation): bool
     {
         $lastMessageAt = $conversation->last_message_at;
 
