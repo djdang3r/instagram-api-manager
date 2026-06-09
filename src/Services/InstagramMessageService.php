@@ -5,6 +5,8 @@ namespace ScriptDevelop\InstagramApiManager\Services;
 use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Exception;
 use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 use ScriptDevelop\InstagramApiManager\InstagramApi\Exceptions\ApiException;
@@ -115,7 +117,7 @@ class InstagramMessageService
         $this->withAccessToken($businessAccount->access_token)
             ->withInstagramUserId($businessAccount->instagram_business_account_id);
 
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($messageData, $businessAccount, $contactUserId, $isEcho) {
+        return DB::transaction(function () use ($messageData, $businessAccount, $contactUserId, $isEcho) {
             $conversation = $this->findOrCreateConversation(
                 $businessAccount->instagram_business_account_id,
                 $contactUserId
@@ -682,7 +684,7 @@ class InstagramMessageService
         $cacheEnabled = config('instagram.cache.contact_profile_enabled', true);
         $cachedTtl = (int) config('instagram.cache.contact_profile_ttl', 3600);
 
-        if ($cacheEnabled && $cached = \Illuminate\Support\Facades\Cache::get($cacheKey)) {
+        if ($cacheEnabled && $cached = Cache::get($cacheKey)) {
             Log::channel('instagram')->info('✅ Perfil obtenido de cache', ['user_id' => $instagramUserId]);
             return $cached;
         }
@@ -745,7 +747,7 @@ class InstagramMessageService
 
                 if (is_array($response) && !isset($response['error'])) {
                     if ($cacheEnabled) {
-                        \Illuminate\Support\Facades\Cache::put($cacheKey, $response, $cachedTtl);
+                        Cache::put($cacheKey, $response, $cachedTtl);
                     }
                     Log::channel('instagram')->info('✅ Perfil obtenido correctamente', [
                         'user_id' => $instagramUserId,
@@ -1411,7 +1413,7 @@ class InstagramMessageService
 
     public function syncConversations(string $accessToken, string $igUserId, int $limit = 100): ?array
     {
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             $client = app(\ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient::class)
                 ->withBaseUrl(config('instagram.api.graph_base_url', 'https://graph.instagram.com'))
@@ -1454,10 +1456,10 @@ class InstagramMessageService
                 $after = $response['paging']['cursors']['after'] ?? null;
             } while ($after && count($allConversations) < $limit);
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
             return ['data' => $allConversations, 'total' => count($allConversations)];
         } catch (Exception $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            DB::rollBack();
             Log::channel('instagram')->error('Error syncing conversations:', ['error' => $e->getMessage()]);
             return null;
         }

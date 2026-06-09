@@ -6,6 +6,8 @@ use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
 use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Exception;
 
@@ -88,7 +90,7 @@ class MessengerMessageService
 
         $this->withPageAccessToken($page->access_token)->withPageId($page->page_id);
 
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($messageData, $page, $contactUserId, $isEcho) {
+        return DB::transaction(function () use ($messageData, $page, $contactUserId, $isEcho) {
             $conversation = $this->findOrCreateConversation($page->page_id, $contactUserId);
             $this->updateConversationStats($conversation, $isEcho);
 
@@ -671,7 +673,7 @@ class MessengerMessageService
         $cacheKey = "facebook_contact_profile:{$messengerUserId}";
         $cachedTtl = (int) config('facebook.cache.contact_profile_ttl', 3600);
 
-        if ($cacheEnabled && $cached = \Illuminate\Support\Facades\Cache::get($cacheKey)) {
+        if ($cacheEnabled && $cached = Cache::get($cacheKey)) {
             return $cached;
         }
 
@@ -701,7 +703,7 @@ class MessengerMessageService
 
             if (is_array($response) && !isset($response['error'])) {
                 if ($cacheEnabled) {
-                    \Illuminate\Support\Facades\Cache::put($cacheKey, $response, $cachedTtl);
+                    Cache::put($cacheKey, $response, $cachedTtl);
                 }
                 Log::channel('facebook')->info('✅ Perfil obtenido', [
                     'user_id' => $messengerUserId,
@@ -883,7 +885,7 @@ class MessengerMessageService
 
     public function syncConversations(string $pageId, string $accessToken, int $limit = 100): ?array
     {
-        \Illuminate\Support\Facades\DB::beginTransaction();
+        DB::beginTransaction();
         try {
             $client = app(ApiClient::class)
                 ->withBaseUrl(config('facebook.api.base_url'))
@@ -918,10 +920,10 @@ class MessengerMessageService
                 $after = $response['paging']['cursors']['after'] ?? null;
             } while ($after && count($allConversations) < $limit);
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
             return ['data' => $allConversations, 'total' => count($allConversations)];
         } catch (Exception $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            DB::rollBack();
             Log::channel('facebook')->error('Error syncing conversations:', ['error' => $e->getMessage()]);
             return null;
         }
