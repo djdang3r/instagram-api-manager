@@ -52,6 +52,35 @@ The package includes a custom log channel for Instagram. To activate it, add the
         'tap' => [\ScriptDevelop\InstagramApiManager\Logging\CustomizeFormatter::class],
     ],
 ],
+
+## 🆕 New in v1.1.0
+
+The following env vars are new in v1.1.0:
+
+```env
+# Facebook OAuth — Custom Redirect URLs
+FACEBOOK_CUSTOM_REDIRECT_SUCCESS_URL=https://your-domain.com/oauth/success
+FACEBOOK_CUSTOM_REDIRECT_ERROR_URL=https://your-domain.com/oauth/error
+FACEBOOK_CUSTOM_REDIRECT_WARNING_URL=https://your-domain.com/oauth/warning
+
+# Facebook Webhook Rate Limiting
+FACEBOOK_WEBHOOK_RATE_LIMIT_MAX_ATTEMPTS=60
+FACEBOOK_WEBHOOK_RATE_LIMIT_DECAY_MINUTES=1
+
+# Facebook Broadcast (per-message delivery mode)
+FACEBOOK_BROADCAST_DELIVERY_PER_MESSAGE=false
+
+# Instagram Custom Redirect URLs (mirror)
+INSTAGRAM_CUSTOM_REDIRECT_SUCCESS_URL=https://your-domain.com/oauth/success
+INSTAGRAM_CUSTOM_REDIRECT_ERROR_URL=https://your-domain.com/oauth/error
+INSTAGRAM_CUSTOM_REDIRECT_WARNING_URL=https://your-domain.com/oauth/warning
+
+# Facebook Media
+FACEBOOK_MEDIA_DISK=public
+FACEBOOK_MEDIA_PATH=facebook
+FACEBOOK_MME_BASE_URL=https://m.me
+FACEBOOK_DOWNLOAD_USER_PROFILE_PICTURE=false
+```
 ```
 
 ### 3. Configuration File

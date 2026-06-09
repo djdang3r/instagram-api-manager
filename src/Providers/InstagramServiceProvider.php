@@ -83,10 +83,12 @@ class InstagramServiceProvider extends ServiceProvider
             return new FacebookAccountService();
         });
 
+        // Servicio de envío OUTBOUND a Facebook (sendText, sendImage, sendReaction, etc.)
         $this->app->singleton('facebook.message', function () {
             return new FacebookMessageService();
         });
 
+        // Servicio de procesamiento INBOUND de Messenger (processWebhook, downloadMedia, etc.)
         $this->app->singleton('messenger.message', function ($app) {
             return new MessengerMessageService();
         });

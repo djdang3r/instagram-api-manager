@@ -29,6 +29,11 @@ FACEBOOK_API_TIMEOUT=30
 # Facebook Webhook
 FACEBOOK_WEBHOOK_VERIFY_TOKEN=tu_token_secreto
 
+# Custom Redirect URLs (v1.1.0+) — opcional
+FACEBOOK_CUSTOM_REDIRECT_SUCCESS_URL=https://tu-dominio.com/auth/facebook/success
+FACEBOOK_CUSTOM_REDIRECT_ERROR_URL=https://tu-dominio.com/auth/facebook/error
+FACEBOOK_CUSTOM_REDIRECT_WARNING_URL=https://tu-dominio.com/auth/facebook/warning
+
 # Facebook Broadcast (Laravel Reverb)
 FACEBOOK_BROADCAST_CHANNEL_TYPE=public
 

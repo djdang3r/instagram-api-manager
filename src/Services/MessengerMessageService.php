@@ -389,7 +389,7 @@ class MessengerMessageService
         return $scheme . $host . $port . $path;
     }
 
-    protected function downloadMediaFile(string $url, string $type, $filename=null): ?string
+    protected function downloadMediaFile(string $url, string $type, ?string $filename = null): ?string
     {
         try {
             $disk = config('facebook.media.disk', 'public');
@@ -403,7 +403,7 @@ class MessengerMessageService
             if ($ext === null) {
                 $ext = $type === 'audio' ? 'mp3' : ($type === 'video' ? 'mp4' : 'jpg');
             }
-            $filename = uniqid('msg_') . '.' . $ext;
+            $filename = ($filename ?? uniqid('msg_')) . '.' . $ext;
             $relativePath = "{$basePath}/{$subfolder}/{$filename}";
             $publicPath = '/storage/' . ltrim($relativePath, '/');
 

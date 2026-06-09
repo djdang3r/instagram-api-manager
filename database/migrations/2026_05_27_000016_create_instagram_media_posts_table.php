@@ -23,6 +23,10 @@ return new class extends Migration
             $table->json('raw_data')->nullable();
 
             $table->timestamps();
+
+            $table->foreign('instagram_business_account_id')
+                ->references('id')->on('instagram_business_accounts')
+                ->cascadeOnDelete();
         });
     }
 

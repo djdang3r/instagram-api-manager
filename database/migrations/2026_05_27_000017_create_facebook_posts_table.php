@@ -29,6 +29,9 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['page_id', 'created_time']);
+            $table->foreign('page_id')
+                ->references('page_id')->on('facebook_pages')
+                ->cascadeOnDelete();
         });
     }
 

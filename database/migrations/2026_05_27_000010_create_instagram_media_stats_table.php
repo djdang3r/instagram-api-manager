@@ -27,6 +27,9 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['instagram_media_id', 'date']);
+            $table->foreign('instagram_business_account_id')
+                ->references('id')->on('instagram_business_accounts')
+                ->cascadeOnDelete();
         });
     }
 

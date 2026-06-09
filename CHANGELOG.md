@@ -7,6 +7,42 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.1.1] - 2026-06-06
+
+Patch release: cierra issues de auditoría del 1.1.0, agrega foreign key constraints diferidas, y completa la documentación ES + mirror EN.
+
+### Fixed
+- **`MessengerMessageService::downloadMediaFile()` ignoraba el parámetro `$filename`**: El caller en `updateOrCreateContact()` pasaba `$messengerUserId . '.jpg'` pero el código generaba un nuevo `uniqid('msg_')` siempre. Ahora el filename se respeta si se pasa.
+- **PHPDoc faltante en bindings `facebook.message` vs `messenger.message`**: Dos servicios distintos (`FacebookMessageService` para envío OUTBOUND, `MessengerMessageService` para procesamiento INBOUND) tenían nombres confusos. Agregados comentarios PHPDoc para clarificar el uso.
+
+### Added
+- **Foreign key constraints** en las 11 migraciones nuevas del 1.1.0:
+  - `instagram_account_stats.instagram_business_account_id` → `instagram_business_accounts.id` (CASCADE)
+  - `instagram_media_stats.instagram_business_account_id` → `instagram_business_accounts.id` (CASCADE)
+  - `facebook_page_stats.page_id` → `facebook_pages.page_id` (CASCADE)
+  - `messenger_insights.page_id` → `facebook_pages.page_id` (CASCADE)
+  - `instagram_comments.instagram_business_account_id` → `instagram_business_accounts.id` (CASCADE)
+  - `instagram_posts.instagram_business_account_id` → `instagram_business_accounts.id` (CASCADE)
+  - `instagram_stories.instagram_business_account_id` → `instagram_business_accounts.id` (CASCADE)
+  - `instagram_media_posts.instagram_business_account_id` → `instagram_business_accounts.id` (CASCADE)
+  - `facebook_posts.page_id` → `facebook_pages.page_id` (CASCADE)
+  - `facebook_comments.page_id` → `facebook_pages.page_id` (CASCADE)
+  - `facebook_media.page_id` → `facebook_pages.page_id` (CASCADE)
+- **Documentación completa en español (todos los 9 docs a 200+ líneas)**: Cada doc ahora incluye Quick Start, Configuración, Endpoints/Webhooks, Ejemplos de código, Errores Comunes, Configuration Reference, FAQ, y secciones específicas del dominio.
+- **Mirror completo a inglés** de los 9 docs nuevos (`documentation/en/08-*.md` a `16-*.md`).
+- **Documentación actualizada**:
+  - `documentation/es/01-instalacion.md`: Agregada sección 6 (wizard) y 7 (manual paso a paso)
+  - `documentation/es/02-configuracion.md`: Agregadas 22 nuevas env vars de v1.1.0
+  - `documentation/es/messenger/01-autenticacion.md`: Agregadas Custom Redirect URLs
+  - `documentation/es/messenger/03-webhooks.md`: Agregados nuevos webhook fields 2026 (`message_edit`, `inbox_labels`, `standby`, `messaging_account_linking`, `messaging_feedback`)
+  - Mirror en `documentation/en/01-installation.md` y `02-configuration.md`
+
+### Notes
+- **No breaking changes** desde 1.1.0
+- **No migration changes** que requieran re-ejecutar: las FKs se aplican solo en installs fresh. Para installs existentes, las FKs deben agregarse manualmente vía migration nueva.
+
+---
+
 ## [1.1.0] - 2026-06-06
 
 Release de integración: combina los 46 commits del colaborador (`vientoquesurcalosmares`, PRs #11-#14) con el WIP del usuario (44 archivos untracked + 25 modificados). Cierra bugs P0/P1 de ambos lados, completa documentación y CHANGELOG.
@@ -206,7 +242,8 @@ Release de integración: combina los 46 commits del colaborador (`vientoquesurca
 
 ---
 
-[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.82...v1.1.0
 [1.0.82]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.81...v1.0.82
 [1.0.81]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.80...v1.0.81

@@ -36,7 +36,38 @@ FACEBOOK_CLIENT_ID=tu_facebook_client_id
 FACEBOOK_CLIENT_SECRET=tu_facebook_client_secret
 FACEBOOK_REDIRECT_URI=https://tu-dominio.com/facebook/callback
 FACEBOOK_API_BASE_URL=https://graph.facebook.com
-FACEBOOK_API_VERSION=v23.0
+FACEBOOK_API_VERSION=v25.0
+FACEBOOK_API_TIMEOUT=30
+FACEBOOK_API_RETRY_ATTEMPTS=3
+
+# Facebook OAuth — Custom Redirect URLs (v1.1.0+)
+FACEBOOK_CUSTOM_REDIRECT_SUCCESS_URL=https://tu-dominio.com/oauth/success
+FACEBOOK_CUSTOM_REDIRECT_ERROR_URL=https://tu-dominio.com/oauth/error
+FACEBOOK_CUSTOM_REDIRECT_WARNING_URL=https://tu-dominio.com/oauth/warning
+
+# Facebook Webhook
+FACEBOOK_WEBHOOK_VERIFY_TOKEN=tu_facebook_webhook_token
+FACEBOOK_WEBHOOK_RATE_LIMIT_MAX_ATTEMPTS=60
+FACEBOOK_WEBHOOK_RATE_LIMIT_DECAY_MINUTES=1
+
+# Facebook Messenger Broadcast (v1.0.82+)
+FACEBOOK_BROADCAST_CHANNEL_TYPE=public
+FACEBOOK_BROADCAST_DELIVERY_PER_MESSAGE=false
+
+# Facebook Media
+FACEBOOK_MEDIA_DISK=public
+FACEBOOK_MEDIA_PATH=facebook
+FACEBOOK_MME_BASE_URL=https://m.me
+FACEBOOK_DOWNLOAD_USER_PROFILE_PICTURE=false
+
+# Instagram OAuth — Custom Redirect URLs (v1.1.0+, mirror)
+INSTAGRAM_CUSTOM_REDIRECT_SUCCESS_URL=https://tu-dominio.com/oauth/success
+INSTAGRAM_CUSTOM_REDIRECT_ERROR_URL=https://tu-dominio.com/oauth/error
+INSTAGRAM_CUSTOM_REDIRECT_WARNING_URL=https://tu-dominio.com/oauth/warning
+
+# Logging (v1.0.83+)
+INSTAGRAM_LOGGING_ENABLED=true
+FACEBOOK_LOGGING_ENABLED=true
 ```
 
 | Variable | Descripción | Default |

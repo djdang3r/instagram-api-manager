@@ -30,6 +30,9 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['instagram_business_account_id', 'timestamp']);
+            $table->foreign('instagram_business_account_id')
+                ->references('id')->on('instagram_business_accounts')
+                ->cascadeOnDelete();
         });
     }
 
