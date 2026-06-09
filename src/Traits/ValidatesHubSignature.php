@@ -4,7 +4,6 @@ namespace ScriptDevelop\InstagramApiManager\Traits;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Log;
 
 trait ValidatesHubSignature
 {
