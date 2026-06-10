@@ -642,4 +642,50 @@ class InstagramAccountService
 
         return $response;
     }
+
+    /**
+     * Obtiene los campos suscritos
+     * @param string $userId
+     * @param string $accessToken
+     * @return array|null
+     */
+    public function getSubscribedFields(string $userId = '', string $accessToken = ''): ?array
+    {
+        if($userId === '') {
+            $userId = $this->currentAccount?->instagram_business_account_id ?? '';
+        }
+
+        if($accessToken === '') {
+            $accessToken = $this->currentAccount?->access_token ?? '';
+        }
+
+        if ($userId === '' || $accessToken === '') {
+            throw new \InvalidArgumentException('userId and accessToken are required');
+        }
+
+        try {
+            $response = $this->apiClient->request(
+                'GET',
+                $userId.'/subscribed_apps',
+                [],
+                null,
+                [
+                    'access_token' => $accessToken,
+                ]
+            );
+
+            // La respuesta de Meta Graph para este endpoint no es estandarizada, así que hacemos un manejo seguro
+            if (isset($response['data'][0]['subscribed_fields'])) {
+                return explode(',', $response['data'][0]['subscribed_fields']);
+            } elseif (isset($response['data'][0]['fields'])) {
+                return explode(',', $response['data'][0]['fields']);
+            } else {
+                Log::channel('instagram')->warning('No se encontraron campos suscritos en la respuesta', ['response' => $response]);
+                return null;
+            }
+        } catch (Exception $e) {
+            Log::channel('instagram')->error('Error obteniendo campos suscritos:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
 }

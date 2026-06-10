@@ -367,4 +367,46 @@ class FacebookAccountService
 
         return $response;
     }
+
+    /**
+     * Obtiene los campos suscritos
+     * @param string $pageId
+     * @param string $accessToken
+     * @return void
+     */
+    public function getSubscribedFields(string $pageId = '', string $accessToken = ''): array | null
+    {
+        if($pageId === '') {
+            $pageId = $this->currentPage?->page_id ?? '';
+        }
+
+        if($accessToken === '') {
+            $accessToken = $this->currentPage?->access_token ?? '';
+        }
+
+        if ($pageId === '' || $accessToken === '') {
+            throw new \InvalidArgumentException('pageId and accessToken are required');
+        }
+
+        try {
+            $response = $this->apiClient->request(
+                'GET',
+                $pageId,
+                [],
+                null,
+                [
+                    'fields' => 'subscribed_fields',
+                    'access_token' => $accessToken,
+                ]
+            );
+
+            return $response['subscribed_fields'] ?? null;
+        } catch (Exception $e) {
+            Log::channel('facebook')->error('Error obteniendo campos suscritos de Facebook:', [
+                'page_id' => $pageId,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
 }
