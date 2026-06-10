@@ -12,12 +12,34 @@ use Exception;
 class FacebookAccountService
 {
     protected ApiClient $apiClient;
+    protected ?Model $currentPage = null;
 
     public function __construct()
     {
         $this->apiClient = app(ApiClient::class)
             ->withBaseUrl(config('facebook.api.base_url'))
             ->withVersion(config('facebook.api.version'));
+    }
+
+    /**
+     * Establecer la página actual para las operaciones
+     */
+    public function forPage(Model $page): self
+    {
+        $this->currentPage = $page;
+        return $this;
+    }
+
+    /**
+     * Establecer la cuenta actual por ID
+     */
+    public function forPageId(string $pageId): self
+    {
+        $page = InstagramModelResolver::facebook_page()->find($pageId);
+        if ($page) {
+            $this->currentPage = $page;
+        }
+        return $this;
     }
 
     public function getAuthorizationUrl(array $scopes = ['pages_show_list', 'pages_read_engagement', 'pages_messaging', 'pages_manage_metadata'], ?string $state = null): string
@@ -235,8 +257,16 @@ class FacebookAccountService
      * @return array | null Respuesta de la API o null si falla
       * @throws \InvalidArgumentException Si faltan parámetros requeridos
      */
-    public function subscribeApp(string $pageId, string $accessToken, ?array $subscribedFields = null): array | null
+    public function subscribeApp(string $pageId = '', string $accessToken = '', ?array $subscribedFields = null): array | null
     {
+        if($pageId === '') {
+            $pageId = $this->currentPage?->page_id ?? '';
+        }
+
+        if($accessToken === '') {
+            $accessToken = $this->currentPage?->access_token ?? '';
+        }
+
         if ($pageId === '' || $accessToken === '') {
             throw new \InvalidArgumentException('pageId and accessToken are required');
         }
@@ -292,8 +322,16 @@ class FacebookAccountService
      * @return array|null Respuesta de la API o null si falla
      * @throws \InvalidArgumentException Si faltan parámetros requeridos
      */
-    public function unsubscribeApp(string $pageId, string $accessToken): array | null
+    public function unsubscribeApp(string $pageId = '', string $accessToken = ''): array | null
     {
+        if($pageId === '') {
+            $pageId = $this->currentPage?->page_id ?? '';
+        }
+
+        if($accessToken === '') {
+            $accessToken = $this->currentPage?->access_token ?? '';
+        }
+
         if ($pageId === '' || $accessToken === '') {
             throw new \InvalidArgumentException('pageId and accessToken are required');
         }
