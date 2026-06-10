@@ -391,16 +391,15 @@ class FacebookAccountService
         try {
             $response = $this->apiClient->request(
                 'GET',
-                $pageId,
+                $pageId.'/subscribed_apps',
                 [],
                 null,
                 [
-                    'fields' => 'subscribed_fields',
                     'access_token' => $accessToken,
                 ]
             );
 
-            return $response['subscribed_fields'] ?? null;
+            return $response;
         } catch (Exception $e) {
             Log::channel('facebook')->error('Error obteniendo campos suscritos de Facebook:', [
                 'page_id' => $pageId,

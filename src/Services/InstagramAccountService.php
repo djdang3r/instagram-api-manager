@@ -674,15 +674,7 @@ class InstagramAccountService
                 ]
             );
 
-            // La respuesta de Meta Graph para este endpoint no es estandarizada, así que hacemos un manejo seguro
-            if (isset($response['data'][0]['subscribed_fields'])) {
-                return explode(',', $response['data'][0]['subscribed_fields']);
-            } elseif (isset($response['data'][0]['fields'])) {
-                return explode(',', $response['data'][0]['fields']);
-            } else {
-                Log::channel('instagram')->warning('No se encontraron campos suscritos en la respuesta', ['response' => $response]);
-                return null;
-            }
+            return $response;
         } catch (Exception $e) {
             Log::channel('instagram')->error('Error obteniendo campos suscritos:', ['error' => $e->getMessage()]);
             return null;
