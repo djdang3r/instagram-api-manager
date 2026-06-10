@@ -531,8 +531,16 @@ class InstagramAccountService
      * @return array |null Respuesta de la API o null si falla
      * * @throws \InvalidArgumentException Si faltan parámetros requeridos
      */
-    public function subscribeApp(string $userId, string $accessToken, ?array $subscribedFields = null): array|null
+    public function subscribeApp(string $userId = '', string $accessToken = '', ?array $subscribedFields = null): array|null
     {
+        if($userId === '') {
+            $userId = $this->currentAccount?->instagram_business_account_id ?? '';
+        }
+
+        if($accessToken === '') {
+            $accessToken = $this->currentAccount?->access_token ?? '';
+        }
+
         if ($userId === '' || $accessToken === '') {
             throw new \InvalidArgumentException('userId and accessToken are required');
         }
@@ -589,8 +597,16 @@ class InstagramAccountService
      * @return array|null Respuesta de la API o null si falla
      * @throws \InvalidArgumentException Si faltan parámetros requeridos
      */
-    public function unsubscribeApp(string $userId, string $accessToken): array|null
+    public function unsubscribeApp(string $userId = '', string $accessToken = ''): array|null
     {
+        if($userId === '') {
+            $userId = $this->currentAccount?->instagram_business_account_id ?? '';
+        }
+
+        if($accessToken === '') {
+            $accessToken = $this->currentAccount?->access_token ?? '';
+        }
+
         if ($userId === '' || $accessToken === '') {
             throw new \InvalidArgumentException('userId and accessToken are required');
         }
