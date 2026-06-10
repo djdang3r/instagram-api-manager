@@ -577,4 +577,53 @@ class InstagramAccountService
         ]);
         return $response;
     }
+
+    /**
+     * Cancela la suscripción de la aplicación para una cuenta empresarial de Instagram.
+     *
+     * Endpoint: DELETE /{ig-user-id}/subscribed_apps
+     * Requiere únicamente access_token.
+     *
+     * @param string $userId ID de usuario de Instagram (ID largo de la cuenta de negocio)
+     * @param string $accessToken Token de acceso de Instagram
+     * @return array|null Respuesta de la API o null si falla
+     * @throws \InvalidArgumentException Si faltan parámetros requeridos
+     */
+    public function unsubscribeApp(string $userId, string $accessToken): array|null
+    {
+        if ($userId === '' || $accessToken === '') {
+            throw new \InvalidArgumentException('userId and accessToken are required');
+        }
+
+        $query = [
+            'access_token' => $accessToken,
+        ];
+
+        Log::channel('instagram')->debug('Cancelando suscripción de aplicación', [
+            'userId' => $userId,
+        ]);
+
+        $response = null;
+
+        try {
+            $response = $this->apiClient->request(
+                'DELETE',
+                $userId.'/subscribed_apps',
+                [],
+                null,
+                $query
+            );
+        } catch (Exception $e) {
+            Log::channel('instagram')->error('Error cancelando suscripción de aplicación a Instagram:', [
+                'userId' => $userId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        Log::channel('instagram')->debug('Respuesta de unsubscribeApp:', [
+            'response' => $response,
+        ]);
+
+        return $response;
+    }
 }

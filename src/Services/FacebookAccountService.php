@@ -230,30 +230,25 @@ class FacebookAccountService
      * https://developers.facebook.com/docs/graph-api/reference/page/subscribed_apps/
      *
      * @param string $pageId ID de la página de Facebook
-     * @param string $pageAccessToken Token de acceso de la página
+     * @param string $accessToken Token de acceso de la página
      * @param array|null $subscribedFields Campos webhook a suscribir (opcional)
      * @return array | null Respuesta de la API o null si falla
       * @throws \InvalidArgumentException Si faltan parámetros requeridos
      */
-    public function subscribeApp(string $pageId, string $pageAccessToken, ?array $subscribedFields = null): array | null
+    public function subscribeApp(string $pageId, string $accessToken, ?array $subscribedFields = null): array | null
     {
-        if ($pageId === '' || $pageAccessToken === '') {
-            throw new \InvalidArgumentException('pageId and pageAccessToken are required');
+        if ($pageId === '' || $accessToken === '') {
+            throw new \InvalidArgumentException('pageId and accessToken are required');
         }
 
         if ($subscribedFields === null) {
             $subscribedFields = config('facebook.webhook.subscribed_fields', []);
         }
 
-        $subscribedFields = array_values(
-            array_filter(
-                array_map('trim', $subscribedFields),
-                static fn ($field) => $field !== ''
-            )
-        );
+        $subscribedFields = array_values(array_filter(array_map('trim', $subscribedFields), static fn ($field) => $field !== ''));
 
         $query = [
-            'access_token' => $pageAccessToken,
+            'access_token' => $accessToken,
         ];
 
         if (!empty($subscribedFields)) {
@@ -280,7 +275,58 @@ class FacebookAccountService
             Log::channel('facebook')->error('Error suscribiendo aplicación a Facebook:', ['error' => $e->getMessage()]);
         }
 
-        Log::channel('facebook')->debug('Respuesta de subscribeApp (Facebook):', $response);
+        Log::channel('facebook')->debug('Respuesta de subscribeApp (Facebook):', [
+            'response' => $response,
+        ]);
+        return $response;
+    }
+
+    /**
+     * Quita la suscripción de la app en una página de Facebook (Messenger).
+     *
+     * Documentación: DELETE /{page-id}/subscribed_apps
+     * https://developers.facebook.com/docs/graph-api/reference/page/subscribed_apps/
+     *
+     * @param string $pageId ID de la página de Facebook
+     * @param string $accessToken Token válido para desuscripción (App/Page access token)
+     * @return array|null Respuesta de la API o null si falla
+     * @throws \InvalidArgumentException Si faltan parámetros requeridos
+     */
+    public function unsubscribeApp(string $pageId, string $accessToken): array | null
+    {
+        if ($pageId === '' || $accessToken === '') {
+            throw new \InvalidArgumentException('pageId and accessToken are required');
+        }
+
+        $query = [
+            'access_token' => $accessToken,
+        ];
+
+        Log::channel('facebook')->debug('Quitando suscripción de app en página de Facebook', [
+            'page_id' => $pageId,
+        ]);
+
+        $response = null;
+
+        try {
+            $response = $this->apiClient->request(
+                'DELETE',
+                $pageId . '/subscribed_apps',
+                [],
+                null,
+                $query
+            );
+        } catch (Exception $e) {
+            Log::channel('facebook')->error('Error quitando suscripción de aplicación en Facebook:', [
+                'page_id' => $pageId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        Log::channel('facebook')->debug('Respuesta de unsubscribeApp (Facebook):', [
+            'response' => $response,
+        ]);
+
         return $response;
     }
 }
