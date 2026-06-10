@@ -58,6 +58,26 @@ return [
     */
     'webhook' => [
         'verify_token' => env('FACEBOOK_WEBHOOK_VERIFY_TOKEN', 'default_token'),
+
+        // Campos a los que la aplicación se suscribe para recibir eventos de Messenger.
+        'subscribed_fields' => [
+            'messages',
+            'message_echoes',
+            'message_edits',
+            'message_reactions',
+            'message_reads',
+            'message_template_status_update',
+            'message_deliveries',
+            'messaging_account_linking',
+            'messaging_customer_information',
+            'messaging_optins',
+            'messaging_postbacks',
+            'messaging_referrals',
+            'messaging_handovers',
+            //'messaging_integrity',
+            //'personal_info',
+            //'website',
+        ],
     ],
 
     /*

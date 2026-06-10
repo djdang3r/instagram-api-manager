@@ -82,6 +82,23 @@ return [
         'verify_token' => env('INSTAGRAM_WEBHOOK_VERIFY_TOKEN', 'default_token'),
         'processor' => env('INSTAGRAM_WEBHOOK_PROCESSOR', \ScriptDevelop\InstagramApiManager\Services\WebhookProcessors\BaseWebhookProcessor::class),
         'async' => env('INSTAGRAM_WEBHOOK_ASYNC', false),
+
+        // Campos a los que la aplicación está suscrita. Basado en documentación oficial de Meta (Mayo 2026).
+        'subscribed_fields' => [
+            'comments',
+            'live_comments',
+            'message_edit',
+            'message_reactions',
+            'messages',
+            'messaging_handover',
+            'messaging_optins',
+            'messaging_postbacks',
+            'messaging_referral',
+            'messaging_seen',
+            'standby',
+            'mentions',
+            'story_insights',
+        ],
     ],
 
     /*

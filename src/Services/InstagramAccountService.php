@@ -258,6 +258,9 @@ class InstagramAccountService
             $accessToken = $longLivedResponse['access_token'];
             $tokenExpiresIn = $longLivedResponse['expires_in'] ?? null;
 
+            //Suscribir la aplicación a la cuenta empresarial de Instagram
+            $this->subscribeApp($userId, $accessToken);
+
             $igId = null;
             try {
                 $igResponse = $this->apiClient->request(
@@ -515,6 +518,165 @@ class InstagramAccountService
                 'access_token' => $accessToken,
             ]);
         } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Suscribe una aplicación a la cuenta empresarial de Instagram actual
+     *
+     * @param string $userId ID de usuario de Instagram (generalmente el ID largo de la cuenta de negocio)
+     * @param string $accessToken Token de acceso de Instagram
+     * @param array $subscribedFields Campos a suscribir (opcional)
+     * @return array |null Respuesta de la API o null si falla
+     * * @throws \InvalidArgumentException Si faltan parámetros requeridos
+     */
+    public function subscribeApp(string $userId = '', string $accessToken = '', ?array $subscribedFields = null): array|null
+    {
+        if($userId === '') {
+            $userId = $this->currentAccount?->instagram_business_account_id ?? '';
+        }
+
+        if($accessToken === '') {
+            $accessToken = $this->currentAccount?->access_token ?? '';
+        }
+
+        if ($userId === '' || $accessToken === '') {
+            throw new \InvalidArgumentException('userId and accessToken are required');
+        }
+
+        // Si no se proporcionan campos, usar los de configuración
+        if ($subscribedFields === null) {
+            $subscribedFields = config('instagram.webhook.subscribed_fields', []);
+        }
+
+        $subscribedFields = array_values(array_filter(array_map('trim', $subscribedFields), static fn ($field) => $field !== ''));
+
+        $query = [
+            'access_token' => $accessToken,
+        ];
+
+        if (!empty($subscribedFields)) {
+            // Meta Graph espera una lista separada por comas en subscribed_fields.
+            $query['subscribed_fields'] = implode(',', $subscribedFields);
+        }
+
+        Log::channel('instagram')->debug('Suscribiendo aplicación', [
+            'userId' => $userId,
+            'subscribed_fields' => $subscribedFields
+        ]);
+
+        $response = null;
+
+        try {
+            $response = $this->apiClient->request(
+                'POST',
+                $userId.'/subscribed_apps',
+                [],
+                null,
+                $query
+            );
+        } catch (Exception $e) {
+            Log::channel('instagram')->error('Error suscribiendo aplicación a Instagram:', ['error' => $e->getMessage()]);
+        }
+
+        Log::channel('instagram')->debug('Respuesta de subscribeApp:', [
+            'response' => $response,
+        ]);
+        return $response;
+    }
+
+    /**
+     * Cancela la suscripción de la aplicación para una cuenta empresarial de Instagram.
+     *
+     * Endpoint: DELETE /{ig-user-id}/subscribed_apps
+     * Requiere únicamente access_token.
+     *
+     * @param string $userId ID de usuario de Instagram (ID largo de la cuenta de negocio)
+     * @param string $accessToken Token de acceso de Instagram
+     * @return array|null Respuesta de la API o null si falla
+     * @throws \InvalidArgumentException Si faltan parámetros requeridos
+     */
+    public function unsubscribeApp(string $userId = '', string $accessToken = ''): array|null
+    {
+        if($userId === '') {
+            $userId = $this->currentAccount?->instagram_business_account_id ?? '';
+        }
+
+        if($accessToken === '') {
+            $accessToken = $this->currentAccount?->access_token ?? '';
+        }
+
+        if ($userId === '' || $accessToken === '') {
+            throw new \InvalidArgumentException('userId and accessToken are required');
+        }
+
+        $query = [
+            'access_token' => $accessToken,
+        ];
+
+        Log::channel('instagram')->debug('Cancelando suscripción de aplicación', [
+            'userId' => $userId,
+        ]);
+
+        $response = null;
+
+        try {
+            $response = $this->apiClient->request(
+                'DELETE',
+                $userId.'/subscribed_apps',
+                [],
+                null,
+                $query
+            );
+        } catch (Exception $e) {
+            Log::channel('instagram')->error('Error cancelando suscripción de aplicación a Instagram:', [
+                'userId' => $userId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        Log::channel('instagram')->debug('Respuesta de unsubscribeApp:', [
+            'response' => $response,
+        ]);
+
+        return $response;
+    }
+
+    /**
+     * Obtiene los campos suscritos
+     * @param string $userId
+     * @param string $accessToken
+     * @return array|null
+     */
+    public function getSubscribedFields(string $userId = '', string $accessToken = ''): ?array
+    {
+        if($userId === '') {
+            $userId = $this->currentAccount?->instagram_business_account_id ?? '';
+        }
+
+        if($accessToken === '') {
+            $accessToken = $this->currentAccount?->access_token ?? '';
+        }
+
+        if ($userId === '' || $accessToken === '') {
+            throw new \InvalidArgumentException('userId and accessToken are required');
+        }
+
+        try {
+            $response = $this->apiClient->request(
+                'GET',
+                $userId.'/subscribed_apps',
+                [],
+                null,
+                [
+                    'access_token' => $accessToken,
+                ]
+            );
+
+            return $response;
+        } catch (Exception $e) {
+            Log::channel('instagram')->error('Error obteniendo campos suscritos:', ['error' => $e->getMessage()]);
             return null;
         }
     }
