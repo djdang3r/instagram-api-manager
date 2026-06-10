@@ -372,7 +372,7 @@ class FacebookAccountService
      * Obtiene los campos suscritos
      * @param string $pageId
      * @param string $accessToken
-     * @return void
+     * @return array|null
      */
     public function getSubscribedFields(string $pageId = '', string $accessToken = ''): array | null
     {
