@@ -100,12 +100,19 @@ class FacebookAccountService
 
             while (!empty($pagesResponse['data']) && $iterations < $maxIterations) {
                 foreach ($pagesResponse['data'] as $page) {
+
+                    if( empty($page['access_token']) ) {
+                        Log::channel('facebook')->warning('La página de Facebook no tiene access_token, se omitirá', ['page' => $page]);
+                        continue;
+                    }
+
+                    $this->subscribeApp($page['id'], $page['access_token']);
                     InstagramModelResolver::facebook_page()->updateOrCreate(
                         ['page_id' => $page['id']],
                         [
                             'meta_app_id'                  => $metaApp->id,
                             'name'                         => $page['name'] ?? '',
-                            'access_token'                 => $page['access_token'] ?? '',
+                            'access_token'                 => $page['access_token'],
                             'tasks'                        => $page['tasks'] ?? [],
                             'instagram_business_account'   => $page['instagram_business_account']['id'] ?? null,
                         ]
@@ -214,5 +221,66 @@ class FacebookAccountService
         $page->token_expires_in = $response['expires_in'] ?? null;
         $page->token_obtained_at = now();
         return $page->save();
+    }
+
+    /**
+     * Suscribe la app a webhooks de una página de Facebook (Messenger).
+     *
+     * Documentación: POST /{page-id}/subscribed_apps
+     * https://developers.facebook.com/docs/graph-api/reference/page/subscribed_apps/
+     *
+     * @param string $pageId ID de la página de Facebook
+     * @param string $pageAccessToken Token de acceso de la página
+     * @param array|null $subscribedFields Campos webhook a suscribir (opcional)
+     * @return array | null Respuesta de la API o null si falla
+      * @throws \InvalidArgumentException Si faltan parámetros requeridos
+     */
+    public function subscribeApp(string $pageId, string $pageAccessToken, ?array $subscribedFields = null): array | null
+    {
+        if ($pageId === '' || $pageAccessToken === '') {
+            throw new \InvalidArgumentException('pageId and pageAccessToken are required');
+        }
+
+        if ($subscribedFields === null) {
+            $subscribedFields = config('facebook.webhook.subscribed_fields', []);
+        }
+
+        $subscribedFields = array_values(
+            array_filter(
+                array_map('trim', $subscribedFields),
+                static fn ($field) => $field !== ''
+            )
+        );
+
+        $query = [
+            'access_token' => $pageAccessToken,
+        ];
+
+        if (!empty($subscribedFields)) {
+            // Graph API requiere subscribed_fields en CSV.
+            $query['subscribed_fields'] = implode(',', $subscribedFields);
+        }
+
+        Log::channel('facebook')->debug('Suscribiendo app a página de Facebook', [
+            'page_id' => $pageId,
+            'subscribed_fields' => $subscribedFields,
+        ]);
+
+        $response = null;
+
+        try {
+            $response = $this->apiClient->request(
+                'POST',
+                $pageId . '/subscribed_apps',
+                [],
+                null,
+                $query
+            );
+        } catch (Exception $e) {
+            Log::channel('facebook')->error('Error suscribiendo aplicación a Facebook:', ['error' => $e->getMessage()]);
+        }
+
+        Log::channel('facebook')->debug('Respuesta de subscribeApp (Facebook):', $response);
+        return $response;
     }
 }
