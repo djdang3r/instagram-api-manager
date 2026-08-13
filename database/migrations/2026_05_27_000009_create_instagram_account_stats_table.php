@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('instagram_account_stats', function (Blueprint $table) {
             $table->ulid('id')->primary();
-            $table->ulid('instagram_business_account_id')->index();
+            $table->string('instagram_business_account_id')->index();
             $table->date('date')->index();
             $table->integer('followers_count')->default(0);
             $table->integer('following_count')->default(0);
@@ -26,7 +26,7 @@ return new class extends Migration
 
             $table->unique(['instagram_business_account_id', 'date']);
             $table->foreign('instagram_business_account_id')
-                ->references('id')->on('instagram_business_accounts')
+                ->references('instagram_business_account_id')->on('instagram_business_accounts')
                 ->cascadeOnDelete();
         });
     }

@@ -12,7 +12,7 @@ return new class extends Migration
             $table->ulid('id')->primary();
             $table->string('media_id')->unique();
             $table->string('instagram_post_id')->nullable()->index();
-            $table->ulid('instagram_business_account_id')->index();
+            $table->string('instagram_business_account_id')->index();
             $table->string('media_type')->comment('IMAGE, VIDEO');
             $table->string('media_url')->nullable();
             $table->string('thumbnail_url')->nullable();
@@ -25,7 +25,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('instagram_business_account_id')
-                ->references('id')->on('instagram_business_accounts')
+                ->references('instagram_business_account_id')->on('instagram_business_accounts')
                 ->cascadeOnDelete();
         });
     }

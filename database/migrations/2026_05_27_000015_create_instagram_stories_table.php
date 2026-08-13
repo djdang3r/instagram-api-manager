@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('instagram_stories', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->string('story_id')->unique();
-            $table->ulid('instagram_business_account_id')->index();
+            $table->string('instagram_business_account_id')->index();
             $table->string('media_id')->nullable()->index();
             $table->string('media_type')->default('image')->comment('image, video');
             $table->string('media_url')->nullable();
@@ -31,7 +31,7 @@ return new class extends Migration
 
             $table->index(['instagram_business_account_id', 'timestamp']);
             $table->foreign('instagram_business_account_id')
-                ->references('id')->on('instagram_business_accounts')
+                ->references('instagram_business_account_id')->on('instagram_business_accounts')
                 ->cascadeOnDelete();
         });
     }

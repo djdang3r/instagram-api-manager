@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('instagram_comments', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->string('comment_id')->unique();
-            $table->ulid('instagram_business_account_id')->index();
+            $table->string('instagram_business_account_id')->index();
             $table->string('instagram_media_id')->index();
             $table->string('instagram_user_id')->index();
             $table->text('text');
@@ -29,7 +29,7 @@ return new class extends Migration
 
             $table->index(['instagram_media_id', 'created_time']);
             $table->foreign('instagram_business_account_id')
-                ->references('id')->on('instagram_business_accounts')
+                ->references('instagram_business_account_id')->on('instagram_business_accounts')
                 ->cascadeOnDelete();
         });
     }

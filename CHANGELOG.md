@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.1.4] - 2026-08-13
+
+Patch release: corrige foreign keys invalidas en 6 migraciones nuevas que rompian `migrate:fresh` en PostgreSQL.
+
+### Fixed
+- **Foreign keys a `instagram_business_accounts.id` inexistente**: las migraciones de `instagram_account_stats`, `instagram_media_stats`, `instagram_comments`, `instagram_posts`, `instagram_stories` e `instagram_media_posts` definian la FK con `$table->ulid('instagram_business_account_id')` y `->references('id')->on('instagram_business_accounts')`, pero la tabla `instagram_business_accounts` usa `instagram_business_account_id` (string) como primary key, no `id`. En una base nueva (`migrate:fresh`) fallaban con `SQLSTATE[42703] Undefined column: column "id" referenced in foreign key constraint does not exist`. Ahora usan `$table->string(...)` y `->references('instagram_business_account_id')`, consistente con las migraciones originales de 2024.
+
+---
+
 ## [1.1.3] - 2026-08-13
 
 Patch release: corrige conflicto de migraciones que rompia `migrate:fresh` en bases de datos nuevas.

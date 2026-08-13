@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('instagram_media_stats', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->string('instagram_media_id')->index();
-            $table->ulid('instagram_business_account_id')->index();
+            $table->string('instagram_business_account_id')->index();
             $table->date('date')->index();
             $table->integer('impressions')->default(0);
             $table->integer('reach')->default(0);
@@ -28,7 +28,7 @@ return new class extends Migration
 
             $table->unique(['instagram_media_id', 'date']);
             $table->foreign('instagram_business_account_id')
-                ->references('id')->on('instagram_business_accounts')
+                ->references('instagram_business_account_id')->on('instagram_business_accounts')
                 ->cascadeOnDelete();
         });
     }
