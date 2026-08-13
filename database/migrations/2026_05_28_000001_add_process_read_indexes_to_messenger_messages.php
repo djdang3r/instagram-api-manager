@@ -22,9 +22,11 @@ return new class extends Migration
             );
 
             // Optimiza condición whereNull(read_at) en la actualización de lecturas por conversación.
+            // NOTA: usa created_time, no created_at (indice de 2026_05_13 usa created_at),
+            // por eso el nombre es distinto para evitar colision.
             $table->index(
                 ['conversation_id', 'message_method', 'read_at', 'created_time'],
-                'msgr_msgs_conv_method_read_created_idx'
+                'msgr_msgs_conv_method_read_created_time_idx'
             );
         });
 
@@ -40,7 +42,7 @@ return new class extends Migration
         Schema::table('messenger_messages', function (Blueprint $table) {
             $table->dropIndex('msgr_msgs_conv_status_created_time_idx');
             $table->dropIndex('msgr_msgs_conv_method_created_time_idx');
-            $table->dropIndex('msgr_msgs_conv_method_read_created_idx');
+            $table->dropIndex('msgr_msgs_conv_method_read_created_time_idx');
         });
 
         if (Schema::hasColumn('messenger_conversations', 'conversation_id')) {

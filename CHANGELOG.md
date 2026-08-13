@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.1.5] - 2026-08-13
+
+Patch release: corrige colision de indice en `messenger_messages` que rompia `migrate:fresh`.
+
+### Fixed
+- **Indice `msgr_msgs_conv_method_read_created_idx` duplicado**: la migracion `2026_05_28_000001_add_process_read_indexes_to_messenger_messages.php` creaba un indice con el mismo nombre que el de `2026_05_13_000003_add_service_lookup_indexes_for_messenger_tables.php` (pero con columnas distintas: `created_time` vs `created_at`). En una base nueva (`migrate:fresh`) la segunda creacion fallaba con `SQLSTATE[42P07] Duplicate table`. Se renombro a `msgr_msgs_conv_method_read_created_time_idx` (incluye `created_time`), quedando sin colision con el indice de la migracion 0513.
+
+---
+
 ## [1.1.4] - 2026-08-13
 
 Patch release: corrige foreign keys invalidas en 6 migraciones nuevas que rompian `migrate:fresh` en PostgreSQL.
