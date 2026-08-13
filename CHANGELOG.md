@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.1.7] - 2026-08-13
+
+Patch release: corrige los scopes de Facebook Login para Instagram Business.
+
+### Fixed
+- **Scopes invalidos en `FacebookAccountService::getAuthorizationUrl()`**: los scopes `instagram_business_basic`, `instagram_business_manage_messages`, `instagram_business_manage_comments`, `instagram_business_content_publish`, `instagram_business_manage_insights` NO son validos para el flujo de Facebook Login (Instagram API with Facebook Login). Meta los rechaza con `Invalid Scopes`. Segun la documentacion oficial, los scopes validos para Facebook Login son `instagram_basic`, `instagram_content_publish`, `instagram_manage_comments`, `instagram_manage_insights` + `pages_show_list`, `pages_read_engagement`. Los scopes `instagram_business_*` son exclusivos del flujo de Instagram Login directo (`InstagramAccountService`).
+
+---
+
 ## [1.1.6] - 2026-08-13
 
 Patch release: habilita el flujo de Facebook Login para conectar cuentas de Instagram Business.

@@ -43,14 +43,12 @@ class FacebookAccountService
     }
 
     public function getAuthorizationUrl(array $scopes = [
-        'instagram_business_basic',
-        'instagram_business_manage_messages',
-        'instagram_business_manage_comments',
-        'instagram_business_content_publish',
-        'instagram_business_manage_insights',
+        'instagram_basic',
+        'instagram_content_publish',
+        'instagram_manage_comments',
+        'instagram_manage_insights',
         'pages_show_list',
         'pages_read_engagement',
-        'pages_manage_metadata',
     ], ?string $state = null): string
     {
         $clientId = config('facebook.meta_auth.client_id');
