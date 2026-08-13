@@ -341,4 +341,149 @@ class InstagramContentPublishingService
 
         return null;
     }
+
+    /**
+     * Publica una historia (STORIES) de imagen o video en Instagram.
+     *
+     * Endpoint: POST /{ig-user-id}/media con media_type=STORIES
+     * Ver: https://developers.facebook.com/docs/instagram-platform/content-publishing
+     *
+     * @param string $igUserId ID del Instagram Business account.
+     * @param string $mediaUrl URL publica del archivo (imagen JPG o video MP4).
+     * @param string $mediaType 'IMAGE' o 'VIDEO' (define el tipo de story).
+     * @param array|null $userTags Opcional: [{username, x?, y?}] para mencionar usuarios en la story.
+     * @param bool $isAiGenerated Opcional: auto-revelado de contenido generado por IA.
+     */
+    public function publishStory(
+        string $igUserId,
+        string $mediaUrl,
+        string $mediaType = 'IMAGE',
+        ?array $userTags = null,
+        bool $isAiGenerated = false
+    ): ?array {
+        $this->validate();
+
+        if ($mediaType === 'IMAGE') {
+            $this->validateImageUrl($mediaUrl);
+        } else {
+            $this->validateVideoUrl($mediaUrl);
+        }
+
+        $urlKey = $mediaType === 'IMAGE' ? 'image_url' : 'video_url';
+
+        $params = [
+            $urlKey => $mediaUrl,
+            'media_type' => 'STORIES',
+        ];
+
+        if (!empty($userTags)) {
+            $params['user_tags'] = $userTags;
+        }
+
+        if ($isAiGenerated) {
+            $params['is_ai_generated'] = true;
+        }
+
+        $creationId = $this->createContainer($igUserId, $params);
+        if (!$creationId) return null;
+
+        $mediaId = $this->publishContainer($igUserId, $creationId);
+
+        if ($mediaId) {
+            $result = ['media_id' => $mediaId, 'creation_id' => $creationId, 'media_type' => 'STORIES'];
+            $this->savePost([
+                'id' => $mediaId,
+                'media_type' => 'STORIES',
+                'product_type' => 'story',
+                'status' => 'published',
+                'timestamp' => time(),
+            ]);
+            return $result;
+        }
+
+        return null;
+    }
+
+    /**
+     * Publica un Reel con opciones avanzadas.
+     *
+     * Endpoint: POST /{ig-user-id}/media con media_type=REELS
+     * Ver: https://developers.facebook.com/docs/instagram-platform/content-publishing
+     *
+     * @param string $igUserId ID del Instagram Business account.
+     * @param string $videoUrl URL publica del video MP4.
+     * @param string|null $caption Caption del reel (max 2200 chars, 30 hashtags, 20 @).
+     * @param string|null $coverUrl Opcional: URL de la imagen de portada.
+     * @param bool $shareToFeed Opcional: true para aparecer en Feed y Reels.
+     * @param string|null $audioName Opcional: nombre del audio del reel.
+     * @param array|null $collaborators Opcional: usernames de colaboradores.
+     * @param bool $isAiGenerated Opcional: auto-revelado de contenido generado por IA.
+     */
+    public function publishReel(
+        string $igUserId,
+        string $videoUrl,
+        ?string $caption = null,
+        ?string $coverUrl = null,
+        bool $shareToFeed = false,
+        ?string $audioName = null,
+        ?array $collaborators = null,
+        bool $isAiGenerated = false
+    ): ?array {
+        $this->validate();
+        $this->validateVideoUrl($videoUrl);
+        if ($caption) $this->validateCaption($caption);
+
+        $params = [
+            'video_url' => $videoUrl,
+            'media_type' => 'REELS',
+        ];
+
+        if ($caption) $params['caption'] = $caption;
+        if ($coverUrl) $params['cover_url'] = $coverUrl;
+        if ($shareToFeed) $params['share_to_feed'] = true;
+        if ($audioName) $params['audio_name'] = $audioName;
+        if (!empty($collaborators)) $params['collaborators'] = $collaborators;
+        if ($isAiGenerated) $params['is_ai_generated'] = true;
+
+        $creationId = $this->createContainer($igUserId, $params);
+        if (!$creationId) return null;
+
+        $mediaId = $this->publishContainer($igUserId, $creationId);
+
+        if ($mediaId) {
+            $result = ['media_id' => $mediaId, 'creation_id' => $creationId, 'media_type' => 'REELS'];
+            $this->savePost([
+                'id' => $mediaId,
+                'caption' => $caption,
+                'media_type' => 'VIDEO',
+                'product_type' => 'reels',
+                'status' => 'published',
+                'timestamp' => time(),
+            ]);
+            return $result;
+        }
+
+        return null;
+    }
+
+    /**
+     * Consulta el limite de publicacion del usuario (100 posts/24h moviles).
+     *
+     * Endpoint: GET /{ig-user-id}/content_publishing_limit
+     * Ver: https://developers.facebook.com/docs/instagram-platform/content-publishing#rate-limits
+     */
+    public function getPublishingLimit(string $igUserId): ?array
+    {
+        $this->validate();
+
+        try {
+            return $this->apiClient->request('GET', "{$igUserId}/content_publishing_limit", [], null, [
+                'fields' => 'quota_usage,config',
+                'access_token' => $this->accessToken,
+            ]);
+        } catch (Exception $e) {
+            Log::channel('instagram')->error('Error getting publishing limit:', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
 }

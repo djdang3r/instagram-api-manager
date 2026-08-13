@@ -54,6 +54,8 @@ Desde la automatización de respuestas en Direct Message (DM) hasta la gestión 
 - ✅ **Persistencia Eloquent**: Guarda automáticamente conversaciones, contactos y mensajes para facilitar el análisis histórico.
 - ✅ **Gestión de Tokens**: Automatización del flujo de intercambio de tokens de corta duración por tokens de larga duración.
 - ✅ **Mensajería Enriquecida**: Soporte completo para Quick Replies, Generic Templates y Reacciones de Instagram.
+- ✅ **Publicación de Contenido**: Imágenes, videos, reels avanzados, historias (stories) y carruseles con validación automática de captions, hashtags y menciones.
+- ✅ **Límites de Publicación**: Consulta el cuota de publicación de la cuenta (100 posts/24h) antes de publicar.
 - ✅ **Seguridad Nativa**: Verificación de firmas X-Hub-Signature en webhooks para garantizar que los datos provienen de Meta.
 
 ---
@@ -94,6 +96,8 @@ From automating Direct Message (DM) responses to managing commercial profiles an
 - ✅ **Eloquent Persistence**: Automatically saves conversations, contacts, and messages for easy historical analysis.
 - ✅ **Token Management**: Automates the flow of exchanging short-lived tokens for long-lived tokens.
 - ✅ **Rich Messaging**: Full support for Instagram Quick Replies, Generic Templates, and Reactions.
+- ✅ **Content Publishing**: Images, videos, advanced reels, stories, and carousels with automatic caption, hashtag, and mention validation.
+- ✅ **Publishing Limits**: Check the account publishing quota (100 posts/24h) before publishing.
 - ✅ **Native Security**: X-Hub-Signature verification on webhooks to guarantee data comes from Meta.
 
 ---

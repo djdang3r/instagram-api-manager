@@ -75,10 +75,13 @@ $status = $publishing->getMediaStatus(
 
 | Método | Descripción | Retorno |
 |--------|-------------|---------|
-| `publishImage` | Publicar una imagen | `?array` |
-| `publishVideo` | Publicar un video/reel | `?array` |
-| `publishCarousel` | Publicar carrusel (imágenes+video) | `?array` |
-| `getMediaStatus` | Verificar estado de publicación | `?array` |
+| `publishImage` | Publish an image | `?array` |
+| `publishVideo` | Publish a video/reel | `?array` |
+| `publishCarousel` | Publish a carousel (images+video) | `?array` |
+| `publishStory` | Publish a story (image or video, `media_type=STORIES`) | `?array` |
+| `publishReel` | Publish a reel with advanced options (`share_to_feed`, `cover_url`, `audio_name`, `collaborators`) | `?array` |
+| `getMediaStatus` | Check publishing status | `?array` |
+| `getPublishingLimit` | Get publishing rate limit (100 posts/24h) | `?array` |
 
 > 💡 El proceso de publicación es en 2 pasos: crear container → publicar. El paquete lo hace automáticamente.
 
@@ -157,6 +160,58 @@ return [
 $schedule->call(function () {
     Artisan::call('instagram:publish-scheduled');
 })->everyFiveMinutes();
+```
+
+## 🖼️ Example: Publish a Story
+
+```php
+$publishing = app(InstagramContentPublishingService::class)
+    ->withAccessToken($accessToken)
+    ->withBusinessAccountId($igUserId);
+
+// Image story
+$story = $publishing->publishStory(
+    igUserId: $igUserId,
+    mediaUrl: 'https://example.com/story.jpg',
+    mediaType: 'IMAGE',
+);
+
+// Video story with user mention
+$storyVideo = $publishing->publishStory(
+    igUserId: $igUserId,
+    mediaUrl: 'https://example.com/story.mp4',
+    mediaType: 'VIDEO',
+    userTags: [
+        ['username' => 'collaborator_user', 'x' => 0.5, 'y' => 0.8],
+    ],
+);
+
+// Result: ['media_id' => '...', 'creation_id' => '...', 'media_type' => 'STORIES']
+```
+
+## 🎬 Example: Publish an Advanced Reel
+
+```php
+$reel = $publishing->publishReel(
+    igUserId: $igUserId,
+    videoUrl: 'https://example.com/reel.mp4',
+    caption: 'New reel 🎬 #content',
+    coverUrl: 'https://example.com/cover.jpg',
+    shareToFeed: true,          // Appears in Feed and Reels
+    audioName: 'Original Audio', // Reel audio name
+    collaborators: ['user2', 'user3'],
+);
+
+// Result: ['media_id' => '...', 'creation_id' => '...', 'media_type' => 'REELS']
+```
+
+## 📊 Example: Get Publishing Rate Limit
+
+```php
+$limit = $publishing->getPublishingLimit($igUserId);
+
+// Result: ['data' => [['quota_usage' => 42, 'config' => ['quota_total' => 100]]]]
+// quota_usage: posts used in the last 24h (max 100)
 ```
 
 ## 🎯 Estrategia de Contenido

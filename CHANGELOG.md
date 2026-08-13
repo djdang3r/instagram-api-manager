@@ -7,7 +7,23 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
-## [1.1.1] - 2026-06-06
+## [1.1.2] - 2026-08-13
+
+Feature release: incorpora el PR #15 del colaborador (suscripción a webhooks de Instagram) y agrega publicación de historias y reels avanzados al servicio de Content Publishing.
+
+### Added
+- **`InstagramAccountService::subscribeApp()` / `unsubscribeApp()`** (PR #15): suscripción y desuscripción de la app a los webhooks de Instagram vía `subscribed_apps`. Sin suscripción, Meta nunca envía eventos.
+- **`FacebookAccountService::forPage()` / `forPageId()`** (PR #15): filtros de contexto por página de Facebook.
+- **`config/instagram.php`** (PR #15): `webhook.subscribed_fields` con los 13 campos de suscripción de Meta (messages, mentions, comments, story_insights, etc.).
+- **`InstagramContentPublishingService::publishStory()`**: publica historias de imagen o video con `media_type=STORIES`. Soporta `user_tags` (menciones con coordenadas) y `is_ai_generated` (auto-revelado de IA).
+- **`InstagramContentPublishingService::publishReel()`**: versión avanzada de publicación de reels con `share_to_feed`, `cover_url`, `audio_name`, `collaborators` y `is_ai_generated`.
+- **`InstagramContentPublishingService::getPublishingLimit()`**: consulta el límite de publicación de la cuenta (`/{ig-user-id}/content_publishing_limit`, 100 posts/24h) con `quota_usage` y `config`.
+
+### Changed
+- Documentación: `documentation/es/instagram/11-publicacion.md` y mirror EN `documentation/en/10-instagram-publishing.md` actualizadas con historias, reels avanzados y rate limit (tabla de métodos + ejemplos).
+- README: nuevas características de publicación de contenido y límites en las secciones ES y EN.
+
+---
 
 Patch release: cierra issues de auditoría del 1.1.0, agrega foreign key constraints diferidas, y completa la documentación ES + mirror EN.
 

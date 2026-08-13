@@ -78,9 +78,15 @@ $status = $publishing->getMediaStatus(
 | `publishImage` | Publicar una imagen | `?array` |
 | `publishVideo` | Publicar un video/reel | `?array` |
 | `publishCarousel` | Publicar carrusel (imágenes+video) | `?array` |
+| `publishStory` | Publicar una historia (imagen o video, `media_type=STORIES`) | `?array` |
+| `publishReel` | Publicar un reel con opciones avanzadas (`share_to_feed`, `cover_url`, `audio_name`, `collaborators`) | `?array` |
 | `getMediaStatus` | Verificar estado de publicación | `?array` |
+| `getPublishingLimit` | Consultar límite de publicación (100 posts/24h) | `?array` |
 
 > 💡 El proceso de publicación es en 2 pasos: crear container → publicar. El paquete lo hace automáticamente.
+> 💡 **Historias**: `publishStory` crea el container con `media_type=STORIES` (imagen o video) y publica. Soporta `user_tags` para mencionar usuarios y `is_ai_generated` para auto-revelado de IA.
+> 💡 **Reels avanzados**: `publishReel` permite `share_to_feed` (aparecer en Feed y Reels), `cover_url` (portada), `audio_name`, `collaborators` y `is_ai_generated`.
+> ⚠️ **Límite**: las cuentas de Instagram tienen un límite de 100 posts publicados vía API en 24h. Usa `getPublishingLimit` para verificar el cuota restante antes de publicar.
 
 ## 📋 Configuration Reference
 
@@ -157,6 +163,58 @@ return [
 $schedule->call(function () {
     Artisan::call('instagram:publish-scheduled');
 })->everyFiveMinutes();
+```
+
+## 🖼️ Ejemplo: Publicar Historia (Story)
+
+```php
+$publishing = app(InstagramContentPublishingService::class)
+    ->withAccessToken($accessToken)
+    ->withBusinessAccountId($igUserId);
+
+// Historia de imagen
+$story = $publishing->publishStory(
+    igUserId: $igUserId,
+    mediaUrl: 'https://example.com/story.jpg',
+    mediaType: 'IMAGE',
+);
+
+// Historia de video con mención de usuario
+$storyVideo = $publishing->publishStory(
+    igUserId: $igUserId,
+    mediaUrl: 'https://example.com/story.mp4',
+    mediaType: 'VIDEO',
+    userTags: [
+        ['username' => 'usuario_colaborador', 'x' => 0.5, 'y' => 0.8],
+    ],
+);
+
+// Resultado: ['media_id' => '...', 'creation_id' => '...', 'media_type' => 'STORIES']
+```
+
+## 🎬 Ejemplo: Publicar Reel Avanzado
+
+```php
+$reel = $publishing->publishReel(
+    igUserId: $igUserId,
+    videoUrl: 'https://example.com/reel.mp4',
+    caption: 'Nuevo reel 🎬 #contenido',
+    coverUrl: 'https://example.com/cover.jpg',
+    shareToFeed: true,          // Aparece en Feed y Reels
+    audioName: 'Audio Original', // Nombre del audio
+    collaborators: ['usuario2', 'usuario3'],
+);
+
+// Resultado: ['media_id' => '...', 'creation_id' => '...', 'media_type' => 'REELS']
+```
+
+## 📊 Ejemplo: Consultar Límite de Publicación
+
+```php
+$limit = $publishing->getPublishingLimit($igUserId);
+
+// Resultado: ['data' => [['quota_usage' => 42, 'config' => ['quota_total' => 100]]]]
+// quota_usage: publicaciones usadas en las últimas 24h (máx 100)
 ```
 
 ## 🎯 Estrategia de Contenido
