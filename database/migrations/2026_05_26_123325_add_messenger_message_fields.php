@@ -12,7 +12,8 @@ return new class extends Migration
             $table->json('attachments')->nullable()->after('json_content');
             $table->json('reactions')->nullable()->after('attachments');
             $table->string('caption')->nullable()->after('reactions');
-            $table->timestamp('delivered_at')->nullable()->after('sent_at');
+            // delivered_at NO se agrega aqui: ya fue creada por
+            // 2026_05_12_000001_update_messages_tables_convert_enums_to_string_add_delivered_at.php
             $table->timestamp('created_time')->nullable()->after('failed_at');
             $table->text('message_context')->nullable()->after('message_content');
             $table->string('message_context_id')->nullable()->after('message_context');
@@ -26,7 +27,7 @@ return new class extends Migration
     {
         Schema::table('messenger_messages', function (Blueprint $table) {
             $table->dropColumn([
-                'attachments', 'reactions', 'caption', 'delivered_at', 'created_time',
+                'attachments', 'reactions', 'caption', 'created_time',
                 'message_context', 'message_context_id', 'quick_reply_payload',
                 'postback_payload', 'template_payload',
             ]);

@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.1.3] - 2026-08-13
+
+Patch release: corrige conflicto de migraciones que rompia `migrate:fresh` en bases de datos nuevas.
+
+### Fixed
+- **Migracion duplicada de `messenger_messages.delivered_at`**: la migracion `2026_05_26_123325_add_messenger_message_fields.php` agregaba `delivered_at` a `messenger_messages`, columna que ya era creada por `2026_05_12_000001_update_messages_tables_convert_enums_to_string_add_delivered_at.php`. En una base nueva (`migrate:fresh`) la primera migracion creaba la columna y la segunda fallaba con `SQLSTATE[42701] Duplicate column`. Se elimino el `delivered_at` duplicado de `up()` y `down()` de la migracion 123325.
+
+---
+
 ## [1.1.2] - 2026-08-13
 
 Feature release: incorpora el PR #15 del colaborador (suscripción a webhooks de Instagram) y agrega publicación de historias y reels avanzados al servicio de Content Publishing.
