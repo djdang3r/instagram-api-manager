@@ -21,6 +21,7 @@ class InstagramProfile extends Model
         'id',
         'instagram_business_account_id',
         'instagram_scoped_id', // ← Instagram-Scoped ID (usado en webhooks)
+        'user_id', // ← Instagram User ID (scoped user id del exchange OAuth)
 
         // Información básica
         'profile_name',

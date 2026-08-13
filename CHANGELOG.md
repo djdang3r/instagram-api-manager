@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.1.10] - 2026-08-13
+
+Patch release: corrige el fallo persistente del OAuth de Instagram Login (user_id faltante en el fillable).
+
+### Fixed
+- **`user_id` no estaba en el `$fillable` de `InstagramProfile`**: aunque el servicio `handleCallback()` (1.1.9) ya resolvia el user_id correctamente, el modelo no lo tenia en `$fillable`, por lo que Eloquent lo ignoraba silenciosamente en el INSERT y la columna NOT NULL `user_id` seguia fallando con `SQLSTATE[23502]`. Se agrego `user_id` al fillable del modelo.
+
+---
+
 ## [1.1.9] - 2026-08-13
 
 Patch release: corrige el fallo de OAuth de Instagram Login al guardar el perfil.
