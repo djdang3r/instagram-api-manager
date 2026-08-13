@@ -7,6 +7,18 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.1.6] - 2026-08-13
+
+Patch release: habilita el flujo de Facebook Login para conectar cuentas de Instagram Business.
+
+### Added
+- **Columna `instagram_business_account` en `facebook_pages`**: `FacebookAccountService::handleCallback()` guardaba el IG Business Account vinculado a cada pagina de Facebook (`me/accounts?fields=instagram_business_account`) pero la columna no existia en la migracion original, causando fallo SQL en el flujo de Facebook Login. Nueva migracion `2026_08_13_000001_add_instagram_business_account_to_facebook_pages_table.php` + fillable.
+
+### Changed
+- **`FacebookAccountService::getAuthorizationUrl()`**: scopes por defecto ampliados para incluir los permisos de Instagram Business (`instagram_business_basic`, `instagram_business_manage_messages`, `instagram_business_manage_comments`, `instagram_business_content_publish`, `instagram_business_manage_insights`) ademas de los de paginas (`pages_show_list`, `pages_read_engagement`, `pages_manage_metadata`). Permite que el login con Facebook conecte y opere la cuenta de Instagram vinculada a la pagina.
+
+---
+
 ## [1.1.5] - 2026-08-13
 
 Patch release: corrige colision de indice en `messenger_messages` que rompia `migrate:fresh`.
