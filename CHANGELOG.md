@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.1.9] - 2026-08-13
+
+Patch release: corrige el fallo de OAuth de Instagram Login al guardar el perfil.
+
+### Fixed
+- **`instagram_profiles.user_id` NOT NULL violation en el OAuth de Instagram Login**: `InstagramAccountService::handleCallback()` usaba `$profileData['user_id']` para la columna `user_id` del perfil, pero el endpoint `/me` de `graph.instagram.com` NO devuelve el campo `user_id` (ese campo es exclusivo de `graph.facebook.com`). El INSERT fallaba con `SQLSTATE[23502] Not null violation` y el login de Instagram se rechazaba con "No se pudo autenticar la cuenta de Instagram". Ahora el `user_id` se toma del response del exchange OAuth (el Instagram-scoped user ID), que es el valor correcto segun la documentacion oficial.
+
+---
+
 ## [1.1.8] - 2026-08-13
 
 Patch release: separa el host de mensajeria del host de contenido para respetar la documentacion oficial de Meta.

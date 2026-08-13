@@ -309,12 +309,18 @@ class InstagramAccountService
             );
 
             if (!empty($profileData)) {
+                // En graph.instagram.com el endpoint /me NO devuelve user_id
+                // (ese campo es exclusivo de graph.facebook.com). El user_id
+                // del perfil se obtiene del response del exchange OAuth
+                // (el Instagram-scoped user ID).
+                $scopedUserId = $userId ?? $profileData['user_id'] ?? null;
+
                 InstagramModelResolver::instagram_profile()->updateOrCreate(
                     ['instagram_business_account_id' => $userId],
                     [
                         'profile_name' => $profileData['name'] ?? '',
-                        'user_id' => $profileData['user_id'] ?? null,
-                        'instagram_scoped_id' => $igId,
+                        'user_id' => $scopedUserId,
+                        'instagram_scoped_id' => $igId ?: $scopedUserId,
                         'username' => $profileData['username'] ?? null,
                         'profile_picture' => $profileData['profile_picture_url'] ?? null,
                         'bio' => $profileData['biography'] ?? null,
