@@ -21,9 +21,12 @@ class InstagramMessageService
 
     public function __construct(?InstagramAccountService $accountService = null)
     {
-        // Cliente principal para mensajería (Graph API de Facebook)
+        // Cliente principal para mensajería (Graph API de Facebook).
+        // La mensajeria DM de Instagram (/{ig-id}/messages) va por
+        // graph.facebook.com (Messenger Platform), a diferencia de los
+        // servicios de contenido que usan graph.instagram.com.
         $this->apiClient = app(ApiClient::class)
-            ->withBaseUrl(config('instagram.api.graph_base_url', 'https://graph.facebook.com'))
+            ->withBaseUrl(env('INSTAGRAM_MESSAGING_BASE_URL', 'https://graph.facebook.com'))
             ->withVersion(config('instagram.api.version'));
 
         // Inyectamos el servicio de cuentas para refrescar tokens

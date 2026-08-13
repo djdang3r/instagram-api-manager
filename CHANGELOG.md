@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.1.8] - 2026-08-13
+
+Patch release: separa el host de mensajeria del host de contenido para respetar la documentacion oficial de Meta.
+
+### Fixed
+- **`InstagramMessageService` usaba `graph_base_url` para la mensajeria DM**: la mensajeria directa de Instagram (`/{ig-id}/messages`) es parte de la Messenger Platform y va por `graph.facebook.com`, mientras que los servicios de contenido (perfil, media, publicacion, comentarios, insights) y el long-lived token van por `graph.instagram.com`. Si el proyecto configuraba `graph_base_url` para un host, rompia el otro. Ahora la mensajeria usa `INSTAGRAM_MESSAGING_BASE_URL` (default `https://graph.facebook.com`) independiente de `graph_base_url` (que queda para contenido, default `https://graph.instagram.com`).
+
+---
+
 ## [1.1.7] - 2026-08-13
 
 Patch release: corrige los scopes de Facebook Login para Instagram Business.
