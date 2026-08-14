@@ -49,6 +49,7 @@ class FacebookAccountService
         'instagram_manage_insights',
         'pages_show_list',
         'pages_read_engagement',
+        'pages_messaging',
     ], ?string $state = null): string
     {
         $clientId = config('facebook.meta_auth.client_id');

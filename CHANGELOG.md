@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.1.11] - 2026-08-13
+
+Patch release: agrega el permiso `pages_messaging` al login de Facebook.
+
+### Added
+- **`pages_messaging` en `FacebookAccountService::getAuthorizationUrl()`**: se requiere este permiso para que la pagina de Facebook pueda enviar y recibir mensajes de Messenger (ademas de los ya incluidos de Instagram y paginas). Sin el, el token de la pagina no puede operar Messenger.
+
+---
+
 ## [1.1.10] - 2026-08-13
 
 Patch release: corrige el fallo persistente del OAuth de Instagram Login (user_id faltante en el fillable).
