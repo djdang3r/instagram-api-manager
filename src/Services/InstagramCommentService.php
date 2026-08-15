@@ -320,44 +320,70 @@ class InstagramCommentService
     }
 
     /**
-     * Obtiene y persiste comentarios mencionados para un usuario de Instagram.
+     * Obtiene el detalle de un comentario donde el usuario fue mencionado.
      *
-     * @param string $igUserId ID de usuario de Instagram Business
-     * @return array|null Datos de comentarios mencionados
+     * Segun la documentacion oficial de Meta, el webhook de menciones solo
+     * envia los IDs (comment_id + media_id). Para obtener el texto y el autor
+     * hay que consultar el detalle con field expansion:
+     * GET /{ig-media-id}?fields=mentioned_comment.comment_id({comment-id}){text,username,timestamp}
+     *
+     * @param string $igUserId ID de usuario de Instagram Business (entry.id del webhook)
+     * @param string $commentId ID del comentario donde fue mencionado
+     * @param string|null $mediaId ID del media comentado
+     * @return array|null Detalle del comentario mencionado
      */
-    public function getMentionedComments(string $igUserId): ?array
+    public function getMentionedComment(string $igUserId, string $commentId, ?string $mediaId = null): ?array
     {
         $this->validateToken();
+
+        $fields = "mentioned_comment.comment_id({$commentId}){id,text,timestamp,username,like_count}";
+        $endpoint = $mediaId ?: $igUserId;
+
         try {
-            $response = $this->apiClient->request('GET', $igUserId, [], null, [
-                'fields' => 'mentioned_comment',
+            $response = $this->apiClient->request('GET', $endpoint, [], null, [
+                'fields' => $fields,
                 'access_token' => $this->accessToken,
             ]);
 
-            return $response['mentioned_comment']['data'] ?? $response;
+            return $response['mentioned_comment'] ?? $response;
         } catch (Exception $e) {
-            Log::channel('instagram')->error('Error getting mentioned comments:', ['error' => $e->getMessage()]);
+            Log::channel('instagram')->error('Error getting mentioned comment:', [
+                'comment_id' => $commentId,
+                'error' => $e->getMessage(),
+            ]);
+
             return null;
         }
     }
 
     /**
-     * Obtiene media mencionado para un usuario de Instagram.
+     * Obtiene el detalle de un media donde el usuario fue mencionado.
      *
-     * @param string $igUserId ID de usuario de Instagram Business
-     * @return array|null Datos de media mencionado
+     * GET /{ig-user-id}?fields=mentioned_media.media_id({media-id}){caption,media_url,username,timestamp,media_type}
+     *
+     * @param string $igUserId ID de usuario de Instagram Business (entry.id del webhook)
+     * @param string $mediaId ID del media donde fue mencionado
+     * @return array|null Detalle del media mencionado
      */
-    public function getMentionedMedia(string $igUserId): ?array
+    public function getMentionedMedia(string $igUserId, string $mediaId): ?array
     {
         $this->validateToken();
+
+        $fields = "mentioned_media.media_id({$mediaId}){id,caption,media_url,media_type,username,timestamp,permalink,like_count,comments_count}";
+
         try {
             $response = $this->apiClient->request('GET', $igUserId, [], null, [
-                'fields' => 'mentioned_media',
+                'fields' => $fields,
                 'access_token' => $this->accessToken,
             ]);
 
-            return $response['mentioned_media']['data'] ?? $response;
+            return $response['mentioned_media'] ?? $response;
         } catch (Exception $e) {
+            Log::channel('instagram')->error('Error getting mentioned media:', [
+                'media_id' => $mediaId,
+                'error' => $e->getMessage(),
+            ]);
+
             return null;
         }
     }

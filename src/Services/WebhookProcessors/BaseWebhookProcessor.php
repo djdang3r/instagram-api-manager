@@ -204,60 +204,63 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
 
         $commentId = $value['comment_id'] ?? null;
         $mediaId = $value['media_id'] ?? null;
-        $text = $value['text'] ?? null;
-        $from = $value['from'] ?? [];
-        $createdTime = isset($value['created_timestamp'])
-            ? date('Y-m-d H:i:s', $value['created_timestamp'] / 1000)
-            : now();
 
         Log::channel('instagram')->info('MENCION RECIBIDA', [
             'comment_id' => $commentId,
             'media_id' => $mediaId,
+            'entry_id' => $entryId,
         ]);
 
-        if ($commentId) {
-            $this->saveMentionWebhook($commentId, $mediaId, $from, $text, $createdTime, $value, $entryId);
+        // Segun la doc oficial, el webhook de menciones solo envia los IDs:
+        // - mencion en media: solo media_id
+        // - mencion en comentario: comment_id + media_id
+        // El detalle (texto, usuario) se consulta despues via API con esos IDs.
+        if ($commentId || $mediaId) {
+            $this->saveMentionWebhook($commentId, $mediaId, $value, $entryId);
         }
 
         event(new \ScriptDevelop\InstagramApiManager\Events\InstagramMentionReceived([
             'comment_id' => $commentId,
             'media_id' => $mediaId,
-            'text' => $text,
-            'from' => $from,
         ]));
     }
 
-    protected function saveMentionWebhook(string $commentId, ?string $mediaId, array $from, ?string $text, string $createdTime, array $rawData, ?string $entryId = null): void
+    protected function saveMentionWebhook(?string $commentId, ?string $mediaId, array $rawData, ?string $entryId = null): void
     {
         try {
+            // Las menciones de media no traen comment_id; generamos un id
+            // sintetico derivado del media para poder persistirlas.
+            $mentionCommentId = $commentId ?: ('media_' . $mediaId);
+
             $existing = InstagramModelResolver::instagram_comment()
-                ->where('comment_id', $commentId)
+                ->where('comment_id', $mentionCommentId)
                 ->first();
 
             if ($existing) {
-                Log::channel('instagram')->debug('Mention comment already exists, skipping', ['comment_id' => $commentId]);
+                Log::channel('instagram')->debug('Mention already exists, skipping', ['comment_id' => $mentionCommentId]);
                 return;
             }
 
             $businessAccountId = $this->resolveBusinessAccountIdFromMedia($mediaId) ?? $entryId;
 
             InstagramModelResolver::instagram_comment()->create([
-                'comment_id' => $commentId,
+                'comment_id' => $mentionCommentId,
                 'instagram_business_account_id' => $businessAccountId,
                 'instagram_media_id' => $mediaId ?? '',
-                'instagram_user_id' => $from['id'] ?? '',
-                'text' => $text ?? '',
-                'username' => $from['username'] ?? '',
-                'profile_picture_url' => $from['profile_picture_url'] ?? null,
-                'created_time' => $createdTime,
+                'instagram_user_id' => '',
+                'text' => $commentId ? '[mencion en comentario]' : '[mencion en publicacion]',
+                'username' => '',
+                'profile_picture_url' => null,
+                'created_time' => now(),
                 'message_type' => 'mention',
                 'raw_data' => $rawData,
             ]);
 
-            Log::channel('instagram')->info('Mention saved to database', ['comment_id' => $commentId]);
+            Log::channel('instagram')->info('Mention saved to database', ['comment_id' => $mentionCommentId]);
         } catch (\Exception $e) {
             Log::channel('instagram')->error('Error saving mention webhook', [
                 'comment_id' => $commentId,
+                'media_id' => $mediaId,
                 'error' => $e->getMessage(),
             ]);
         }
