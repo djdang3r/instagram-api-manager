@@ -102,9 +102,9 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
                             $value = $change['value'] ?? [];
 
                             if ($field === 'comments') {
-                                $this->handleCommentChange($change);
+                                $this->handleCommentChange($change, $entry['id'] ?? null);
                             } elseif ($field === 'mentions') {
-                                $this->handleMentionChange($change);
+                                $this->handleMentionChange($change, $entry['id'] ?? null);
                             }
                         }
                     }
@@ -132,7 +132,7 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
         }
     }
 
-    protected function handleCommentChange(array $change): void
+    protected function handleCommentChange(array $change, ?string $entryId = null): void
     {
         $value = $change['value'] ?? [];
 
@@ -151,7 +151,7 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
         ]);
 
         if ($commentId) {
-            $this->saveCommentWebhook($commentId, $mediaId, $from, $text, $createdTime, $value);
+            $this->saveCommentWebhook($commentId, $mediaId, $from, $text, $createdTime, $value, $entryId);
         }
 
         event(new \ScriptDevelop\InstagramApiManager\Events\InstagramCommentReceived([
@@ -162,7 +162,7 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
         ]));
     }
 
-    protected function saveCommentWebhook(string $commentId, ?string $mediaId, array $from, ?string $text, string $createdTime, array $rawData): void
+    protected function saveCommentWebhook(string $commentId, ?string $mediaId, array $from, ?string $text, string $createdTime, array $rawData, ?string $entryId = null): void
     {
         try {
             $existing = InstagramModelResolver::instagram_comment()
@@ -174,15 +174,15 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
                 return;
             }
 
-            $businessAccountId = $this->resolveBusinessAccountIdFromMedia($mediaId);
+            $businessAccountId = $this->resolveBusinessAccountIdFromMedia($mediaId) ?? $entryId;
 
             InstagramModelResolver::instagram_comment()->create([
                 'comment_id' => $commentId,
                 'instagram_business_account_id' => $businessAccountId,
-                'instagram_media_id' => $mediaId,
-                'instagram_user_id' => $from['id'] ?? null,
-                'text' => $text,
-                'username' => $from['username'] ?? null,
+                'instagram_media_id' => $mediaId ?? '',
+                'instagram_user_id' => $from['id'] ?? '',
+                'text' => $text ?? '',
+                'username' => $from['username'] ?? '',
                 'profile_picture_url' => $from['profile_picture_url'] ?? null,
                 'created_time' => $createdTime,
                 'message_type' => 'comment',
@@ -198,7 +198,7 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
         }
     }
 
-    protected function handleMentionChange(array $change): void
+    protected function handleMentionChange(array $change, ?string $entryId = null): void
     {
         $value = $change['value'] ?? [];
 
@@ -216,7 +216,7 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
         ]);
 
         if ($commentId) {
-            $this->saveMentionWebhook($commentId, $mediaId, $from, $text, $createdTime, $value);
+            $this->saveMentionWebhook($commentId, $mediaId, $from, $text, $createdTime, $value, $entryId);
         }
 
         event(new \ScriptDevelop\InstagramApiManager\Events\InstagramMentionReceived([
@@ -227,7 +227,7 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
         ]));
     }
 
-    protected function saveMentionWebhook(string $commentId, ?string $mediaId, array $from, ?string $text, string $createdTime, array $rawData): void
+    protected function saveMentionWebhook(string $commentId, ?string $mediaId, array $from, ?string $text, string $createdTime, array $rawData, ?string $entryId = null): void
     {
         try {
             $existing = InstagramModelResolver::instagram_comment()
@@ -239,15 +239,15 @@ class BaseWebhookProcessor implements WebhookProcessorInterface
                 return;
             }
 
-            $businessAccountId = $this->resolveBusinessAccountIdFromMedia($mediaId);
+            $businessAccountId = $this->resolveBusinessAccountIdFromMedia($mediaId) ?? $entryId;
 
             InstagramModelResolver::instagram_comment()->create([
                 'comment_id' => $commentId,
                 'instagram_business_account_id' => $businessAccountId,
-                'instagram_media_id' => $mediaId,
-                'instagram_user_id' => $from['id'] ?? null,
-                'text' => $text,
-                'username' => $from['username'] ?? null,
+                'instagram_media_id' => $mediaId ?? '',
+                'instagram_user_id' => $from['id'] ?? '',
+                'text' => $text ?? '',
+                'username' => $from['username'] ?? '',
                 'profile_picture_url' => $from['profile_picture_url'] ?? null,
                 'created_time' => $createdTime,
                 'message_type' => 'mention',
