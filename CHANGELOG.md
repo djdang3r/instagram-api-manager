@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.1.14] - 2026-08-15
+
+Patch release: corrige el sync de posts que fallaba cuando la API no devuelve `status`.
+
+### Fixed
+- **`InstagramContentPublishingService::savePost()` lanzaba `Undefined array key "status"`**: la linea `published_at => $postData['status'] === 'published'` asumia que la respuesta de la API siempre traia `status`, pero el endpoint `/media` (syncPosts) no incluye ese campo. La excepcion hacia que `syncPosts()` devolviera `[]` y los posts nunca se guardaran en BD. Ahora usa `$postData['status'] ?? 'published'` con fallback.
+
+---
+
 ## [1.1.13] - 2026-08-15
 
 Patch release: corrige las metricas de account insights de Instagram.

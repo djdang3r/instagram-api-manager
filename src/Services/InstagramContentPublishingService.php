@@ -240,7 +240,7 @@ class InstagramContentPublishingService
             'comments_count' => $postData['comments_count'] ?? 0,
             'status' => $postData['status'] ?? 'published',
             'scheduled_at' => isset($postData['scheduled_at']) ? date('Y-m-d H:i:s', is_numeric($postData['scheduled_at']) ? $postData['scheduled_at'] : strtotime($postData['scheduled_at'])) : null,
-            'published_at' => $postData['status'] === 'published' ? now() : null,
+            'published_at' => ($postData['status'] ?? 'published') === 'published' ? now() : null,
             'product_type' => $postData['product_type'] ?? null,
             'children_ids' => $postData['children_ids'] ?? null,
             'raw_data' => $postData,
