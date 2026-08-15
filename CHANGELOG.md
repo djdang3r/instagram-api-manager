@@ -401,3 +401,20 @@ Release de integración: combina los 46 commits del colaborador (`vientoquesurca
 [1.0.77]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.75...v1.0.77
 [1.0.75]: https://github.com/ScriptDevelop/instagram-api-manager/compare/v1.0.74...v1.0.75
 [1.0.74]: https://github.com/ScriptDevelop/instagram-api-manager/releases/tag/v1.0.74
+
+---
+
+## [1.1.17] - 2026-08-15
+
+Feature release: gestion completa de hashtags y menciones.
+
+### Added
+- **`InstagramAccountService::getHashtagTopMedia()`**: devuelve los media mas populares de un hashtag (`{hashtag_id}/top_media` con `user_id` requerido).
+- **`InstagramAccountService::followHashtag()`**: sigue un hashtag (`POST {ig_user_id}/follows` con `hashtag_id`).
+- **`InstagramAccountService::unfollowHashtag()`**: deja de seguir un hashtag (`DELETE {ig_user_id}/follows` con `hashtag_id`).
+
+### Fixed
+- **`InstagramAccountService::getHashtagMedia()`**: ahora envia el parametro obligatorio `user_id` y amplia los campos (`like_count`, `comments_count`, `timestamp`) al consultar `{hashtag_id}/recent_media`.
+- **`InstagramCommentService::getMentionedComments()`**: devuelve la lista completa de comentarios donde el usuario fue mencionado (`fields=mentioned_comment`) en lugar de solo el primer item.
+- **`InstagramCommentService::getMentionedMedia()`**: devuelve la lista completa de media donde el usuario fue mencionado (`fields=mentioned_media`).
+- **`InstagramCommentService::replyToMention()`**: acepta el parametro opcional `media_id` (requerido por la API segun la documentacion oficial al responder a una mencion en caption).

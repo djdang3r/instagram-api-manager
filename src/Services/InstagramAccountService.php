@@ -519,12 +519,57 @@ class InstagramAccountService
         }
     }
 
-    public function getHashtagMedia(string $hashtagId, ?string $accessToken = null): ?array
+    public function getHashtagMedia(string $hashtagId, ?string $igUserId = null, ?string $accessToken = null): ?array
     {
+        $igUserId = $igUserId ?? $this->currentAccount?->instagram_business_account_id;
         $accessToken = $accessToken ?? $this->currentAccount?->access_token;
         try {
             return $this->apiClient->request('GET', "{$hashtagId}/recent_media", [], null, [
-                'fields' => 'id,media_type,media_url,caption,permalink',
+                'user_id' => $igUserId,
+                'fields' => 'id,media_type,media_url,permalink,caption,like_count,comments_count,timestamp',
+                'access_token' => $accessToken,
+            ]);
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    public function getHashtagTopMedia(string $hashtagId, ?string $igUserId = null, ?string $accessToken = null): ?array
+    {
+        $igUserId = $igUserId ?? $this->currentAccount?->instagram_business_account_id;
+        $accessToken = $accessToken ?? $this->currentAccount?->access_token;
+        try {
+            return $this->apiClient->request('GET', "{$hashtagId}/top_media", [], null, [
+                'user_id' => $igUserId,
+                'fields' => 'id,media_type,media_url,permalink,caption,like_count,comments_count,timestamp',
+                'access_token' => $accessToken,
+            ]);
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    public function followHashtag(string $hashtagId, ?string $igUserId = null, ?string $accessToken = null): ?array
+    {
+        $igUserId = $igUserId ?? $this->currentAccount?->instagram_business_account_id;
+        $accessToken = $accessToken ?? $this->currentAccount?->access_token;
+        try {
+            return $this->apiClient->request('POST', "{$igUserId}/follows", [], [], [
+                'hashtag_id' => $hashtagId,
+                'access_token' => $accessToken,
+            ]);
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    public function unfollowHashtag(string $hashtagId, ?string $igUserId = null, ?string $accessToken = null): ?array
+    {
+        $igUserId = $igUserId ?? $this->currentAccount?->instagram_business_account_id;
+        $accessToken = $accessToken ?? $this->currentAccount?->access_token;
+        try {
+            return $this->apiClient->request('DELETE', "{$igUserId}/follows", [], [], [
+                'hashtag_id' => $hashtagId,
                 'access_token' => $accessToken,
             ]);
         } catch (Exception $e) {

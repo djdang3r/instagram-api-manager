@@ -330,19 +330,11 @@ class InstagramCommentService
         $this->validateToken();
         try {
             $response = $this->apiClient->request('GET', $igUserId, [], null, [
-                'fields' => 'mentioned_comment.comments_count,mentioned_comment.media_id,mentioned_comment.id,mentioned_comment.text,mentioned_comment.timestamp,mentioned_comment.username',
+                'fields' => 'mentioned_comment',
                 'access_token' => $this->accessToken,
             ]);
 
-            // Persistir el comentario mencionado si existe
-            if (isset($response['mentioned_comment']['id'])) {
-                $this->saveComment(
-                    $response['mentioned_comment'],
-                    $response['mentioned_comment']['media_id'] ?? ''
-                );
-            }
-
-            return $response;
+            return $response['mentioned_comment']['data'] ?? $response;
         } catch (Exception $e) {
             Log::channel('instagram')->error('Error getting mentioned comments:', ['error' => $e->getMessage()]);
             return null;
@@ -359,23 +351,29 @@ class InstagramCommentService
     {
         $this->validateToken();
         try {
-            return $this->apiClient->request('GET', $igUserId, [], null, [
-                'fields' => 'mentioned_media.media_id,mentioned_media.media_product_type',
+            $response = $this->apiClient->request('GET', $igUserId, [], null, [
+                'fields' => 'mentioned_media',
                 'access_token' => $this->accessToken,
             ]);
+
+            return $response['mentioned_media']['data'] ?? $response;
         } catch (Exception $e) {
             return null;
         }
     }
 
-    public function replyToMention(string $igUserId, string $commentId, string $message): ?array
+    public function replyToMention(string $igUserId, string $commentId, string $message, ?string $mediaId = null): ?array
     {
         $this->validateToken();
+        $data = [
+            'comment_id' => $commentId,
+            'message' => $message,
+        ];
+        if ($mediaId) {
+            $data['media_id'] = $mediaId;
+        }
         try {
-            return $this->apiClient->request('POST', "{$igUserId}/mentions", [], [
-                'comment_id' => $commentId,
-                'message' => $message,
-            ], ['access_token' => $this->accessToken]);
+            return $this->apiClient->request('POST', "{$igUserId}/mentions", [], $data, ['access_token' => $this->accessToken]);
         } catch (Exception $e) {
             return null;
         }
