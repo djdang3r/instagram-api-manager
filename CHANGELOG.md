@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.1.13] - 2026-08-15
+
+Patch release: corrige las metricas de account insights de Instagram.
+
+### Fixed
+- **`InstagramInsightsService::syncAccountInsights()` usaba metricas invalidas**: pasaba `followers_count`, `following_count`, `media_count`, `messages_sent`, etc. como `metric` a la API, pero la Instagram Graph API solo acepta `reach, views, profile_views, follower_count, website_clicks, online_followers, accounts_engaged, total_interactions, likes, comments, shares, saves, replies`. La API rechazaba con `metric[1] must be one of the following values...` (code 100). Ahora usa las metricas validas y mapea los nombres de la API (`follower_count` -> `followers_count`, `comments` -> `total_comments`, etc.) a los campos de `instagram_account_stats`; las demas quedan en `raw_data`.
+
+---
+
 ## [1.1.12] - 2026-08-14
 
 Patch release: agrega consulta directa de conversaciones de Instagram.

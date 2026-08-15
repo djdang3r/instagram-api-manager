@@ -61,11 +61,13 @@ class InstagramInsightsService
 
     public function syncAccountInsights(string $igUserId, ?string $period = 'day', ?string $date = null): ?array
     {
+        // Metricas validas de la Instagram Graph API (v25). Los nombres de la API
+        // se mapean despues a los campos de la tabla instagram_account_stats.
         $metrics = match ($period) {
-            'day' => ['followers_count', 'following_count', 'media_count', 'messages_sent', 'messages_received', 'total_comments', 'total_followers_gained', 'total_followers_lost'],
-            'week' => ['followers_count', 'following_count', 'media_count'],
-            'month' => ['followers_count', 'media_count'],
-            default => ['followers_count', 'media_count'],
+            'day' => ['reach', 'views', 'profile_views', 'follower_count', 'website_clicks', 'online_followers', 'accounts_engaged', 'total_interactions', 'likes', 'comments', 'shares', 'saves', 'replies'],
+            'week' => ['reach', 'profile_views', 'follower_count', 'accounts_engaged', 'total_interactions', 'likes', 'comments'],
+            'month' => ['reach', 'follower_count', 'accounts_engaged', 'total_interactions', 'likes', 'comments'],
+            default => ['reach', 'follower_count', 'accounts_engaged'],
         };
 
         $response = $this->getAccountInsights($igUserId, $metrics, $period);
@@ -77,12 +79,29 @@ class InstagramInsightsService
         $date = $date ?? Carbon::now()->toDateString();
         $statsData = [];
 
+        // Mapear metricas de la API a los campos de la tabla.
         foreach ($response['data'] ?? [] as $metric) {
+            $name = $metric['name'] ?? null;
             $values = $metric['values'] ?? [];
-            if (!empty($values)) {
-                $latestValue = $values[count($values) - 1]['value'] ?? 0;
-                $statsData[$metric['name']] = $latestValue;
+            if (!$name || empty($values)) {
+                continue;
             }
+            $latestValue = $values[count($values) - 1]['value'] ?? 0;
+
+            $field = match ($name) {
+                'follower_count' => 'followers_count',
+                'following_count' => 'following_count',
+                'media_count' => 'media_count',
+                'reach' => 'total_reach',
+                'views' => 'total_views',
+                'comments' => 'total_comments',
+                default => null,
+            };
+
+            if ($field) {
+                $statsData[$field] = (int) $latestValue;
+            }
+            $statsData['raw_' . $name] = (int) $latestValue;
         }
 
         if (!empty($statsData)) {
