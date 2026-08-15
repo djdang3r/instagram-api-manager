@@ -322,30 +322,27 @@ class InstagramCommentService
     /**
      * Obtiene el detalle de un comentario donde el usuario fue mencionado.
      *
-     * Segun la documentacion oficial de Meta, el webhook de menciones solo
-     * envia los IDs (comment_id + media_id). Para obtener el texto y el autor
-     * hay que consultar el detalle con field expansion:
-     * GET /{ig-media-id}?fields=mentioned_comment.comment_id({comment-id}){text,username,timestamp}
+     * El webhook de menciones solo envia los IDs (comment_id + media_id).
+     * El detalle se obtiene con el endpoint normal de comentario, que
+     * funciona tanto con Instagram Login (graph.instagram.com) como con
+     * Facebook Login (graph.facebook.com).
      *
      * @param string $igUserId ID de usuario de Instagram Business (entry.id del webhook)
      * @param string $commentId ID del comentario donde fue mencionado
-     * @param string|null $mediaId ID del media comentado
+     * @param string|null $mediaId ID del media comentado (para el host correcto)
      * @return array|null Detalle del comentario mencionado
      */
     public function getMentionedComment(string $igUserId, string $commentId, ?string $mediaId = null): ?array
     {
         $this->validateToken();
 
-        $fields = "mentioned_comment.comment_id({$commentId}){id,text,timestamp,username,like_count}";
-        $endpoint = $mediaId ?: $igUserId;
-
         try {
-            $response = $this->apiClient->request('GET', $endpoint, [], null, [
-                'fields' => $fields,
+            $response = $this->apiClient->request('GET', $commentId, [], null, [
+                'fields' => 'id,text,timestamp,username,like_count,media_id',
                 'access_token' => $this->accessToken,
             ]);
 
-            return $response['mentioned_comment'] ?? $response;
+            return $response;
         } catch (Exception $e) {
             Log::channel('instagram')->error('Error getting mentioned comment:', [
                 'comment_id' => $commentId,
@@ -359,7 +356,8 @@ class InstagramCommentService
     /**
      * Obtiene el detalle de un media donde el usuario fue mencionado.
      *
-     * GET /{ig-user-id}?fields=mentioned_media.media_id({media-id}){caption,media_url,username,timestamp,media_type}
+     * Se usa el endpoint normal del media, que funciona con ambos flujos
+     * de login (el campo mentioned_media solo existe con Facebook Login).
      *
      * @param string $igUserId ID de usuario de Instagram Business (entry.id del webhook)
      * @param string $mediaId ID del media donde fue mencionado
@@ -369,15 +367,13 @@ class InstagramCommentService
     {
         $this->validateToken();
 
-        $fields = "mentioned_media.media_id({$mediaId}){id,caption,media_url,media_type,username,timestamp,permalink,like_count,comments_count}";
-
         try {
-            $response = $this->apiClient->request('GET', $igUserId, [], null, [
-                'fields' => $fields,
+            $response = $this->apiClient->request('GET', $mediaId, [], null, [
+                'fields' => 'id,caption,media_url,media_type,username,timestamp,permalink,like_count,comments_count',
                 'access_token' => $this->accessToken,
             ]);
 
-            return $response['mentioned_media'] ?? $response;
+            return $response;
         } catch (Exception $e) {
             Log::channel('instagram')->error('Error getting mentioned media:', [
                 'media_id' => $mediaId,
