@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.1.15] - 2026-08-15
+
+Patch release: corrige el sync de posts con captions y URLs largas.
+
+### Fixed
+- **`instagram_posts` fallaba al guardar posts con caption largo**: la columna `caption` era `varchar(255)` y los captions de Instagram pueden superar ese limite, causando `value too long for type character varying(255)` y el post no se guardaba (syncPosts devolvia `[]`). Nueva migracion `2026_08_15_000001_change_caption_to_text_in_instagram_posts_table.php` convierte `caption`, `media_url`, `permalink` y `thumbnail_url` a `text` (las URLs de CDN tambien superan 255 chars).
+
+---
+
 ## [1.1.14] - 2026-08-15
 
 Patch release: corrige el sync de posts que fallaba cuando la API no devuelve `status`.
