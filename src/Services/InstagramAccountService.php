@@ -3,6 +3,7 @@
 namespace ScriptDevelop\InstagramApiManager\Services;
 
 use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
+use ScriptDevelop\InstagramApiManager\Support\GraphBaseUrlResolver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -55,6 +56,9 @@ class InstagramAccountService
         }
 
         try {
+            // Ajustar host segun tipo de token (IG vs Facebook/Page).
+            $this->apiClient->withBaseUrl(GraphBaseUrlResolver::forToken($accessToken));
+
             return $this->apiClient->request(
                 'GET',
                 'me',

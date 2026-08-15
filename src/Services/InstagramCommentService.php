@@ -3,6 +3,7 @@
 namespace ScriptDevelop\InstagramApiManager\Services;
 
 use ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient;
+use ScriptDevelop\InstagramApiManager\Support\GraphBaseUrlResolver;
 use ScriptDevelop\InstagramApiManager\Support\InstagramModelResolver;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -24,6 +25,8 @@ class InstagramCommentService
     public function withAccessToken(string $token): self
     {
         $this->accessToken = $token;
+        $this->apiClient->withBaseUrl(GraphBaseUrlResolver::forToken($token));
+
         return $this;
     }
 

@@ -7,6 +7,18 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.1.16] - 2026-08-15
+
+Feature release: soporta cuentas conectadas por Facebook Login (token de pagina) para operar contenido de Instagram.
+
+### Added
+- **`GraphBaseUrlResolver`**: detecta el tipo de token y resuelve el host correcto de la Graph API:
+  - Tokens de Instagram (`IG...`) -> `graph.instagram.com` (Instagram Login)
+  - Tokens de Facebook/Page (`EAA...`) -> `graph.facebook.com` (Facebook Login)
+  - Los servicios de contenido (publicacion), comentarios, insights y cuentas ajustan su host en `withAccessToken()`/`getProfileInfo()` segun el token. Esto permite que una cuenta conectada por Facebook Login (token de pagina) tambien pueda sincronizar posts, comentarios e insights de Instagram, que en ese flujo van por `graph.facebook.com` (documentacion oficial de Meta: Instagram API with Facebook Login).
+
+---
+
 ## [1.1.15] - 2026-08-15
 
 Patch release: corrige el sync de posts con captions y URLs largas.
