@@ -1467,4 +1467,39 @@ class InstagramMessageService
             return null;
         }
     }
+
+    /**
+     * Consulta las conversaciones de Instagram directamente desde la API
+     * (sin persistir en BD). Devuelve la lista con los mensajes de cada una.
+     *
+     * @param  string  $igUserId  ID del Instagram Business account.
+     * @param  int  $limit  Maximo de conversaciones a traer.
+     */
+    public function getConversations(string $igUserId, int $limit = 100): ?array
+    {
+        try {
+            $client = app(\ScriptDevelop\InstagramApiManager\InstagramApi\ApiClient::class)
+                ->withBaseUrl(config('instagram.api.graph_base_url', 'https://graph.instagram.com'))
+                ->withVersion(config('instagram.api.version'));
+
+            $response = $client->request(
+                'GET',
+                "{$igUserId}/conversations",
+                [],
+                null,
+                [
+                    'platform' => 'instagram',
+                    'fields' => 'id,updated_time,unread_count,participants{id,username},messages{id,created_time,from,to,message,media_type,media_url,sticker}',
+                    'access_token' => $this->accessToken,
+                    'limit' => min($limit, 100),
+                ]
+            );
+
+            return $response['data'] ?? [];
+        } catch (Exception $e) {
+            Log::channel('instagram')->error('Error getting conversations:', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
 }

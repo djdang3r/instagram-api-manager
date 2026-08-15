@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ---
 
+## [1.1.12] - 2026-08-14
+
+Patch release: agrega consulta directa de conversaciones de Instagram.
+
+### Added
+- **`InstagramMessageService::getConversations()`**: consulta las conversaciones de Instagram directamente desde la API (`GET /{ig-user-id}/conversations` con `platform=instagram`), sin persistir en BD. Devuelve la lista con participantes y mensajes (`id, updated_time, unread_count, participants, messages`). Util para dashboards y sincronizacion on-demand.
+
+---
+
 ## [1.1.11] - 2026-08-13
 
 Patch release: agrega el permiso `pages_messaging` al login de Facebook.
