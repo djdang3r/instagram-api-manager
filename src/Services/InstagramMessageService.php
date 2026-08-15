@@ -249,6 +249,7 @@ class InstagramMessageService
 
             InstagramModelResolver::instagram_profile()->create([
                 'instagram_business_account_id' => $businessAccount->instagram_business_account_id,
+                'profile_name'                 => $businessAccount->name ?? 'Instagram Business',
                 'user_id'                      => $igId,
                 'instagram_scoped_id'          => $igId,
             ]);

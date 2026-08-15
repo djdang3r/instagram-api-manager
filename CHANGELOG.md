@@ -418,3 +418,12 @@ Feature release: gestion completa de hashtags y menciones.
 - **`InstagramCommentService::getMentionedComments()`**: devuelve la lista completa de comentarios donde el usuario fue mencionado (`fields=mentioned_comment`) en lugar de solo el primer item.
 - **`InstagramCommentService::getMentionedMedia()`**: devuelve la lista completa de media donde el usuario fue mencionado (`fields=mentioned_media`).
 - **`InstagramCommentService::replyToMention()`**: acepta el parametro opcional `media_id` (requerido por la API segun la documentacion oficial al responder a una mencion en caption).
+
+---
+
+## [1.1.18] - 2026-08-15
+
+Patch release: corrige el procesamiento de webhooks de Instagram.
+
+### Fixed
+- **Webhook fallaba con `Not null violation` en `instagram_profiles`**: al procesar mensajes entrantes, `InstagramMessageService::ensureBusinessProfile()` creaba el perfil de negocio sin `profile_name` (columna `NOT NULL`), causando `SQLSTATE[23502]` y abortando TODO el procesamiento del webhook (mensajes, comentarios y menciones). Ahora usa el nombre de la cuenta de negocio como fallback.
