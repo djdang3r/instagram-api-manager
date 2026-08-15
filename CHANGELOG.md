@@ -427,3 +427,13 @@ Patch release: corrige el procesamiento de webhooks de Instagram.
 
 ### Fixed
 - **Webhook fallaba con `Not null violation` en `instagram_profiles`**: al procesar mensajes entrantes, `InstagramMessageService::ensureBusinessProfile()` creaba el perfil de negocio sin `profile_name` (columna `NOT NULL`), causando `SQLSTATE[23502]` y abortando TODO el procesamiento del webhook (mensajes, comentarios y menciones). Ahora usa el nombre de la cuenta de negocio como fallback.
+
+---
+
+## [1.1.19] - 2026-08-15
+
+Patch release: corrige el guardado de comentarios y menciones del webhook.
+
+### Fixed
+- **`saveCommentWebhook` / `saveMentionWebhook` fallaban con `Not null violation`**: las columnas `instagram_media_id`, `instagram_user_id`, `username` y `text` son `NOT NULL` y recibian `null` cuando el payload no las incluia (ej. una mencion en un comentario). Ahora usan fallback a string vacio.
+- **Resolucion de cuenta de negocio**: cuando el media del payload no existe en BD, se usa el `entry.id` del webhook (que es el IG Business Account ID) como fallback, evitando el error de FK.
