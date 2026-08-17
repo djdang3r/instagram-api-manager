@@ -169,4 +169,76 @@ class MessengerProfileService
             return false;
         }
     }
+
+    // ── Whitelisted Domains ───────────────────────────────────────
+
+    public function setWhitelistedDomains(array $domains): bool
+    {
+        return $this->request('POST', ['whitelisted_domains' => $domains]) !== null;
+    }
+
+    public function getWhitelistedDomains(): ?array
+    {
+        $response = $this->request('GET', [], ['fields' => 'whitelisted_domains']);
+        return $response['data'][0]['whitelisted_domains'] ?? null;
+    }
+
+    public function deleteWhitelistedDomains(): bool
+    {
+        return $this->request('DELETE', ['fields' => 'whitelisted_domains']) !== null;
+    }
+
+    // ── Account Linking URL ───────────────────────────────────────
+
+    public function setAccountLinkingUrl(string $url): bool
+    {
+        return $this->request('POST', ['account_linking_url' => $url]) !== null;
+    }
+
+    public function getAccountLinkingUrl(): ?string
+    {
+        $response = $this->request('GET', [], ['fields' => 'account_linking_url']);
+        return $response['data'][0]['account_linking_url'] ?? null;
+    }
+
+    public function deleteAccountLinkingUrl(): bool
+    {
+        return $this->request('DELETE', ['fields' => 'account_linking_url']) !== null;
+    }
+
+    // ── Home URL ──────────────────────────────────────────────────
+
+    public function setHomeUrl(array $homeUrl): bool
+    {
+        return $this->request('POST', ['home_url' => $homeUrl]) !== null;
+    }
+
+    public function getHomeUrl(): ?array
+    {
+        $response = $this->request('GET', [], ['fields' => 'home_url']);
+        return $response['data'][0]['home_url'] ?? null;
+    }
+
+    public function deleteHomeUrl(): bool
+    {
+        return $this->request('DELETE', ['fields' => 'home_url']) !== null;
+    }
+
+    // ── Target Audience ───────────────────────────────────────────
+
+    public function setTargetAudience(array $audience): bool
+    {
+        return $this->request('POST', ['target_audience' => $audience]) !== null;
+    }
+
+    public function getTargetAudience(): ?array
+    {
+        $response = $this->request('GET', [], ['fields' => 'target_audience']);
+        return $response['data'][0]['target_audience'] ?? null;
+    }
+
+    public function deleteTargetAudience(): bool
+    {
+        return $this->request('DELETE', ['fields' => 'target_audience']) !== null;
+    }
 }

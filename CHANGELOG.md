@@ -437,3 +437,15 @@ Patch release: corrige el guardado de comentarios y menciones del webhook.
 ### Fixed
 - **`saveCommentWebhook` / `saveMentionWebhook` fallaban con `Not null violation`**: las columnas `instagram_media_id`, `instagram_user_id`, `username` y `text` son `NOT NULL` y recibian `null` cuando el payload no las incluia (ej. una mencion en un comentario). Ahora usan fallback a string vacio.
 - **Resolucion de cuenta de negocio**: cuando el media del payload no existe en BD, se usa el `entry.id` del webhook (que es el IG Business Account ID) como fallback, evitando el error de FK.
+
+---
+
+## [1.1.23] - 2026-08-17
+
+Feature release: perfil de Messenger completo (MessengerProfileService).
+
+### Added
+- **`setWhitelistedDomains` / `getWhitelistedDomains` / `deleteWhitelistedDomains`**: dominios permitidos para webviews de Messenger (`whitelisted_domains` en `me/messenger_profile`).
+- **`setAccountLinkingUrl` / `getAccountLinkingUrl` / `deleteAccountLinkingUrl`**: URL de vinculacion de cuentas (`account_linking_url`).
+- **`setHomeUrl` / `getHomeUrl` / `deleteHomeUrl`**: configuracion de la pestaña Home (`home_url` con url, webview_height_ratio e in_test).
+- **`setTargetAudience` / `getTargetAudience` / `deleteTargetAudience`**: audiencia objetivo (`target_audience` con audience_type, countries, min_age, max_age, genders).
