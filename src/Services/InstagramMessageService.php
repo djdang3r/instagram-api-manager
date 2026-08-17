@@ -17,19 +17,27 @@ class InstagramMessageService
     protected ApiClient $apiClient;
     protected ?string $accessToken = null;
     protected ?string $instagramUserId = null;
+    protected ?string $messagingBaseUrl = null;
     protected InstagramAccountService $accountService; // <-- DECLARACIÓN DE LA PROPIEDAD
 
     public function __construct(?InstagramAccountService $accountService = null)
     {
-        // Cliente principal para mensajería (Graph API de Facebook).
-        // La mensajeria DM de Instagram (/{ig-id}/messages) va por
-        // graph.facebook.com (Messenger Platform), a diferencia de los
-        // servicios de contenido que usan graph.instagram.com.
+        // Cliente principal para mensajeria.
+        //
+        // Hay DOS APIs oficiales de mensajeria de Instagram segun el flow de login:
+        //   - Facebook Login for Business:  graph.facebook.com/{ig-id}/messages
+        //     (page token EAA..., scope instagram_manage_messages)
+        //   - Instagram Login (Business Login for Instagram):
+        //     graph.instagram.com/v{ver}/{ig-id}/messages
+        //     (user token IGQWR..., scope instagram_business_manage_messages)
+        //
+        // Por defecto se usa graph.facebook.com (compatibilidad con el flow
+        // historico). Si el caller setea withMessagingBaseUrl() (ej. un token
+        // IGQWR de Instagram Login) se sobrescribe a graph.instagram.com.
         $this->apiClient = app(ApiClient::class)
-            ->withBaseUrl(env('INSTAGRAM_MESSAGING_BASE_URL', 'https://graph.facebook.com'))
+            ->withBaseUrl($this->messagingBaseUrl ?? env('INSTAGRAM_MESSAGING_BASE_URL', 'https://graph.facebook.com'))
             ->withVersion(config('instagram.api.version'));
 
-        // Inyectamos el servicio de cuentas para refrescar tokens
         $this->accountService = $accountService ?? app(InstagramAccountService::class);
     }
 
@@ -45,6 +53,22 @@ class InstagramMessageService
     public function withInstagramUserId(string $instagramUserId): self
     {
         $this->instagramUserId = $instagramUserId;
+        return $this;
+    }
+
+    /**
+     * Override del base URL de mensajeria para esta instancia. Util cuando el
+     * caller detecta que el token es Instagram-scoped (IGQWR...) y debe
+     * enviar por graph.instagram.com en vez de graph.facebook.com.
+     * Debe llamarse ANTES de la primera operacion de envio (idealmente
+     * justo despues de resolver el servicio del container).
+     */
+    public function withMessagingBaseUrl(string $baseUrl): self
+    {
+        $this->messagingBaseUrl = $baseUrl;
+        if (isset($this->apiClient)) {
+            $this->apiClient->withBaseUrl($baseUrl);
+        }
         return $this;
     }
 
